@@ -4,7 +4,7 @@ import { drizzle as drizzleServerless } from 'drizzle-orm/neon-serverless';
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import ws from 'ws';
-import { getConnectionConfig, configureNeonForEnvironment, isTestEnvironment } from './config';
+import { getConnectionConfig, configureNeonForEnvironment, isTestEnvironment, isDirectConnection } from './config';
 import * as schema from '../schema/index';
 import * as relations from '../relations/index';
 
@@ -37,12 +37,12 @@ export function createDb() {
   if (!db) {
     const { connectionString, isTest } = getConnectionConfig();
 
-    if (isTest) {
-      // Use postgres-js directly for tests (no Neon proxy needed)
+    if (isTest || isDirectConnection()) {
+      // Use postgres-js for tests and direct connections (Docker, self-hosted)
       postgresClient = postgres(connectionString);
       db = drizzlePostgres(postgresClient, { schema: fullSchema });
     } else {
-      // Use Neon serverless for production/development
+      // Use Neon serverless for Vercel/Neon deployments
       const poolInstance = createPool();
       db = drizzleServerless(poolInstance, { schema: fullSchema });
     }
@@ -51,8 +51,15 @@ export function createDb() {
 }
 
 export function createNeonHttp() {
-  configureNeonForEnvironment();
   const { connectionString } = getConnectionConfig();
+
+  if (isDirectConnection()) {
+    // Use postgres-js for direct connections
+    const client = postgres(connectionString);
+    return drizzlePostgres(client, { schema: fullSchema });
+  }
+
+  configureNeonForEnvironment();
   const sql = neon(connectionString);
   return drizzleHttp({ client: sql, schema: fullSchema });
 }

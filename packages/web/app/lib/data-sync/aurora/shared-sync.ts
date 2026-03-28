@@ -1,12 +1,12 @@
-import { getPool } from '@/app/lib/db/db';
+import { getDb } from '@/app/lib/db/db';
 import { SyncOptions, AuroraBoardName } from '../../api-wrappers/aurora/types';
 import { sharedSync } from '../../api-wrappers/aurora/sharedSync';
 import { sql, eq, inArray } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { NeonDatabase } from 'drizzle-orm/neon-serverless';
 import { Attempt, BetaLink, Climb, ClimbStats, SharedSync, SyncPutFields } from '../../api-wrappers/sync-api-types';
 import { UNIFIED_TABLES } from '../../db/queries/util/table-select';
 import { convertLitUpHoldsStringToMap } from '@/app/components/board-renderer/util';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyDb = any;
 
 export type NewClimbInfo = {
   uuid: string;
@@ -39,7 +39,7 @@ export const SHARED_SYNC_TABLES: string[] = [
 // Tables we actually want to process and store
 const TABLES_TO_PROCESS = new Set(['climbs', 'climb_stats', 'beta_links', 'attempts', 'shared_syncs']);
 
-const upsertAttempts = (db: NeonDatabase<Record<string, never>>, board: AuroraBoardName, data: Attempt[]) =>
+const upsertAttempts = (db: AnyDb, board: AuroraBoardName, data: Attempt[]) =>
   Promise.all(
     data.map(async (item) => {
       const attemptsSchema = UNIFIED_TABLES.attempts;
@@ -63,7 +63,7 @@ const upsertAttempts = (db: NeonDatabase<Record<string, never>>, board: AuroraBo
     }),
   );
 
-async function upsertClimbStats(db: NeonDatabase<Record<string, never>>, board: AuroraBoardName, data: ClimbStats[]) {
+async function upsertClimbStats(db: AnyDb, board: AuroraBoardName, data: ClimbStats[]) {
   const climbStatsSchema = UNIFIED_TABLES.climbStats;
   const climbStatHistorySchema = UNIFIED_TABLES.climbStatsHistory;
 
@@ -116,7 +116,7 @@ async function upsertClimbStats(db: NeonDatabase<Record<string, never>>, board: 
   );
 }
 
-async function upsertBetaLinks(db: NeonDatabase<Record<string, never>>, board: AuroraBoardName, data: BetaLink[]) {
+async function upsertBetaLinks(db: AnyDb, board: AuroraBoardName, data: BetaLink[]) {
   const betaLinksSchema = UNIFIED_TABLES.betaLinks;
 
   await Promise.all(
@@ -147,7 +147,7 @@ async function upsertBetaLinks(db: NeonDatabase<Record<string, never>>, board: A
   );
 }
 
-async function upsertClimbs(db: NeonDatabase<Record<string, never>>, board: AuroraBoardName, data: Climb[]): Promise<NewClimbInfo[]> {
+async function upsertClimbs(db: AnyDb, board: AuroraBoardName, data: Climb[]): Promise<NewClimbInfo[]> {
   const climbsSchema = UNIFIED_TABLES.climbs;
   const climbHoldsSchema = UNIFIED_TABLES.climbHolds;
 
@@ -159,7 +159,7 @@ async function upsertClimbs(db: NeonDatabase<Record<string, never>>, board: Auro
     .select({ uuid: climbsSchema.uuid })
     .from(climbsSchema)
     .where(inArray(climbsSchema.uuid, uuids));
-  const existingUuids = new Set(existingRows.map((r) => r.uuid));
+  const existingUuids = new Set(existingRows.map((r: { uuid: string }) => r.uuid));
 
   await Promise.all(
     data.map(async (item: Climb) => {
@@ -242,7 +242,7 @@ async function upsertClimbs(db: NeonDatabase<Record<string, never>>, board: Auro
 }
 
 async function upsertSharedTableData(
-  db: NeonDatabase<Record<string, never>>,
+  db: AnyDb,
   boardName: AuroraBoardName,
   tableName: string,
   data: SyncPutFields[],
@@ -269,7 +269,7 @@ async function upsertSharedTableData(
   }
 }
 async function updateSharedSyncs(
-  tx: NeonDatabase<Record<string, never>>,
+  tx: AnyDb,
   boardName: AuroraBoardName,
   sharedSyncs: SharedSync[],
 ) {
@@ -294,23 +294,17 @@ async function updateSharedSyncs(
 
 export async function getLastSharedSyncTimes(boardName: AuroraBoardName) {
   const sharedSyncsSchema = UNIFIED_TABLES.sharedSyncs;
-  const pool = getPool();
-  const client = await pool.connect();
+  const db = getDb();
 
-  try {
-    const db = drizzle(client);
-    const result = await db
-      .select({
-        table_name: sharedSyncsSchema.tableName,
-        last_synchronized_at: sharedSyncsSchema.lastSynchronizedAt,
-      })
-      .from(sharedSyncsSchema)
-      .where(eq(sharedSyncsSchema.boardType, boardName));
+  const result = await db
+    .select({
+      table_name: sharedSyncsSchema.tableName,
+      last_synchronized_at: sharedSyncsSchema.lastSynchronizedAt,
+    })
+    .from(sharedSyncsSchema)
+    .where(eq(sharedSyncsSchema.boardType, boardName));
 
-    return result;
-  } finally {
-    client.release();
-  }
+  return result;
 }
 
 export async function syncSharedData(
@@ -350,14 +344,8 @@ export async function syncSharedData(
     console.log('syncResults structure:', JSON.stringify(syncResults, null, 2).substring(0, 1000));
 
     // Process this batch in a transaction
-    const pool = getPool();
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      // Create a drizzle instance for this transaction
-      const tx = drizzle(client);
-
+    const db = getDb();
+    await db.transaction(async (tx) => {
       // Process each table - data is directly under table names
       for (const tableName of SHARED_SYNC_TABLES) {
         if (syncResults[tableName] && Array.isArray(syncResults[tableName])) {
@@ -366,7 +354,7 @@ export async function syncSharedData(
           // Only process tables we actually care about
           if (TABLES_TO_PROCESS.has(tableName)) {
             console.log(`Syncing ${tableName}: ${data.length} records`);
-            const newClimbs = await upsertSharedTableData(tx, board, tableName, data);
+            const newClimbs = await upsertSharedTableData(tx as unknown as AnyDb, board, tableName, data);
             allNewClimbs.push(...newClimbs);
 
             // Accumulate results
@@ -389,7 +377,7 @@ export async function syncSharedData(
       // Update shared_syncs table with new sync times from this batch
       if (syncResults['shared_syncs']) {
         console.log('Updating shared_syncs with data:', syncResults['shared_syncs']);
-        await updateSharedSyncs(tx, board, syncResults['shared_syncs']);
+        await updateSharedSyncs(tx as unknown as AnyDb, board, syncResults['shared_syncs']);
 
         // Update sync params for next iteration with new timestamps
         const newSharedSyncs = syncResults['shared_syncs'].map(
@@ -410,15 +398,7 @@ export async function syncSharedData(
       } else {
         console.log('No shared_syncs data in sync results');
       }
-
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('Failed to commit sync database transaction:', error);
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
 
     // Check if sync is complete - default to true if _complete is not present (matches Android app behavior)
     isComplete = syncResults._complete !== false;

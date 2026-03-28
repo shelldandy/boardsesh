@@ -1,6 +1,7 @@
 import { eq, and, sql, isNull } from 'drizzle-orm';
 import type { ConnectionContext, ProposalStatus } from '@boardsesh/shared-schema';
 import { db } from '../../../../db/client';
+import { extractRows } from '../../../../db/utils';
 import * as dbSchema from '@boardsesh/db/schema';
 import { requireAuthenticated, applyRateLimit, validateInput } from '../../shared/helpers';
 import {
@@ -78,7 +79,7 @@ export const socialProposalMutations = {
               AND cs.board_type = ${boardType}
             LIMIT 1
           `);
-          const rows = (result as unknown as { rows: Array<{ grade_name: string | null }> }).rows;
+          const rows = extractRows<{ grade_name: string | null }>(result);
           currentValue = rows[0]?.grade_name || 'Unknown';
         } catch {
           currentValue = 'Unknown';

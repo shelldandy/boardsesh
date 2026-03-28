@@ -1,6 +1,7 @@
 import { eq, asc, and, sql } from 'drizzle-orm';
 import type { Grade, Angle } from '@boardsesh/shared-schema';
 import { db } from '../../../db/client';
+import { extractRows } from '../../../db/utils';
 import * as dbSchema from '@boardsesh/db/schema';
 import { validateInput } from '../shared/helpers';
 import { BoardNameSchema } from '../../../validation/schemas';
@@ -50,8 +51,7 @@ export const boardQueries = {
       ORDER BY pa.angle ASC
     `);
 
-    // Handle both possible return types from execute
-    const rows = Array.isArray(result) ? result : (result as { rows: { angle: number }[] }).rows;
+    const rows = extractRows<{ angle: number }>(result);
     return rows.map(r => ({ angle: r.angle }));
   },
 };

@@ -38,6 +38,22 @@ export function getConnectionConfig(): ConnectionConfig {
   return { connectionString, isLocal, isTest };
 }
 
+/**
+ * Returns true when DATABASE_URL points to a direct PostgreSQL connection
+ * (not Neon serverless and not the local Neon proxy).
+ * Used to decide whether to use postgres-js (TCP) or @neondatabase/serverless.
+ */
+export function isDirectConnection(): boolean {
+  const { connectionString } = getConnectionConfig();
+  const hostname = new URL(connectionString).hostname;
+  // Neon hosts: *.neon.tech
+  // Local Neon proxy: db.localtest.me
+  // Everything else (localhost, 127.0.0.1, Docker service names, custom hosts) = direct
+  if (hostname === 'db.localtest.me') return false;
+  if (hostname.endsWith('.neon.tech')) return false;
+  return true;
+}
+
 export function configureNeonForEnvironment(): void {
   const { connectionString } = getConnectionConfig();
   const connectionStringUrl = new URL(connectionString);

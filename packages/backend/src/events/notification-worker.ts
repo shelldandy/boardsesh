@@ -2,6 +2,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import type { SocialEvent } from '@boardsesh/shared-schema';
 import type { NotificationType } from '@boardsesh/db/schema';
 import { db } from '../db/client';
+import { extractRows } from '../db/utils';
 import * as dbSchema from '@boardsesh/db/schema';
 import { pubsub } from '../pubsub/index';
 import type { EventBroker } from './event-broker';
@@ -352,7 +353,7 @@ export class NotificationWorker {
         AND created_at > NOW() - make_interval(mins => ${intervalMinutes})
       LIMIT 1
     `);
-    const rows = (result as unknown as { rows: unknown[] }).rows;
+    const rows = extractRows<unknown>(result);
     return rows.length > 0;
   }
 

@@ -1,6 +1,9 @@
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { migrate } from 'drizzle-orm/neon-serverless/migrator';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
+import { migrate as migrateNeon } from 'drizzle-orm/neon-serverless/migrator';
+import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
+import { migrate as migratePostgres } from 'drizzle-orm/postgres-js/migrator';
 import { Pool, neonConfig } from '@neondatabase/serverless';
+import postgres from 'postgres';
 import ws from 'ws';
 import { config } from 'dotenv';
 import path from 'path';
@@ -32,6 +35,17 @@ function configureNeonForLocal(connectionString: string): void {
   }
 }
 
+/**
+ * Check if the connection string points to a direct PostgreSQL connection
+ * (not Neon serverless, not local Neon proxy).
+ */
+function isDirectConnection(connectionString: string): boolean {
+  const hostname = new URL(connectionString).hostname;
+  if (hostname === 'db.localtest.me') return false;
+  if (hostname.endsWith('.neon.tech')) return false;
+  return true;
+}
+
 async function runMigrations() {
   // Check for DATABASE_URL first, then POSTGRES_URL (Vercel Neon integration)
   const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
@@ -60,34 +74,36 @@ async function runMigrations() {
   const dbHost = databaseUrl.split('@')[1]?.split('/')[0] || 'unknown';
   console.log(`🔄 Running migrations on: ${dbHost}`);
 
+  const migrationsFolder = path.resolve(__dirname, '../drizzle');
+  const journalPath = path.join(migrationsFolder, 'meta', '_journal.json');
+  const journal = JSON.parse(fs.readFileSync(journalPath, 'utf-8'));
+  console.log(`📋 Found ${journal.entries.length} migrations in journal`);
+
+  const queryLogger = {
+    logQuery: (query: string) => {
+      const preview = query.slice(0, 200).replace(/\s+/g, ' ').trim();
+      const timestamp = new Date().toISOString().split('T')[1].slice(0, 8);
+      console.log(`[${timestamp}] ${preview}${query.length > 200 ? '...' : ''}`);
+    },
+  };
+
   try {
-    // Configure Neon for local proxy if using local database
-    configureNeonForLocal(databaseUrl);
-
-    const pool = new Pool({ connectionString: databaseUrl });
-
-    // Add query logging for visibility in CI
-    const db = drizzle(pool, {
-      logger: {
-        logQuery: (query: string) => {
-          // Log first 200 chars of each query for progress visibility
-          const preview = query.slice(0, 200).replace(/\s+/g, ' ').trim();
-          const timestamp = new Date().toISOString().split('T')[1].slice(0, 8);
-          console.log(`[${timestamp}] ${preview}${query.length > 200 ? '...' : ''}`);
-        },
-      },
-    });
-
-    // List pending migrations
-    const migrationsFolder = path.resolve(__dirname, '../drizzle');
-    const journalPath = path.join(migrationsFolder, 'meta', '_journal.json');
-    const journal = JSON.parse(fs.readFileSync(journalPath, 'utf-8'));
-    console.log(`📋 Found ${journal.entries.length} migrations in journal`);
-
-    await migrate(db, { migrationsFolder });
-
-    console.log('✅ Migrations completed successfully');
-    await pool.end();
+    if (isDirectConnection(databaseUrl)) {
+      // Direct TCP connection via postgres-js
+      const client = postgres(databaseUrl, { max: 1 });
+      const db = drizzlePostgres(client, { logger: queryLogger });
+      await migratePostgres(db, { migrationsFolder });
+      console.log('✅ Migrations completed successfully');
+      await client.end();
+    } else {
+      // Neon serverless connection
+      configureNeonForLocal(databaseUrl);
+      const pool = new Pool({ connectionString: databaseUrl });
+      const db = drizzleNeon(pool, { logger: queryLogger });
+      await migrateNeon(db, { migrationsFolder });
+      console.log('✅ Migrations completed successfully');
+      await pool.end();
+    }
     process.exit(0);
   } catch (error) {
     console.error('❌ Migration failed:', error);

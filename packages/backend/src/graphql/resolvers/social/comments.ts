@@ -1,6 +1,7 @@
 import { eq, and, isNull, count, sql } from 'drizzle-orm';
 import type { ConnectionContext } from '@boardsesh/shared-schema';
 import { db } from '../../../db/client';
+import { extractRows } from '../../../db/utils';
 import * as dbSchema from '@boardsesh/db/schema';
 import { requireAuthenticated, applyRateLimit, validateInput } from '../shared/helpers';
 import {
@@ -199,8 +200,7 @@ export const socialCommentQueries = {
       OFFSET ${offset}
     `);
 
-    // db.execute() returns QueryResult (neon-serverless) with .rows property
-    const rawRows = (rawResult as unknown as { rows: CommentRow[] }).rows;
+    const rawRows = extractRows<CommentRow>(rawResult);
     const comments = rawRows.map(mapCommentRow);
 
     return {
@@ -318,7 +318,7 @@ export const socialCommentQueries = {
       OFFSET ${offset}
     `);
 
-    const rawRows = (rawResult as unknown as { rows: CommentRow[] }).rows;
+    const rawRows = extractRows<CommentRow>(rawResult);
     const hasMore = rawRows.length > limit;
     const resultRows = hasMore ? rawRows.slice(0, limit) : rawRows;
     const comments = resultRows.map(mapCommentRow);

@@ -115,7 +115,8 @@ async function recalculateSessionStats(
     WHERE inferred_session_id = ${sessionId}
   `);
 
-  const rawRows = (result as unknown as { rows: unknown[] }).rows;
+  // db.execute() returns { rows: [...] } for neon-serverless or directly iterable rows for postgres-js
+  const rawRows = 'rows' in result ? (result as unknown as { rows: unknown[] }).rows : (result as unknown[]);
   const parsed = rawRows.length > 0 ? SessionStatsRowSchema.safeParse(rawRows[0]) : null;
 
   if (!parsed || !parsed.success || parsed.data.first_tick_at === null) {

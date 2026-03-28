@@ -1,0 +1,76 @@
+# Boardsesh Self-Hosted Docker Compose
+#
+# Quick start:
+#   1. Copy .env.example to .env and edit the values
+#   2. Run: docker compose up -d
+#   3. Open http://localhost:3000
+#
+# The database image includes all Kilter, Tension, and MoonBoard board data.
+# First pull may take a while (~1GB image).
+
+services:
+  postgres:
+    image: ghcr.io/marcodejongh/boardsesh-dev-db:latest
+    shm_size: '256mb'
+    command: postgres -c max_connections=300 -c log_min_messages=warning
+    volumes:
+      - db_data:/var/lib/postgresql/pgdata
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-boardsesh}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    image: ghcr.io/marcodejongh/boardsesh-backend:latest
+    ports:
+      - '${BACKEND_PORT:-8080}:8080'
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-boardsesh}
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
+      BOARDSESH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: ghcr.io/marcodejongh/boardsesh-web:latest
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-boardsesh}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      IRON_SESSION_PASSWORD: ${IRON_SESSION_PASSWORD:?Set IRON_SESSION_PASSWORD in .env}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/graphql}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+volumes:
+  db_data:

@@ -10,6 +10,7 @@ import 'dotenv/config';
 import { db } from '../db/client';
 import { sql } from 'drizzle-orm';
 import { runInferredSessionBuilderBatched } from '../jobs/inferred-session-builder';
+import { extractRows } from '../db/utils';
 
 async function main() {
   console.log('=== Backfill Inferred Sessions ===');
@@ -19,7 +20,7 @@ async function main() {
     SELECT COUNT(*) AS count
     FROM boardsesh_ticks
     WHERE session_id IS NULL AND inferred_session_id IS NULL
-  `).then((r) => (r as unknown as { rows: Array<{ count: number }> }).rows);
+  `).then((r) => extractRows<{ count: number }>(r));
 
   console.log(`Found ${unassignedCount} unassigned ticks`);
 
@@ -51,12 +52,12 @@ async function main() {
   const [voteResult] = await db.execute(sql`
     SELECT COUNT(*) AS count FROM vote_counts
     WHERE entity_type = 'session' AND entity_id LIKE 'ug:%'
-  `).then((r) => (r as unknown as { rows: Array<{ count: number }> }).rows);
+  `).then((r) => extractRows<{ count: number }>(r));
 
   const [commentResult] = await db.execute(sql`
     SELECT COUNT(*) AS count FROM comments
     WHERE entity_type = 'session' AND entity_id LIKE 'ug:%'
-  `).then((r) => (r as unknown as { rows: Array<{ count: number }> }).rows);
+  `).then((r) => extractRows<{ count: number }>(r));
 
   console.log(`Found ${voteResult.count} orphaned vote_counts, ${commentResult.count} orphaned comments`);
 
@@ -71,7 +72,7 @@ async function main() {
     SELECT COUNT(*) AS count
     FROM boardsesh_ticks
     WHERE session_id IS NULL AND inferred_session_id IS NULL
-  `).then((r) => (r as unknown as { rows: Array<{ count: number }> }).rows);
+  `).then((r) => extractRows<{ count: number }>(r));
 
   console.log(`\n=== Final state: ${remaining} unassigned ticks remaining ===`);
 

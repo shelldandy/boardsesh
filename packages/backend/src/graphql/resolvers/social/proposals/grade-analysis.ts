@@ -1,5 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../../../../db/client';
+import { extractRows } from '../../../../db/utils';
 import * as dbSchema from '@boardsesh/db/schema';
 import { resolveCommunitySetting } from '../community-settings';
 
@@ -21,7 +22,7 @@ export async function analyzeGradeOutlier(
       ORDER BY angle
     `);
 
-    const rows = (stats as unknown as { rows: Array<{ angle: number; display_difficulty: number; ascensionist_count: number }> }).rows;
+    const rows = extractRows<{ angle: number; display_difficulty: number; ascensionist_count: number }>(stats);
     if (!rows || rows.length < 2) return null;
 
     // Find the current angle's data

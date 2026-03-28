@@ -1,5 +1,6 @@
 import { eq, and, desc, sql, count as drizzleCount, isNull, inArray } from 'drizzle-orm';
 import { db } from '../../../db/client';
+import { extractRows } from '../../../db/utils';
 import * as dbSchema from '@boardsesh/db/schema';
 import { validateInput } from '../shared/helpers';
 import { ActivityFeedInputSchema } from '../../../validation/schemas';
@@ -119,8 +120,7 @@ export const sessionFeedQueries = {
       throw err;
     }
 
-    // db.execute() returns QueryResult (neon-serverless) with .rows property
-    const rows = (sessionRows as unknown as { rows: Array<{
+    const rows = extractRows<{
       session_id: string;
       session_type: string;
       session_first_tick: string;
@@ -135,7 +135,7 @@ export const sessionFeedQueries = {
       vote_up: number;
       vote_down: number;
       comment_count: number;
-    }> }).rows;
+    }>(sessionRows);
 
     const hasMore = rows.length > limit;
     const resultRows = hasMore ? rows.slice(0, limit) : rows;
@@ -370,15 +370,13 @@ export const sessionFeedQueries = {
         SELECT * FROM attempts_since
       `);
 
-      const attemptsRows = (totalAttemptsResult as unknown as {
-        rows: Array<{
+      const attemptsRows = extractRows<{
           user_id: string;
           climb_uuid: string;
           board_type: string;
           angle: number;
           total: number;
-        }>;
-      }).rows;
+        }>(totalAttemptsResult);
 
       // Build lookup map
       const attemptsMap = new Map<string, number>();
@@ -524,15 +522,14 @@ async function fetchParticipants(
     ORDER BY sends DESC
   `);
 
-  // db.execute() returns QueryResult with .rows property
-  return ((participantRows as unknown as { rows: Array<{
+  return extractRows<{
     userId: string;
     displayName: string | null;
     avatarUrl: string | null;
     sends: number;
     flashes: number;
     attempts: number;
-  }> }).rows).map((r) => ({
+  }>(participantRows).map((r) => ({
     userId: r.userId,
     displayName: r.displayName,
     avatarUrl: r.avatarUrl,
@@ -577,7 +574,7 @@ async function fetchParticipantsBatch(
     ORDER BY sends DESC
   `);
 
-  const rows = (result as unknown as { rows: Array<{
+  const rows = extractRows<{
     effective_session_id: string;
     userId: string;
     displayName: string | null;
@@ -585,7 +582,7 @@ async function fetchParticipantsBatch(
     sends: number;
     flashes: number;
     attempts: number;
-  }> }).rows;
+  }>(result);
 
   const map = new Map<string, SessionFeedParticipant[]>();
   for (const r of rows) {
@@ -632,14 +629,14 @@ async function fetchGradeDistributionBatch(
     ORDER BY dg.difficulty DESC
   `);
 
-  const rows = (result as unknown as { rows: Array<{
+  const rows = extractRows<{
     effective_session_id: string;
     grade: string | null;
     diff_num: number;
     flash: number;
     send: number;
     attempt: number;
-  }> }).rows;
+  }>(result);
 
   const map = new Map<string, SessionGradeDistributionItem[]>();
   for (const r of rows) {

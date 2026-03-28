@@ -1,6 +1,7 @@
 import { eq, and, isNull, count, sql, inArray } from 'drizzle-orm';
 import type { ConnectionContext } from '@boardsesh/shared-schema';
 import { db } from '../../../db/client';
+import { extractRows } from '../../../db/utils';
 import * as dbSchema from '@boardsesh/db/schema';
 import { requireAuthenticated, applyRateLimit, validateInput } from '../shared/helpers';
 import { GroupedNotificationsInputSchema } from '../../../validation/schemas';
@@ -83,7 +84,7 @@ export const socialNotificationQueries = {
       OFFSET ${offset}
     `);
 
-    const rows = (rawResult as unknown as { rows: NotificationRow[] }).rows;
+    const rows = extractRows<NotificationRow>(rawResult);
     const notifications = rows.map(mapNotificationRow);
 
     // Total count
@@ -186,7 +187,7 @@ export const socialNotificationQueries = {
       FROM paged p
     `);
 
-    const rows = (rawResult as unknown as { rows: GroupedRow[] }).rows;
+    const rows = extractRows<GroupedRow>(rawResult);
 
     // Total group count from window function (same value on every row)
     const totalCount = rows.length > 0 ? Number(rows[0].totalGroupCount) : 0;

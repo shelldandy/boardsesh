@@ -122,14 +122,18 @@ export const getHoldHeatmapData = async (
       ]);
 
       // Convert results to Maps for easier lookup
+      // db.execute() returns { rows: [...] } for neon-serverless or directly iterable rows for postgres-js
       const ascentsMap = new Map();
       const attemptsMap = new Map();
 
-      for (const row of userAscentsQuery.rows) {
+      const ascentsRows = 'rows' in userAscentsQuery ? userAscentsQuery.rows : userAscentsQuery;
+      const attemptsRows = 'rows' in userAttemptsQuery ? userAttemptsQuery.rows : userAttemptsQuery;
+
+      for (const row of ascentsRows) {
         ascentsMap.set(Number(row.hold_id), Number(row.user_ascents));
       }
 
-      for (const row of userAttemptsQuery.rows) {
+      for (const row of attemptsRows) {
         attemptsMap.set(Number(row.hold_id), Number(row.user_attempts));
       }
 
