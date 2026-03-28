@@ -284,12 +284,9 @@ export const boardClimbStats = pgTable('board_climb_stats', {
   faAt: timestamp('fa_at', { mode: 'string' }),
 }, (table) => ({
   pk: primaryKey({ columns: [table.boardType, table.climbUuid, table.angle] }),
-  // Index for the most common sort (ascensionist_count) with board_type + angle prefix
-  ascentsIdx: index('board_climb_stats_ascents_idx').on(
-    table.boardType,
-    table.angle,
-    table.ascensionistCount,
-  ),
+  // Note: board_climb_stats_ascents_covering_idx is created in custom migration 0067
+  // with DESC NULLS LAST and INCLUDE columns that Drizzle can't express.
+  // Do NOT add an ascents index here — it would conflict with the custom migration.
   // Note: No FK to board_climbs - stats may arrive before their corresponding climbs during sync
 }));
 
