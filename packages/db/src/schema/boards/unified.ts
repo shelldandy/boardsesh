@@ -246,15 +246,14 @@ export const boardClimbs = pgTable('board_climbs', {
   userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
 }, (table) => ({
   boardTypeIdx: index('board_climbs_board_type_idx').on(table.boardType),
-  layoutFilterIdx: index('board_climbs_layout_filter_idx').on(
+  // Combined index covering the full WHERE clause of the main climb search query
+  // Replaces separate layout_filter and edges indexes to avoid bitmap AND merges
+  searchFilterIdx: index('board_climbs_search_filter_idx').on(
     table.boardType,
     table.layoutId,
     table.isListed,
     table.isDraft,
     table.framesCount,
-  ),
-  edgesIdx: index('board_climbs_edges_idx').on(
-    table.boardType,
     table.edgeLeft,
     table.edgeRight,
     table.edgeBottom,
@@ -285,6 +284,12 @@ export const boardClimbStats = pgTable('board_climb_stats', {
   faAt: timestamp('fa_at', { mode: 'string' }),
 }, (table) => ({
   pk: primaryKey({ columns: [table.boardType, table.climbUuid, table.angle] }),
+  // Index for the most common sort (ascensionist_count) with board_type + angle prefix
+  ascentsIdx: index('board_climb_stats_ascents_idx').on(
+    table.boardType,
+    table.angle,
+    table.ascensionistCount,
+  ),
   // Note: No FK to board_climbs - stats may arrive before their corresponding climbs during sync
 }));
 

@@ -470,6 +470,20 @@
       "when": 1774998000000,
       "tag": "0066_optimize_feed_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1774736776022,
+      "tag": "0067_fat_betty_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1774736800000,
+      "tag": "0068_add_search_performance_indexes",
+      "breakpoints": true
     }
   ]
 }

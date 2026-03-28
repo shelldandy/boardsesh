@@ -4,7 +4,7 @@ import { getBoardTables, type BoardName } from '../util/table-select';
 import { createClimbFilters, type ClimbSearchParams, type ParsedBoardRouteParameters } from './create-climb-filters';
 import { getSizeEdges } from '../util/product-sizes-data';
 import type { Climb, ClimbSearchResult } from '@boardsesh/shared-schema';
-import { boardClimbStats } from '@boardsesh/db/schema';
+import { boardClimbStats, boardseshTicks } from '@boardsesh/db/schema';
 import { convertLitUpHoldsStringToMap } from '../util/hold-state';
 
 export const searchClimbs = async (
@@ -66,36 +66,65 @@ export const searchClimbs = async (
       benchmark_difficulty: tables.climbStats.benchmarkDifficulty,
     };
 
-    // Add user-specific fields if userId is provided
-    const selectFields = userId
+    const userTicksSubquery = userId
+      ? db
+          .select({
+            climbUuid: boardseshTicks.climbUuid,
+            userAscents: sql<number>`COUNT(*) FILTER (WHERE ${boardseshTicks.status} IN ('flash', 'send'))`.as('user_ascents'),
+            userAttempts: sql<number>`COUNT(*) FILTER (WHERE ${boardseshTicks.status} = 'attempt')`.as('user_attempts'),
+          })
+          .from(boardseshTicks)
+          .where(and(
+            eq(boardseshTicks.userId, userId),
+            eq(boardseshTicks.boardType, params.board_name),
+            eq(boardseshTicks.angle, params.angle),
+          ))
+          .groupBy(boardseshTicks.climbUuid)
+          .as('user_ticks')
+      : null;
+
+    const selectFields = userId && userTicksSubquery
       ? {
           ...baseSelectFields,
-          userAscents: filters.getUserLogbookSelects().userAscents,
-          userAttempts: filters.getUserLogbookSelects().userAttempts,
+          userAscents: sql<number>`COALESCE(${userTicksSubquery.userAscents}, 0)`,
+          userAttempts: sql<number>`COALESCE(${userTicksSubquery.userAttempts}, 0)`,
         }
       : baseSelectFields;
 
     const sortOrder = searchParams.sortOrder === 'asc' ? 'asc' : 'desc';
 
-    const baseQuery = db
-      .select(selectFields)
-      .from(tables.climbs)
-      .leftJoin(tables.climbStats, and(...filters.getClimbStatsJoinConditions()))
-      .leftJoin(
-        tables.difficultyGrades,
-        and(
-          eq(tables.difficultyGrades.difficulty, sql`ROUND(${tables.climbStats.displayDifficulty}::numeric)`),
-          eq(tables.difficultyGrades.boardType, params.board_name),
-        ),
-      )
-      .where(and(...whereConditions))
-      .orderBy(
-        sortOrder === 'asc' ? sql`${sortColumn} ASC NULLS FIRST` : sql`${sortColumn} DESC NULLS LAST`,
-        desc(tables.climbs.uuid),
-      )
-      // Fetch one extra row to detect if there are more results (hasMore)
-      .limit(pageSize + 1)
-      .offset(page * pageSize);
+    const difficultyGradesJoinCondition = and(
+      eq(tables.difficultyGrades.difficulty, sql`ROUND(${tables.climbStats.displayDifficulty}::numeric)`),
+      eq(tables.difficultyGrades.boardType, params.board_name),
+    );
+
+    const baseQuery = userId && userTicksSubquery
+      ? db
+          .select(selectFields)
+          .from(tables.climbs)
+          .leftJoin(tables.climbStats, and(...filters.getClimbStatsJoinConditions()))
+          .leftJoin(tables.difficultyGrades, difficultyGradesJoinCondition)
+          .leftJoin(userTicksSubquery, eq(userTicksSubquery.climbUuid, tables.climbs.uuid))
+          .where(and(...whereConditions))
+          .orderBy(
+            sortOrder === 'asc' ? sql`${sortColumn} ASC NULLS FIRST` : sql`${sortColumn} DESC NULLS LAST`,
+            desc(tables.climbs.uuid),
+          )
+          .limit(pageSize + 1)
+          .offset(page * pageSize)
+      : db
+          .select(selectFields)
+          .from(tables.climbs)
+          .leftJoin(tables.climbStats, and(...filters.getClimbStatsJoinConditions()))
+          .leftJoin(tables.difficultyGrades, difficultyGradesJoinCondition)
+          .where(and(...whereConditions))
+          .orderBy(
+            sortOrder === 'asc' ? sql`${sortColumn} ASC NULLS FIRST` : sql`${sortColumn} DESC NULLS LAST`,
+            desc(tables.climbs.uuid),
+          )
+          // Fetch one extra row to detect if there are more results (hasMore)
+          .limit(pageSize + 1)
+          .offset(page * pageSize);
 
     const results = await baseQuery;
 

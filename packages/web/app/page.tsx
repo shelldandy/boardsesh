@@ -36,7 +36,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   if (authToken) {
     const feedPromise = tab === 'sessions'
-      ? cachedSessionGroupedFeed(boardUuid).catch(() => null)
+      ? cachedSessionGroupedFeed(boardUuid, true).catch(() => null)
       : Promise.resolve(null);
     const boardsPromise = serverMyBoards(authToken);
 
@@ -45,7 +45,7 @@ export default async function Home({ searchParams }: HomeProps) {
     initialMyBoards = boardsResult;
   } else if (tab === 'sessions') {
     try {
-      initialFeedResult = await cachedSessionGroupedFeed(boardUuid);
+      initialFeedResult = await cachedSessionGroupedFeed(boardUuid, false);
     } catch {
       // Feed fetch failed, client will retry
     }

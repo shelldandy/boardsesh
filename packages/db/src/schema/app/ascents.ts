@@ -107,6 +107,13 @@ export const boardseshTicks = pgTable(
     // Index for board-scoped queries
     boardClimbedAtIdx: index('boardsesh_ticks_board_climbed_at_idx').on(table.boardId, table.climbedAt),
     boardUserIdx: index('boardsesh_ticks_board_user_idx').on(table.boardId, table.userId),
+    // Covering index for climb search user tick lookups (ascents/attempts per climb)
+    userClimbLookupIdx: index('boardsesh_ticks_user_climb_lookup_idx').on(
+      table.userId,
+      table.boardType,
+      table.angle,
+      table.climbUuid,
+    ),
   })
 );
 

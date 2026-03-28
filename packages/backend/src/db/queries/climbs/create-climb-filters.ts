@@ -209,31 +209,6 @@ export const createClimbFilters = (
     }
   }
 
-  // User-specific logbook data selectors
-  // Uses boardsesh_ticks table which tracks all user attempts
-  const getUserLogbookSelects = () => {
-    return {
-      userAscents: sql<number>`(
-        SELECT COUNT(*)
-        FROM ${sql.identifier(ticksTable)}
-        WHERE climb_uuid = ${tables.climbs.uuid}
-        AND user_id = ${userId || ''}
-        AND board_type = ${params.board_name}
-        AND angle = ${params.angle}
-        AND status IN ('flash', 'send')
-      )`,
-      userAttempts: sql<number>`(
-        SELECT COUNT(*)
-        FROM ${sql.identifier(ticksTable)}
-        WHERE climb_uuid = ${tables.climbs.uuid}
-        AND user_id = ${userId || ''}
-        AND board_type = ${params.board_name}
-        AND angle = ${params.angle}
-        AND status = 'attempt'
-      )`,
-    };
-  };
-
   return {
     // Helper function to get all climb filtering conditions
     getClimbWhereConditions: () => [...baseConditions, ...nameCondition, ...setterNameCondition, ...holdConditions, ...tallClimbsConditions, ...personalProgressConditions],
@@ -250,9 +225,6 @@ export const createClimbFilters = (
       eq(tables.climbStats.boardType, params.board_name),
       eq(tables.climbStats.angle, params.angle),
     ],
-
-    // User-specific logbook data selectors
-    getUserLogbookSelects,
 
     // Raw parts, in case you need direct access to these
     baseConditions,

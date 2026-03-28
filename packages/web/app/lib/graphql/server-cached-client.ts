@@ -193,15 +193,18 @@ export async function serverMyBoards(
  */
 export async function cachedSessionGroupedFeed(
   boardUuid?: string,
+  isAuthenticated: boolean = false,
 ) {
   const { GET_SESSION_GROUPED_FEED } = await import('@/app/lib/graphql/operations/activity-feed');
+
+  const revalidate = isAuthenticated ? 300 : 86400;
 
   const query = createCachedGraphQLQuery<{
     sessionGroupedFeed: import('@boardsesh/shared-schema').SessionFeedResult;
   }>(
     GET_SESSION_GROUPED_FEED,
-    'session-grouped-feed',
-    300, // 5 min cache
+    isAuthenticated ? 'session-grouped-feed-auth' : 'session-grouped-feed-public',
+    revalidate,
   );
 
   const result = await query({ input: { boardUuid, limit: 20 } });
