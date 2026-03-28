@@ -45,91 +45,8 @@ export const useQueueDataFetching = ({
     ] as const;
   }, [searchParams, parsedParams]);
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetching,
-    isFetchingNextPage,
-    error: searchError,
-  } = useInfiniteQuery({
-    queryKey,
-    queryFn: async ({ pageParam }): Promise<SearchClimbsResult> => {
-      // Build GraphQL input from search params
-      const input = {
-        boardName: parsedParams.board_name,
-        layoutId: parsedParams.layout_id,
-        sizeId: parsedParams.size_id,
-        setIds: parsedParams.set_ids.join(','),
-        angle: parsedParams.angle,
-        page: pageParam,
-        pageSize: searchParams.pageSize || PAGE_LIMIT,
-        gradeAccuracy: searchParams.gradeAccuracy ? String(searchParams.gradeAccuracy) : undefined,
-        minGrade: searchParams.minGrade || undefined,
-        maxGrade: searchParams.maxGrade || undefined,
-        minAscents: searchParams.minAscents || undefined,
-        sortBy: searchParams.sortBy || 'ascents',
-        sortOrder: searchParams.sortOrder || 'desc',
-        name: searchParams.name || undefined,
-        setter: searchParams.settername && searchParams.settername.length > 0 ? searchParams.settername : undefined,
-        onlyTallClimbs: searchParams.onlyTallClimbs || undefined,
-        // Convert holdsFilter from LitUpHoldsMap to Record<string, HoldState> format expected by GraphQL
-        holdsFilter: searchParams.holdsFilter && Object.keys(searchParams.holdsFilter).length > 0
-          ? Object.fromEntries(
-              Object.entries(searchParams.holdsFilter).map(([key, value]) => [
-                key.replace('hold_', ''),
-                value.state
-              ])
-            )
-          : undefined,
-        hideAttempted: searchParams.hideAttempted || undefined,
-        hideCompleted: searchParams.hideCompleted || undefined,
-        showOnlyAttempted: searchParams.showOnlyAttempted || undefined,
-        showOnlyCompleted: searchParams.showOnlyCompleted || undefined,
-      };
-
-      // Create GraphQL client with auth token if available
-      const client = createGraphQLHttpClient(wsAuthToken);
-
-      try {
-        const result = await client.request<ClimbSearchResponse>(SEARCH_CLIMBS, { input });
-        return {
-          climbs: result.searchClimbs.climbs,
-          totalCount: result.searchClimbs.totalCount,
-          hasMore: result.searchClimbs.hasMore,
-        };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[GraphQL] Search climbs error for ${parsedParams.board_name}:`, error);
-        throw new Error(`Failed to fetch climbs: ${errorMessage}`);
-      }
-    },
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
-      // Use hasMore flag if available (preferred), otherwise fall back to totalCount comparison
-      if (lastPage.hasMore === false) {
-        return undefined; // No more pages
-      }
-      if (lastPage.hasMore === true) {
-        return allPages.length; // Next page number
-      }
-      // Fallback for backwards compatibility with totalCount
-      if (lastPage.totalCount !== undefined) {
-        const totalFetched = allPages.length * PAGE_LIMIT;
-        if (totalFetched >= lastPage.totalCount) {
-          return undefined;
-        }
-        return allPages.length;
-      }
-      return undefined;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-  });
-
-  // Lazy count query — separate from the main search for performance.
-  // 24hr staleTime since counts don't change frequently enough to matter.
-  const countInput = useMemo(() => ({
+  // Shared base input for both search and count queries — single source of truth
+  const baseInput = useMemo(() => ({
     boardName: parsedParams.board_name,
     layoutId: parsedParams.layout_id,
     sizeId: parsedParams.size_id,
@@ -139,6 +56,8 @@ export const useQueueDataFetching = ({
     minGrade: searchParams.minGrade || undefined,
     maxGrade: searchParams.maxGrade || undefined,
     minAscents: searchParams.minAscents || undefined,
+    sortBy: searchParams.sortBy || 'ascents',
+    sortOrder: searchParams.sortOrder || 'desc',
     name: searchParams.name || undefined,
     setter: searchParams.settername && searchParams.settername.length > 0 ? searchParams.settername : undefined,
     onlyTallClimbs: searchParams.onlyTallClimbs || undefined,
@@ -156,11 +75,58 @@ export const useQueueDataFetching = ({
     showOnlyCompleted: searchParams.showOnlyCompleted || undefined,
   }), [searchParams, parsedParams]);
 
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+    error: searchError,
+  } = useInfiniteQuery({
+    queryKey,
+    queryFn: async ({ pageParam }): Promise<SearchClimbsResult> => {
+      const input = {
+        ...baseInput,
+        page: pageParam,
+        pageSize: searchParams.pageSize || PAGE_LIMIT,
+      };
+
+      const client = createGraphQLHttpClient(wsAuthToken);
+
+      try {
+        const result = await client.request<ClimbSearchResponse>(SEARCH_CLIMBS, { input });
+        return {
+          climbs: result.searchClimbs.climbs,
+          totalCount: result.searchClimbs.totalCount,
+          hasMore: result.searchClimbs.hasMore,
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[GraphQL] Search climbs error for ${parsedParams.board_name}:`, error);
+        throw new Error(`Failed to fetch climbs: ${errorMessage}`);
+      }
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.hasMore === false) {
+        return undefined;
+      }
+      if (lastPage.hasMore === true) {
+        return allPages.length;
+      }
+      return undefined;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  // Lazy count query — same filters as search, fetched separately.
+  // 24hr staleTime since counts don't change frequently enough to matter.
   const { data: countData } = useQuery({
     queryKey: ['climbSearchCount', ...queryKey.slice(1)],
     queryFn: async () => {
       const client = createGraphQLHttpClient(wsAuthToken);
-      const result = await client.request<ClimbSearchCountResponse>(SEARCH_CLIMBS_COUNT, { input: countInput });
+      const result = await client.request<ClimbSearchCountResponse>(SEARCH_CLIMBS_COUNT, { input: baseInput });
       return result.searchClimbs.totalCount;
     },
     staleTime: 24 * 60 * 60 * 1000,
