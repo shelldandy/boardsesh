@@ -93,13 +93,24 @@ export interface ImportResult {
  * Normalize a timestamp to ISO format for consistent dedup key generation.
  * Drizzle returns timestamps as "2024-01-15 10:30:00" (no T, no Z),
  * while new Date().toISOString() produces "2024-01-15T10:30:00.000Z".
- * We normalize both to the same ISO format for reliable comparison.
+ *
+ * Space-separated timestamps (from Drizzle/Aurora) have no timezone indicator
+ * and represent UTC. We must explicitly treat them as UTC before parsing,
+ * otherwise `new Date()` interprets them as local time.
  */
-function normalizeTimestamp(ts: string): string {
-  return new Date(ts).toISOString();
+export function normalizeTimestamp(ts: string): string {
+  let normalized = ts.trim();
+  // If the string has no timezone indicator (T/Z/+/-), treat as UTC
+  // by replacing the space separator with 'T' and appending 'Z'
+  if (!normalized.includes('T') && !normalized.includes('Z')) {
+    // Truncate microseconds (.000001) to milliseconds (.000) for consistency
+    normalized = normalized.replace(/(\.\d{3})\d*$/, '$1');
+    normalized = normalized.replace(' ', 'T') + 'Z';
+  }
+  return new Date(normalized).toISOString();
 }
 
-function generateJsonImportAuroraId(
+export function generateJsonImportAuroraId(
   climbUuid: string,
   angle: number,
   climbedAt: string,
@@ -440,15 +451,20 @@ export async function importJsonExportData(
           })
           .onConflictDoNothing();
 
-        await db.delete(playlistClimbs).where(eq(playlistClimbs.playlistId, playlist.id));
+        // Only replace playlist climbs when we have resolved climbs to insert.
+        // This avoids wiping out previously-resolved climbs if name resolution
+        // fails on a re-import (e.g., climb was renamed/delisted).
+        if (resolvedClimbs.length > 0) {
+          await db.delete(playlistClimbs).where(eq(playlistClimbs.playlistId, playlist.id));
 
-        for (let i = 0; i < resolvedClimbs.length; i++) {
-          await db.insert(playlistClimbs).values({
-            playlistId: playlist.id,
-            climbUuid: resolvedClimbs[i],
-            angle: null,
-            position: i,
-          });
+          for (let i = 0; i < resolvedClimbs.length; i++) {
+            await db.insert(playlistClimbs).values({
+              playlistId: playlist.id,
+              climbUuid: resolvedClimbs[i],
+              angle: null,
+              position: i,
+            });
+          }
         }
 
         await client.query('COMMIT');

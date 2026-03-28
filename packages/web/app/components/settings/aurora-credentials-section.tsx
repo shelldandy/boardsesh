@@ -332,6 +332,15 @@ export default function AuroraCredentialsSection() {
     const file = event.target.files?.[0];
     if (!file || !importingBoard) return;
 
+    // Guard against very large files (10MB limit)
+    const maxSizeBytes = 10 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      showMessage('File is too large (max 10MB). Please check you selected the correct file.', 'error');
+      setImportingBoard(null);
+      event.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -342,6 +351,23 @@ export default function AuroraCredentialsSection() {
           showMessage('Invalid file: missing user data. Please select an Aurora JSON export file.', 'error');
           setImportingBoard(null);
           return;
+        }
+
+        // Board type validation: check if the export contains climbs with layout info
+        // that doesn't match the selected board type
+        if (Array.isArray(json.climbs) && json.climbs.length > 0) {
+          const layout = json.climbs[0]?.layout?.toLowerCase() ?? '';
+          const selectedBoard = importingBoard;
+          const layoutMatchesBoard =
+            (selectedBoard === 'kilter' && layout.includes('kilter')) ||
+            (selectedBoard === 'tension' && layout.includes('tension'));
+
+          if (!layoutMatchesBoard && layout) {
+            showMessage(
+              `Warning: This export appears to be from "${json.climbs[0].layout}" but you're importing to ${selectedBoard.charAt(0).toUpperCase() + selectedBoard.slice(1)}. Climbs may not match.`,
+              'warning',
+            );
+          }
         }
 
         setImportRawData(json);
@@ -355,6 +381,10 @@ export default function AuroraCredentialsSection() {
         showMessage('Failed to parse JSON file. Please check the file format.', 'error');
         setImportingBoard(null);
       }
+    };
+    reader.onerror = () => {
+      showMessage('Failed to read file. Please try again.', 'error');
+      setImportingBoard(null);
     };
     reader.readAsText(file);
 
