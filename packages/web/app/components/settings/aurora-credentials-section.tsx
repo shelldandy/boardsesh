@@ -13,6 +13,7 @@ import Stack from '@mui/material/Stack';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
+import LinearProgress from '@mui/material/LinearProgress';
 import { ConfirmPopover } from '@/app/components/ui/confirm-popover';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { LoadingSpinner } from '@/app/components/ui/loading-spinner';
@@ -30,9 +31,11 @@ import AddOutlined from '@mui/icons-material/AddOutlined';
 import SyncOutlined from '@mui/icons-material/SyncOutlined';
 import WarningOutlined from '@mui/icons-material/WarningOutlined';
 import FileUploadOutlined from '@mui/icons-material/FileUploadOutlined';
+import RadioButtonUncheckedOutlined from '@mui/icons-material/RadioButtonUncheckedOutlined';
 import type { AuroraCredentialStatus } from '@/app/api/internal/aurora-credentials/route';
 import type { UnsyncedCounts } from '@/app/api/internal/aurora-credentials/unsynced/route';
-import type { AuroraImportResponse } from '@/app/api/internal/aurora-import/route';
+import type { ImportResult } from '@/app/lib/data-sync/aurora/json-import';
+import { streamImport } from '@/app/lib/data-sync/aurora/json-import-stream';
 import styles from './aurora-credentials-section.module.css';
 
 interface BoardUnsyncedCounts {
@@ -46,6 +49,28 @@ interface ImportPreview {
   circuits: number;
   username: string;
 }
+
+type ImportPhase = 'preview' | 'importing' | 'complete' | 'error';
+
+type ImportStep = 'resolving' | 'dedup' | 'ascents' | 'attempts' | 'circuits' | 'sessions';
+
+interface ImportProgress {
+  step: ImportStep;
+  message?: string;
+  current?: number;
+  total?: number;
+}
+
+const STEP_ORDER: ImportStep[] = ['resolving', 'dedup', 'ascents', 'attempts', 'circuits', 'sessions'];
+
+const STEP_LABELS: Record<ImportStep, string> = {
+  resolving: 'Resolving climb names',
+  dedup: 'Checking for duplicates',
+  ascents: 'Importing ascents',
+  attempts: 'Importing attempts',
+  circuits: 'Importing circuits',
+  sessions: 'Building sessions',
+};
 
 interface BoardCredentialCardProps {
   boardType: 'kilter' | 'tension';
@@ -122,7 +147,7 @@ function BoardCredentialCard({
           <div className={styles.buttonRow}>
             {!isKilter && (
               <Button variant="contained" startIcon={<AddOutlined />} onClick={onAdd} fullWidth>
-                Link {boardName} Account
+                Link Account
               </Button>
             )}
             <Button
@@ -207,6 +232,53 @@ function BoardCredentialCard({
   );
 }
 
+function ImportProgressSteps({ progress }: { progress: ImportProgress | null }) {
+  const currentStepIndex = progress ? STEP_ORDER.indexOf(progress.step) : -1;
+
+  return (
+    <div className={styles.progressStepList}>
+      {STEP_ORDER.map((step, index) => {
+        const isComplete = index < currentStepIndex;
+        const isActive = index === currentStepIndex;
+        const isPending = index > currentStepIndex;
+        const hasCounts = isActive && progress?.current != null && progress?.total != null;
+        const progressPercent = hasCounts ? (progress!.current! / progress!.total!) * 100 : 0;
+
+        return (
+          <div key={step} className={styles.progressStep}>
+            <div className={styles.progressStepHeader}>
+              {isComplete && <CheckCircleOutlined color="success" fontSize="small" />}
+              {isActive && <CircularProgress size={20} />}
+              {isPending && <RadioButtonUncheckedOutlined color="disabled" fontSize="small" />}
+              <Typography
+                variant="body2"
+                color={isPending ? 'text.disabled' : 'text.primary'}
+                fontWeight={isActive ? 600 : 400}
+              >
+                {STEP_LABELS[step]}
+                {hasCounts && ` (${progress!.current} / ${progress!.total})`}
+              </Typography>
+            </div>
+            {hasCounts && (
+              <LinearProgress
+                variant="determinate"
+                value={progressPercent}
+                sx={{ ml: '32px', mr: 1, mt: 0.5 }}
+              />
+            )}
+            {isActive && !hasCounts && (
+              <LinearProgress
+                variant="indeterminate"
+                sx={{ ml: '32px', mr: 1, mt: 0.5 }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AuroraCredentialsSection() {
   const { showMessage } = useSnackbar();
   const [credentials, setCredentials] = useState<AuroraCredentialStatus[]>([]);
@@ -224,8 +296,11 @@ export default function AuroraCredentialsSection() {
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [importRawData, setImportRawData] = useState<any>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<AuroraImportResponse | null>(null);
+  const [importPhase, setImportPhase] = useState<ImportPhase | null>(null);
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const receivedCompleteRef = useRef(false);
 
   const fetchCredentials = async () => {
     try {
@@ -323,6 +398,16 @@ export default function AuroraCredentialsSection() {
 
   // --- JSON Import handlers ---
 
+  const resetImportState = () => {
+    setImportPhase(null);
+    setImportProgress(null);
+    setImportPreview(null);
+    setImportRawData(null);
+    setImportingBoard(null);
+    setImportResult(null);
+    setImportError(null);
+  };
+
   const handleImportClick = (boardType: 'kilter' | 'tension') => {
     setImportingBoard(boardType);
     fileInputRef.current?.click();
@@ -357,14 +442,14 @@ export default function AuroraCredentialsSection() {
         // that doesn't match the selected board type
         if (Array.isArray(json.climbs) && json.climbs.length > 0) {
           const layout = json.climbs[0]?.layout?.toLowerCase() ?? '';
-          const selectedBoard = importingBoard;
+          const selectedBrd = importingBoard;
           const layoutMatchesBoard =
-            (selectedBoard === 'kilter' && layout.includes('kilter')) ||
-            (selectedBoard === 'tension' && layout.includes('tension'));
+            (selectedBrd === 'kilter' && layout.includes('kilter')) ||
+            (selectedBrd === 'tension' && layout.includes('tension'));
 
           if (!layoutMatchesBoard && layout) {
             showMessage(
-              `Warning: This export appears to be from "${json.climbs[0].layout}" but you're importing to ${selectedBoard.charAt(0).toUpperCase() + selectedBoard.slice(1)}. Climbs may not match.`,
+              `Warning: This export appears to be from "${json.climbs[0].layout}" but you're importing to ${selectedBrd.charAt(0).toUpperCase() + selectedBrd.slice(1)}. Climbs may not match.`,
               'warning',
             );
           }
@@ -377,6 +462,7 @@ export default function AuroraCredentialsSection() {
           circuits: Array.isArray(json.circuits) ? json.circuits.length : 0,
           username: json.user.username,
         });
+        setImportPhase('preview');
       } catch {
         showMessage('Failed to parse JSON file. Please check the file format.', 'error');
         setImportingBoard(null);
@@ -395,50 +481,79 @@ export default function AuroraCredentialsSection() {
   const handleImportConfirm = async () => {
     if (!importingBoard || !importRawData) return;
 
-    setIsImporting(true);
+    setImportPhase('importing');
+    setImportProgress(null);
     setImportPreview(null);
+    receivedCompleteRef.current = false;
 
     try {
-      const response = await fetch('/api/internal/aurora-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          boardType: importingBoard,
-          data: importRawData,
-        }),
+      await streamImport(importingBoard, importRawData, (event) => {
+        switch (event.type) {
+          case 'progress':
+            setImportProgress({
+              step: event.step,
+              message: 'message' in event ? event.message : undefined,
+              current: 'current' in event ? event.current : undefined,
+              total: 'total' in event ? event.total : undefined,
+            });
+            break;
+          case 'complete':
+            receivedCompleteRef.current = true;
+            setImportResult(event.results);
+            setImportPhase('complete');
+            {
+              const totalImported =
+                event.results.ascents.imported +
+                event.results.attempts.imported +
+                event.results.circuits.imported;
+              showMessage(`Successfully imported ${totalImported} items`, 'success');
+            }
+            break;
+          case 'error':
+            receivedCompleteRef.current = true;
+            setImportError(event.error);
+            setImportPhase('error');
+            showMessage(event.error, 'error');
+            break;
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Import failed');
+      // If stream ended without a complete/error event (e.g. server timeout)
+      if (!receivedCompleteRef.current) {
+        setImportError('Import was interrupted. The server may have timed out. Your data may have been partially imported.');
+        setImportPhase('error');
+        showMessage('Import was interrupted', 'error');
       }
-
-      const data: AuroraImportResponse = await response.json();
-      setImportResult(data);
-
-      const totalImported =
-        data.results.ascents.imported +
-        data.results.attempts.imported +
-        data.results.circuits.imported;
-
-      showMessage(`Successfully imported ${totalImported} items`, 'success');
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : 'Import failed', 'error');
+      const msg = error instanceof Error ? error.message : 'Import failed';
+      setImportError(msg);
+      setImportPhase('error');
+      showMessage(msg, 'error');
     } finally {
-      setIsImporting(false);
       setImportRawData(null);
-      setImportingBoard(null);
     }
   };
 
-  const handleImportCancel = () => {
-    setImportPreview(null);
-    setImportRawData(null);
-    setImportingBoard(null);
+  const handleImportDialogClose = () => {
+    if (importPhase === 'importing') return;
+    resetImportState();
   };
 
   const getCredentialForBoard = (boardType: 'kilter' | 'tension') => {
     return credentials.find((c) => c.boardType === boardType) || null;
+  };
+
+  const isImporting = importPhase === 'importing';
+  const isImportDialogOpen = importPhase === 'preview' || importPhase === 'importing' || importPhase === 'complete' || importPhase === 'error';
+
+  const getImportDialogTitle = () => {
+    switch (importPhase) {
+      case 'preview': return 'Import Aurora Data';
+      case 'importing': return 'Importing Aurora Data...';
+      case 'complete': return 'Import Complete';
+      case 'error': return 'Import Failed';
+      default: return '';
+    }
   };
 
   if (loading) {
@@ -559,16 +674,18 @@ export default function AuroraCredentialsSection() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Preview Dialog */}
+      {/* Unified Import Dialog (preview → progress → complete/error) */}
       <Dialog
-        open={importPreview !== null}
-        onClose={handleImportCancel}
+        open={isImportDialogOpen}
+        onClose={handleImportDialogClose}
         maxWidth="sm"
         fullWidth
+        disableEscapeKeyDown={isImporting}
       >
-        <DialogTitle>Import Aurora Data</DialogTitle>
+        <DialogTitle>{getImportDialogTitle()}</DialogTitle>
         <DialogContent>
-          {importPreview && (
+          {/* Preview phase */}
+          {importPhase === 'preview' && importPreview && (
             <>
               <Typography variant="body2" color="text.secondary" className={styles.modalDescription}>
                 Import data from <strong>{importPreview.username}</strong> to{' '}
@@ -591,58 +708,47 @@ export default function AuroraCredentialsSection() {
               </Typography>
             </>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleImportCancel}>Cancel</Button>
-          <Button variant="contained" onClick={handleImportConfirm} disabled={isImporting}>
-            {isImporting ? 'Importing...' : 'Import'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
-      {/* Import Result Dialog */}
-      <Dialog
-        open={importResult !== null}
-        onClose={() => setImportResult(null)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Import Complete</DialogTitle>
-        <DialogContent>
-          {importResult && (
+          {/* Importing phase */}
+          {importPhase === 'importing' && (
+            <ImportProgressSteps progress={importProgress} />
+          )}
+
+          {/* Complete phase */}
+          {importPhase === 'complete' && importResult && (
             <>
               <List dense>
                 <ListItem>
                   <ListItemText
                     primary="Ascents"
-                    secondary={`${importResult.results.ascents.imported} imported, ${importResult.results.ascents.skipped} skipped (already exist), ${importResult.results.ascents.failed} unmatched`}
+                    secondary={`${importResult.ascents.imported} imported, ${importResult.ascents.skipped} skipped (already exist), ${importResult.ascents.failed} unmatched`}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemText
                     primary="Attempts"
-                    secondary={`${importResult.results.attempts.imported} imported, ${importResult.results.attempts.skipped} skipped (already exist), ${importResult.results.attempts.failed} unmatched`}
+                    secondary={`${importResult.attempts.imported} imported, ${importResult.attempts.skipped} skipped (already exist), ${importResult.attempts.failed} unmatched`}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemText
                     primary="Circuits"
-                    secondary={`${importResult.results.circuits.imported} imported, ${importResult.results.circuits.skipped} skipped, ${importResult.results.circuits.failed} failed`}
+                    secondary={`${importResult.circuits.imported} imported, ${importResult.circuits.skipped} skipped, ${importResult.circuits.failed} failed`}
                   />
                 </ListItem>
               </List>
-              {importResult.results.unresolvedClimbs.length > 0 && (
+              {importResult.unresolvedClimbs.length > 0 && (
                 <MuiAlert severity="warning" className={styles.unsyncedAlert}>
                   <AlertTitle>
-                    {importResult.results.unresolvedClimbs.length} climb{importResult.results.unresolvedClimbs.length > 1 ? 's' : ''} could not be matched
+                    {importResult.unresolvedClimbs.length} climb{importResult.unresolvedClimbs.length > 1 ? 's' : ''} could not be matched
                   </AlertTitle>
                   <div className={styles.unresolvedList}>
-                    {importResult.results.unresolvedClimbs.slice(0, 20).map((name) => (
+                    {importResult.unresolvedClimbs.slice(0, 20).map((name) => (
                       <Typography key={name} variant="body2">{name}</Typography>
                     ))}
-                    {importResult.results.unresolvedClimbs.length > 20 && (
+                    {importResult.unresolvedClimbs.length > 20 && (
                       <Typography variant="body2" color="text.secondary">
-                        ...and {importResult.results.unresolvedClimbs.length - 20} more
+                        ...and {importResult.unresolvedClimbs.length - 20} more
                       </Typography>
                     )}
                   </div>
@@ -650,10 +756,30 @@ export default function AuroraCredentialsSection() {
               )}
             </>
           )}
+
+          {/* Error phase */}
+          {importPhase === 'error' && importError && (
+            <MuiAlert severity="error">
+              <AlertTitle>Import failed</AlertTitle>
+              {importError}
+            </MuiAlert>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button variant="contained" onClick={() => setImportResult(null)}>Close</Button>
-        </DialogActions>
+
+        {/* Actions vary by phase */}
+        {importPhase === 'preview' && (
+          <DialogActions>
+            <Button onClick={handleImportDialogClose}>Cancel</Button>
+            <Button variant="contained" onClick={handleImportConfirm}>
+              Import
+            </Button>
+          </DialogActions>
+        )}
+        {(importPhase === 'complete' || importPhase === 'error') && (
+          <DialogActions>
+            <Button variant="contained" onClick={handleImportDialogClose}>Close</Button>
+          </DialogActions>
+        )}
       </Dialog>
     </>
   );

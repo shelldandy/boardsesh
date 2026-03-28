@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authOptions } from '@/app/lib/auth/auth-options';
 import { auroraExportSchema, importJsonExportData } from '@/app/lib/data-sync/aurora/json-import';
-import type { ImportResult } from '@/app/lib/data-sync/aurora/json-import';
+import type { ImportResult, ImportProgressEvent } from '@/app/lib/data-sync/aurora/json-import';
 
 export const maxDuration = 60;
 
@@ -37,9 +37,39 @@ export async function POST(request: NextRequest) {
 
     const { boardType, data } = parsed.data;
 
-    const results = await importJsonExportData(session.user.id, boardType, data);
+    const encoder = new TextEncoder();
 
-    return NextResponse.json({ success: true, results } satisfies AuroraImportResponse);
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (event: ImportProgressEvent) => {
+          controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
+        };
+
+        try {
+          const results = await importJsonExportData(
+            session.user!.id,
+            boardType,
+            data,
+            send,
+          );
+
+          send({ type: 'complete', results });
+        } catch (error) {
+          console.error('Aurora JSON import error:', error);
+          send({ type: 'error', error: error instanceof Error ? error.message : 'Import failed' });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
   } catch (error) {
     console.error('Aurora JSON import error:', error);
     return NextResponse.json(

@@ -86,6 +86,20 @@ export interface ImportResult {
 }
 
 // ---------------------------------------------------------------------------
+// Progress event types for streaming progress reporting
+// ---------------------------------------------------------------------------
+
+export type ImportProgressEvent =
+  | { type: 'progress'; step: 'resolving'; message: string }
+  | { type: 'progress'; step: 'dedup'; message: string }
+  | { type: 'progress'; step: 'ascents'; current: number; total: number }
+  | { type: 'progress'; step: 'attempts'; current: number; total: number }
+  | { type: 'progress'; step: 'circuits'; current: number; total: number }
+  | { type: 'progress'; step: 'sessions'; message: string }
+  | { type: 'complete'; results: ImportResult }
+  | { type: 'error'; error: string };
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -226,6 +240,7 @@ export async function importJsonExportData(
   userId: string,
   boardType: BoardType,
   data: AuroraExportData,
+  onProgress?: (event: ImportProgressEvent) => void,
 ): Promise<ImportResult> {
   const result: ImportResult = {
     ascents: { imported: 0, skipped: 0, failed: 0 },
@@ -252,6 +267,7 @@ export async function importJsonExportData(
     const db = drizzle(client);
 
     // Step 2: Resolve climb names to UUIDs
+    onProgress?.({ type: 'progress', step: 'resolving', message: `Resolving ${allClimbNames.size} climb names...` });
     const nameToUuid = await resolveClimbNames(db, boardType, [...allClimbNames]);
 
     // Track unresolved names
@@ -262,16 +278,21 @@ export async function importJsonExportData(
     }
 
     // Step 3: Get existing tick keys for cross-source dedup
+    onProgress?.({ type: 'progress', step: 'dedup', message: 'Checking for duplicates...' });
     const existingKeys = await getExistingTickKeys(db, userId, boardType);
 
     // Step 4: Import ascents and attempts in a transaction
     await client.query('BEGIN');
 
     try {
-      for (const ascent of data.ascents) {
+      for (let i = 0; i < data.ascents.length; i++) {
+        const ascent = data.ascents[i];
         const climbUuid = nameToUuid.get(ascent.climb);
         if (!climbUuid) {
           result.ascents.failed++;
+          if (i % 10 === 0 || i === data.ascents.length - 1) {
+            onProgress?.({ type: 'progress', step: 'ascents', current: i + 1, total: data.ascents.length });
+          }
           continue;
         }
 
@@ -281,6 +302,9 @@ export async function importJsonExportData(
         // Cross-source dedup
         if (existingKeys.has(tickKey)) {
           result.ascents.skipped++;
+          if (i % 10 === 0 || i === data.ascents.length - 1) {
+            onProgress?.({ type: 'progress', step: 'ascents', current: i + 1, total: data.ascents.length });
+          }
           continue;
         }
 
@@ -330,13 +354,21 @@ export async function importJsonExportData(
 
         existingKeys.add(tickKey);
         result.ascents.imported++;
+
+        if (i % 10 === 0 || i === data.ascents.length - 1) {
+          onProgress?.({ type: 'progress', step: 'ascents', current: i + 1, total: data.ascents.length });
+        }
       }
 
       // Step 5: Import attempts
-      for (const attempt of data.attempts) {
+      for (let i = 0; i < data.attempts.length; i++) {
+        const attempt = data.attempts[i];
         const climbUuid = nameToUuid.get(attempt.climb);
         if (!climbUuid) {
           result.attempts.failed++;
+          if (i % 10 === 0 || i === data.attempts.length - 1) {
+            onProgress?.({ type: 'progress', step: 'attempts', current: i + 1, total: data.attempts.length });
+          }
           continue;
         }
 
@@ -345,6 +377,9 @@ export async function importJsonExportData(
 
         if (existingKeys.has(tickKey)) {
           result.attempts.skipped++;
+          if (i % 10 === 0 || i === data.attempts.length - 1) {
+            onProgress?.({ type: 'progress', step: 'attempts', current: i + 1, total: data.attempts.length });
+          }
           continue;
         }
 
@@ -386,6 +421,10 @@ export async function importJsonExportData(
 
         existingKeys.add(tickKey);
         result.attempts.imported++;
+
+        if (i % 10 === 0 || i === data.attempts.length - 1) {
+          onProgress?.({ type: 'progress', step: 'attempts', current: i + 1, total: data.attempts.length });
+        }
       }
 
       await client.query('COMMIT');
@@ -396,7 +435,8 @@ export async function importJsonExportData(
 
     // Step 6: Import circuits as playlists (separate transaction per circuit
     // so one failure doesn't roll back others or abort the tick transaction)
-    for (const circuit of data.circuits) {
+    for (let ci = 0; ci < data.circuits.length; ci++) {
+      const circuit = data.circuits[ci];
       const resolvedClimbs: string[] = [];
       for (const climbName of circuit.climbs) {
         const uuid = nameToUuid.get(climbName);
@@ -474,9 +514,12 @@ export async function importJsonExportData(
         console.error(`Failed to import circuit "${circuit.name}":`, error);
         result.circuits.failed++;
       }
+
+      onProgress?.({ type: 'progress', step: 'circuits', current: ci + 1, total: data.circuits.length });
     }
 
     // Step 7: Build inferred sessions for imported ticks
+    onProgress?.({ type: 'progress', step: 'sessions', message: 'Building sessions...' });
     if (result.ascents.imported > 0 || result.attempts.imported > 0) {
       try {
         const assigned = await buildInferredSessionsForUser(userId);
