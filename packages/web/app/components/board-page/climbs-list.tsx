@@ -67,6 +67,42 @@ const ClimbsList = ({
   renderItemExtra,
   showBottomSpacer,
 }: ClimbsListProps) => {
+  // Progressive rendering: show first batch immediately, rest after a frame.
+  // Only batch when the list is replaced (new search), not when items are
+  // appended (infinite scroll) — otherwise the height shrinks and the page jumps.
+  const INITIAL_BATCH = 6;
+  const [visibleCount, setVisibleCount] = useState(climbs.length);
+  const prevClimbsRef = useRef(climbs);
+
+  if (climbs !== prevClimbsRef.current) {
+    const prevClimbs = prevClimbsRef.current;
+    prevClimbsRef.current = climbs;
+
+    // Detect append (infinite scroll): new list starts with all previous items
+    const isAppend = climbs.length > prevClimbs.length &&
+      prevClimbs.length > 0 &&
+      climbs[0]?.uuid === prevClimbs[0]?.uuid;
+
+    if (isAppend) {
+      // Show all items immediately — no batching for appended pages
+      setVisibleCount(climbs.length);
+    } else if (climbs.length > INITIAL_BATCH) {
+      setVisibleCount(INITIAL_BATCH);
+    }
+  }
+
+  useEffect(() => {
+    if (visibleCount < climbs.length) {
+      const id = requestAnimationFrame(() => setVisibleCount(climbs.length));
+      return () => cancelAnimationFrame(id);
+    }
+  }, [visibleCount, climbs.length]);
+
+  const visibleClimbs = useMemo(
+    () => climbs.slice(0, visibleCount),
+    [climbs, visibleCount],
+  );
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   // Keep a ref to onClimbSelect so handleClimbDoubleClick stays stable
@@ -119,11 +155,11 @@ const ClimbsList = ({
   // Memoize climb-specific handlers to prevent unnecessary re-renders
   const climbHandlersMap = useMemo(() => {
     const map = new Map<string, () => void>();
-    climbs.forEach(climb => {
+    visibleClimbs.forEach(climb => {
       map.set(climb.uuid, () => handleClimbDoubleClick(climb));
     });
     return map;
-  }, [climbs, handleClimbDoubleClick]);
+  }, [visibleClimbs, handleClimbDoubleClick]);
 
   // Resolve per-climb boardDetails when boardDetailsMap is provided
   const resolveBoardDetails = useCallback(
@@ -213,7 +249,7 @@ const ClimbsList = ({
       {viewMode === 'grid' ? (
         /* Grid (card) mode */
         <Box sx={gridContainerSx}>
-          {climbs.map((climb, index) => (
+          {visibleClimbs.map((climb, index) => (
             <Box key={climb.uuid} sx={cardBoxSx}>
               <div
                 {...(index === 0 ? { id: 'onboarding-climb-card' } : {})}
@@ -236,7 +272,7 @@ const ClimbsList = ({
       ) : (
         /* List (compact) mode */
         <div>
-          {climbs.map((climb, index) => (
+          {visibleClimbs.map((climb, index) => (
             <div
               key={climb.uuid}
               {...(index === 0 ? { id: 'onboarding-climb-card' } : {})}

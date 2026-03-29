@@ -33,7 +33,7 @@ const RecentSearchPills: React.FC = () => {
   if (searches.length === 0) return null;
 
   const handleApply = (filters: Partial<SearchRequestPagination>) => {
-    updateFilters(filters);
+    updateFilters(filters, true);
   };
 
   return (

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -14,8 +14,38 @@ type ClimbThumbnailProps = {
   maxHeight?: string;
 };
 
+const placeholderStyle = (boardDetails: BoardDetails): React.CSSProperties => ({
+  width: '100%',
+  aspectRatio: `${boardDetails.boardWidth}/${boardDetails.boardHeight}`,
+  background: 'var(--neutral-200)',
+  borderRadius: 4,
+});
+
 const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, onNavigate, maxHeight }: ClimbThumbnailProps) => {
   const pathname = usePathname();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  if (!isVisible) {
+    return <div ref={containerRef} style={placeholderStyle(boardDetails)} />;
+  }
 
   if (enableNavigation && currentClimb) {
     const climbViewUrl = getContextAwareClimbViewUrl(
@@ -27,26 +57,30 @@ const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, 
     );
 
     return (
-      <Link href={climbViewUrl} prefetch={false} onClick={() => onNavigate?.()} data-testid="climb-thumbnail-link">
-        <BoardRenderer
-          litUpHoldsMap={currentClimb?.litUpHoldsMap}
-          mirrored={!!currentClimb?.mirrored}
-          boardDetails={boardDetails}
-          thumbnail
-          maxHeight={maxHeight}
-        />
-      </Link>
+      <div ref={containerRef}>
+        <Link href={climbViewUrl} prefetch={false} onClick={() => onNavigate?.()} data-testid="climb-thumbnail-link">
+          <BoardRenderer
+            litUpHoldsMap={currentClimb?.litUpHoldsMap}
+            mirrored={!!currentClimb?.mirrored}
+            boardDetails={boardDetails}
+            thumbnail
+            maxHeight={maxHeight}
+          />
+        </Link>
+      </div>
     );
   }
 
   return (
-    <BoardRenderer
-      litUpHoldsMap={currentClimb?.litUpHoldsMap}
-      mirrored={!!currentClimb?.mirrored}
-      boardDetails={boardDetails}
-      thumbnail
-      maxHeight={maxHeight}
-    />
+    <div ref={containerRef}>
+      <BoardRenderer
+        litUpHoldsMap={currentClimb?.litUpHoldsMap}
+        mirrored={!!currentClimb?.mirrored}
+        boardDetails={boardDetails}
+        thumbnail
+        maxHeight={maxHeight}
+      />
+    </div>
   );
 };
 

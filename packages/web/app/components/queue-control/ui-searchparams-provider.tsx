@@ -8,7 +8,7 @@ import { DEFAULT_SEARCH_PARAMS } from '@/app/lib/url-utils';
 
 interface UISearchParamsContextType {
   uiSearchParams: SearchRequestPagination;
-  updateFilters: (newFilters: Partial<SearchRequestPagination>) => void;
+  updateFilters: (newFilters: Partial<SearchRequestPagination>, instant?: boolean) => void;
   clearClimbSearchParams: () => void;
 }
 
