@@ -13,6 +13,7 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useBluetoothContext } from './bluetooth-context';
 import { useQueueContext } from '../graphql-queue';
+import { isNativeApp } from '@/app/lib/ble/capacitor-utils';
 import './send-climb-to-board-button.css';
 
 const SendClimbToBoardButton: React.FC = () => {
@@ -67,7 +68,7 @@ const SendClimbToBoardButton: React.FC = () => {
               won&#39;t be able to illuminate routes on the board.
             </Typography>
           </Typography>
-          {isIOS ? (
+          {isIOS && !isNativeApp() ? (
             <>
               <Typography variant="body1" component="p">
                 To control your board from an iOS device, install the Bluefy

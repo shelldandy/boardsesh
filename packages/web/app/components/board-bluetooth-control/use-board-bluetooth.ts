@@ -4,15 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { track } from '@vercel/analytics';
 import { BoardDetails } from '@/app/lib/types';
-import {
-  getBluetoothPacket,
-  getCharacteristic,
-  requestDevice,
-  splitMessages,
-  writeCharacteristicSeries,
-} from './bluetooth';
+import { getBluetoothPacket } from './bluetooth';
 import { HoldRenderData } from '../board-renderer/types';
 import { useWakeLock } from './use-wake-lock';
+import type { BluetoothAdapter } from '@/app/lib/ble/types';
+import { createBluetoothAdapter } from '@/app/lib/ble/adapter-factory';
 
 export const convertToMirroredFramesString = (frames: string, holdsData: HoldRenderData[]): string => {
   // Create a map for quick lookup of mirroredHoldId
@@ -53,31 +49,20 @@ export function useBoardBluetooth({ boardDetails, onConnectionChange }: UseBoard
   // Prevent device from sleeping while connected to the board
   useWakeLock(isConnected);
 
-  // Store Bluetooth device and characteristic across renders
-  const bluetoothDeviceRef = useRef<BluetoothDevice | null>(null);
-  const characteristicRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+  // Store the BLE adapter across renders
+  const adapterRef = useRef<BluetoothAdapter | null>(null);
+  const unsubDisconnectRef = useRef<(() => void) | null>(null);
 
   // Handler for device disconnection
   const handleDisconnection = useCallback(() => {
     setIsConnected(false);
-    characteristicRef.current = null;
     onConnectionChange?.(false);
   }, [onConnectionChange]);
-
-  // Clean up disconnect listener from a device
-  const cleanupDeviceListeners = useCallback(
-    (device: BluetoothDevice | null) => {
-      if (device) {
-        device.removeEventListener('gattserverdisconnected', handleDisconnection);
-      }
-    },
-    [handleDisconnection],
-  );
 
   // Function to send frames string to the board
   const sendFramesToBoard = useCallback(
     async (frames: string, mirrored: boolean = false) => {
-      if (!characteristicRef.current || !frames || !boardDetails) return;
+      if (!adapterRef.current || !frames || !boardDetails) return;
 
       let framesToSend = frames;
       // Lazy-load LED placements data (~50KB) only when actually sending to board
@@ -95,7 +80,7 @@ export function useBoardBluetooth({ boardDetails, onConnectionChange }: UseBoard
       const bluetoothPacket = getBluetoothPacket(framesToSend, placementPositions, boardDetails.board_name);
 
       try {
-        await writeCharacteristicSeries(characteristicRef.current, splitMessages(bluetoothPacket));
+        await adapterRef.current.write(bluetoothPacket);
         return true;
       } catch (error) {
         console.error('Error sending frames to board:', error);
@@ -108,11 +93,6 @@ export function useBoardBluetooth({ boardDetails, onConnectionChange }: UseBoard
   // Handle connection initiation
   const connect = useCallback(
     async (initialFrames?: string, mirrored?: boolean) => {
-      if (!navigator.bluetooth) {
-        showMessage('Current browser does not support Web Bluetooth.', 'error');
-        return false;
-      }
-
       if (!boardDetails) {
         console.error('Cannot connect to Bluetooth without board details');
         return false;
@@ -121,37 +101,43 @@ export function useBoardBluetooth({ boardDetails, onConnectionChange }: UseBoard
       setLoading(true);
 
       try {
-        // Clean up any existing device listeners before requesting a new device
-        cleanupDeviceListeners(bluetoothDeviceRef.current);
+        // Create a new adapter (or reuse existing)
+        const adapter = await createBluetoothAdapter();
 
-        // Always request a new device to allow connecting to a different board
-        const device = await requestDevice();
-        const characteristic = await getCharacteristic(device);
-
-        if (characteristic) {
-          // Set up disconnection listener
-          device.addEventListener('gattserverdisconnected', handleDisconnection);
-
-          bluetoothDeviceRef.current = device;
-          characteristicRef.current = characteristic;
-
-          track('Bluetooth Connection Success', {
-            boardLayout: `${boardDetails.layout_name}`,
-          });
-
-          // Send initial frames if provided
-          if (initialFrames) {
-            await sendFramesToBoard(initialFrames, mirrored);
-          }
-
-          setIsConnected(true);
-          onConnectionChange?.(true);
-          return true;
+        const available = await adapter.isAvailable();
+        if (!available) {
+          showMessage('Bluetooth is not available on this device.', 'error');
+          return false;
         }
+
+        // Clean up any existing adapter
+        if (adapterRef.current) {
+          unsubDisconnectRef.current?.();
+          await adapterRef.current.disconnect();
+        }
+
+        // Connect via the adapter
+        await adapter.requestAndConnect();
+
+        // Set up disconnection listener
+        unsubDisconnectRef.current = adapter.onDisconnect(handleDisconnection);
+        adapterRef.current = adapter;
+
+        track('Bluetooth Connection Success', {
+          boardLayout: `${boardDetails.layout_name}`,
+        });
+
+        // Send initial frames if provided
+        if (initialFrames) {
+          await sendFramesToBoard(initialFrames, mirrored);
+        }
+
+        setIsConnected(true);
+        onConnectionChange?.(true);
+        return true;
       } catch (error) {
         console.error('Error connecting to Bluetooth:', error);
         setIsConnected(false);
-        characteristicRef.current = null;
         track('Bluetooth Connection Failed', {
           boardLayout: `${boardDetails.layout_name}`,
         });
@@ -161,26 +147,26 @@ export function useBoardBluetooth({ boardDetails, onConnectionChange }: UseBoard
 
       return false;
     },
-    [cleanupDeviceListeners, handleDisconnection, boardDetails, onConnectionChange, sendFramesToBoard],
+    [handleDisconnection, boardDetails, onConnectionChange, sendFramesToBoard, showMessage],
   );
 
   // Disconnect from the board
   const disconnect = useCallback(() => {
-    if (bluetoothDeviceRef.current?.gatt?.connected) {
-      bluetoothDeviceRef.current.gatt.disconnect();
-    }
-    cleanupDeviceListeners(bluetoothDeviceRef.current);
+    unsubDisconnectRef.current?.();
+    unsubDisconnectRef.current = null;
+    adapterRef.current?.disconnect();
+    adapterRef.current = null;
     setIsConnected(false);
-    characteristicRef.current = null;
     onConnectionChange?.(false);
-  }, [cleanupDeviceListeners, onConnectionChange]);
+  }, [onConnectionChange]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      cleanupDeviceListeners(bluetoothDeviceRef.current);
+      unsubDisconnectRef.current?.();
+      adapterRef.current?.disconnect();
     };
-  }, [cleanupDeviceListeners]);
+  }, []);
 
   return {
     isConnected,

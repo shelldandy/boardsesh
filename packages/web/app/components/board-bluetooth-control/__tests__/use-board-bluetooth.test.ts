@@ -3,14 +3,20 @@ import { renderHook, act } from '@testing-library/react';
 
 // --- Mocks ---
 
-const mockRequestDevice = vi.fn();
-const mockGetCharacteristic = vi.fn();
+const mockAdapter = {
+  isAvailable: vi.fn(),
+  requestAndConnect: vi.fn(),
+  disconnect: vi.fn(),
+  write: vi.fn(),
+  onDisconnect: vi.fn(() => vi.fn()),
+};
+
+vi.mock('@/app/lib/ble/adapter-factory', () => ({
+  createBluetoothAdapter: vi.fn(() => Promise.resolve(mockAdapter)),
+}));
+
 vi.mock('../bluetooth', () => ({
-  requestDevice: (...args: unknown[]) => mockRequestDevice(...args),
-  getCharacteristic: (...args: unknown[]) => mockGetCharacteristic(...args),
   getBluetoothPacket: vi.fn(() => new Uint8Array([1, 2, 3])),
-  splitMessages: vi.fn((msg: unknown) => [msg]),
-  writeCharacteristicSeries: vi.fn(),
 }));
 
 vi.mock('../use-wake-lock', () => ({
@@ -41,26 +47,16 @@ const mockBoardDetails = {
 } as unknown as Parameters<typeof useBoardBluetooth>[0]['boardDetails'];
 
 describe('useBoardBluetooth', () => {
-  let originalBluetooth: unknown;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    originalBluetooth = (navigator as unknown as Record<string, unknown>).bluetooth;
-
-    // Set up navigator.bluetooth as available
-    Object.defineProperty(navigator, 'bluetooth', {
-      value: { requestDevice: vi.fn() },
-      writable: true,
-      configurable: true,
+    mockAdapter.isAvailable.mockResolvedValue(true);
+    mockAdapter.requestAndConnect.mockResolvedValue({
+      deviceId: 'test-device',
+      deviceName: 'Test Board',
     });
-  });
-
-  afterEach(() => {
-    Object.defineProperty(navigator, 'bluetooth', {
-      value: originalBluetooth,
-      writable: true,
-      configurable: true,
-    });
+    mockAdapter.disconnect.mockResolvedValue(undefined);
+    mockAdapter.write.mockResolvedValue(undefined);
+    mockAdapter.onDisconnect.mockReturnValue(vi.fn());
   });
 
   it('initial state: not connected, not loading', () => {
@@ -72,12 +68,8 @@ describe('useBoardBluetooth', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it('shows error when bluetooth not supported', async () => {
-    Object.defineProperty(navigator, 'bluetooth', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
+  it('shows error when bluetooth not available', async () => {
+    mockAdapter.isAvailable.mockResolvedValue(false);
 
     const { result } = renderHook(() =>
       useBoardBluetooth({ boardDetails: mockBoardDetails }),
@@ -90,7 +82,7 @@ describe('useBoardBluetooth', () => {
 
     expect(connectResult).toBe(false);
     expect(mockShowMessage).toHaveBeenCalledWith(
-      'Current browser does not support Web Bluetooth.',
+      'Bluetooth is not available on this device.',
       'error',
     );
   });
@@ -112,53 +104,34 @@ describe('useBoardBluetooth', () => {
   });
 
   it('sets loading during connect', async () => {
-    let resolveDevice: (value: unknown) => void;
-    const devicePromise = new Promise((resolve) => {
-      resolveDevice = resolve;
+    let resolveConnect: (value: unknown) => void;
+    const connectPromise = new Promise((resolve) => {
+      resolveConnect = resolve;
     });
-    mockRequestDevice.mockReturnValue(devicePromise);
+    mockAdapter.requestAndConnect.mockReturnValue(connectPromise);
 
     const { result } = renderHook(() =>
       useBoardBluetooth({ boardDetails: mockBoardDetails }),
     );
 
     // Start connection
-    let connectPromise: Promise<boolean>;
+    let hookConnectPromise: Promise<boolean>;
     act(() => {
-      connectPromise = result.current.connect();
+      hookConnectPromise = result.current.connect();
     });
 
     // Should be loading
     expect(result.current.loading).toBe(true);
 
-    // Resolve with a mock device
-    const mockDevice = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      gatt: { connected: true, disconnect: vi.fn() },
-    };
-    const mockCharacteristic = {};
-    mockGetCharacteristic.mockResolvedValue(mockCharacteristic);
-
     await act(async () => {
-      resolveDevice!(mockDevice);
-      await connectPromise;
+      resolveConnect!({ deviceId: 'test', deviceName: 'Board' });
+      await hookConnectPromise;
     });
 
     expect(result.current.loading).toBe(false);
   });
 
   it('sets isConnected on successful connection', async () => {
-    const mockDevice = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      gatt: { connected: true, disconnect: vi.fn() },
-    };
-    const mockCharacteristic = {};
-
-    mockRequestDevice.mockResolvedValue(mockDevice);
-    mockGetCharacteristic.mockResolvedValue(mockCharacteristic);
-
     const { result } = renderHook(() =>
       useBoardBluetooth({ boardDetails: mockBoardDetails }),
     );
@@ -171,7 +144,7 @@ describe('useBoardBluetooth', () => {
   });
 
   it('handles connect failure', async () => {
-    mockRequestDevice.mockRejectedValue(new Error('Connection failed'));
+    mockAdapter.requestAndConnect.mockRejectedValue(new Error('Connection failed'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { result } = renderHook(() =>
@@ -189,18 +162,7 @@ describe('useBoardBluetooth', () => {
     errorSpy.mockRestore();
   });
 
-  it('disconnect calls gatt.disconnect', async () => {
-    const mockDisconnect = vi.fn();
-    const mockDevice = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      gatt: { connected: true, disconnect: mockDisconnect },
-    };
-    const mockCharacteristic = {};
-
-    mockRequestDevice.mockResolvedValue(mockDevice);
-    mockGetCharacteristic.mockResolvedValue(mockCharacteristic);
-
+  it('disconnect calls adapter.disconnect', async () => {
     const { result } = renderHook(() =>
       useBoardBluetooth({ boardDetails: mockBoardDetails }),
     );
@@ -215,21 +177,12 @@ describe('useBoardBluetooth', () => {
       result.current.disconnect();
     });
 
-    expect(mockDisconnect).toHaveBeenCalled();
+    expect(mockAdapter.disconnect).toHaveBeenCalled();
     expect(result.current.isConnected).toBe(false);
   });
 
   it('calls onConnectionChange callback', async () => {
     const onConnectionChange = vi.fn();
-    const mockDevice = {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      gatt: { connected: true, disconnect: vi.fn() },
-    };
-    const mockCharacteristic = {};
-
-    mockRequestDevice.mockResolvedValue(mockDevice);
-    mockGetCharacteristic.mockResolvedValue(mockCharacteristic);
 
     const { result } = renderHook(() =>
       useBoardBluetooth({ boardDetails: mockBoardDetails, onConnectionChange }),
@@ -248,18 +201,7 @@ describe('useBoardBluetooth', () => {
     expect(onConnectionChange).toHaveBeenCalledWith(false);
   });
 
-  it('cleans up device listeners on unmount', async () => {
-    const mockRemoveEventListener = vi.fn();
-    const mockDevice = {
-      addEventListener: vi.fn(),
-      removeEventListener: mockRemoveEventListener,
-      gatt: { connected: true, disconnect: vi.fn() },
-    };
-    const mockCharacteristic = {};
-
-    mockRequestDevice.mockResolvedValue(mockDevice);
-    mockGetCharacteristic.mockResolvedValue(mockCharacteristic);
-
+  it('cleans up adapter on unmount', async () => {
     const { result, unmount } = renderHook(() =>
       useBoardBluetooth({ boardDetails: mockBoardDetails }),
     );
@@ -270,9 +212,6 @@ describe('useBoardBluetooth', () => {
 
     unmount();
 
-    expect(mockRemoveEventListener).toHaveBeenCalledWith(
-      'gattserverdisconnected',
-      expect.any(Function),
-    );
+    expect(mockAdapter.disconnect).toHaveBeenCalled();
   });
 });

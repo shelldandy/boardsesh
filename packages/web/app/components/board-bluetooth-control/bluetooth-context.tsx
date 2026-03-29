@@ -5,6 +5,7 @@ import { track } from '@vercel/analytics';
 import { useBoardBluetooth } from './use-board-bluetooth';
 import { useQueueContext } from '../graphql-queue';
 import type { BoardDetails } from '@/app/lib/types';
+import { isCapacitor } from '@/app/lib/ble/capacitor-utils';
 
 interface BluetoothContextValue {
   isConnected: boolean;
@@ -30,7 +31,11 @@ export function BluetoothProvider({
     useBoardBluetooth({ boardDetails });
 
   const isBluetoothSupported = useMemo(
-    () => typeof navigator !== 'undefined' && !!navigator.bluetooth,
+    () => {
+      if (typeof window === 'undefined') return false;
+      if (isCapacitor()) return true;
+      return typeof navigator !== 'undefined' && !!navigator.bluetooth;
+    },
     [],
   );
 
