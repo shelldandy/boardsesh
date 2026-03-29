@@ -31,6 +31,11 @@ export default function NearbyBoardsSection({
     return null;
   }
 
+  // Show loading while permission state is being determined or coords are being fetched
+  if (permissionState === null || (permissionState === 'granted' && isLoading)) {
+    return <BoardScrollSection title="Found Nearby" loading />;
+  }
+
   // Show permission prompt
   if (permissionState === 'prompt' && !isLoading) {
     return (
@@ -83,6 +88,7 @@ export default function NearbyBoardsSection({
         <BoardScrollCard
           key={board.uuid}
           userBoard={board}
+          distanceMeters={board.distanceMeters}
           onClick={() => onBoardSelect(board)}
         />
       ))}

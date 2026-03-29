@@ -41,6 +41,17 @@ export function useNearbyBoards({
   const [error, setError] = useState<string | null>(null);
   const hasDataRef = useRef(false);
 
+  // Auto-fetch position when enabled and permission allows it.
+  // useGeolocation only checks permission state on mount — it doesn't
+  // auto-fetch coordinates. We need to trigger requestPermission (which
+  // calls getCurrentPosition) when permission is 'granted' or 'prompt'.
+  useEffect(() => {
+    if (!enabled || !permissionState) return;
+    if (permissionState === 'denied') return;
+    if (coordinates) return; // already have coords
+    requestPermission();
+  }, [enabled, permissionState, coordinates, requestPermission]);
+
   // Extract primitive values from coordinates to use as stable dependencies.
   // The coordinates object is recreated on each geolocation state update,
   // so using it directly would cause infinite effect re-runs.

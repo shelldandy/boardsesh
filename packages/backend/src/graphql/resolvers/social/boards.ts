@@ -95,6 +95,7 @@ export async function resolveBoardFromPath(
 async function enrichBoard(
   board: typeof dbSchema.userBoards.$inferSelect,
   authenticatedUserId?: string,
+  distanceMeters?: number | null,
 ) {
   // Run all independent queries in parallel to avoid N+1 per board
   const [ownerResult, tickStatsResult, followerStatsResult, commentStatsResult, followCheckResult, gymInfoResult] =
@@ -210,6 +211,7 @@ async function enrichBoard(
     gymId: board.gymId ?? null,
     gymUuid: gymInfo?.uuid ?? null,
     gymName: gymInfo?.name ?? null,
+    distanceMeters: distanceMeters ?? null,
   };
 }
 
@@ -576,8 +578,9 @@ export const socialBoardQueries = {
         countSql.append(sql` AND (name ILIKE ${likePattern} OR location_name ILIKE ${likePattern})`);
       }
 
-      const countRows = await db.execute(countSql);
-      const totalCount = Number(((countRows as unknown as Array<Record<string, unknown>>)[0])?.count || 0);
+      const countResult = await db.execute(countSql);
+      const countRows = (countResult as unknown as { rows: Array<Record<string, unknown>> }).rows;
+      const totalCount = Number(countRows[0]?.count || 0);
 
       // Build the main query with distance ordering
       const mainSql = sql`SELECT *, ST_Distance(location, ST_MakePoint(${lon}, ${lat})::geography) as distance_meters FROM user_boards WHERE is_public = true AND deleted_at IS NULL AND location IS NOT NULL AND ST_DWithin(location, ST_MakePoint(${lon}, ${lat})::geography, ${radiusMeters})`;
@@ -591,43 +594,48 @@ export const socialBoardQueries = {
 
       mainSql.append(sql` ORDER BY distance_meters ASC LIMIT ${limit} OFFSET ${offset}`);
 
-      const boardRows = await db.execute(mainSql);
-      const boards = (boardRows as unknown as Array<Record<string, unknown>>);
+      const boardResult = await db.execute(mainSql);
+      const boards = (boardResult as unknown as { rows: Array<Record<string, unknown>> }).rows;
 
       // Map raw rows to board shape expected by enrichBoard
       type BoardRow = typeof dbSchema.userBoards.$inferSelect;
       const mappedBoards = boards.map((row) => ({
-        id: row.id as number,
-        uuid: row.uuid as string,
-        slug: (row.slug as string) || '',
-        ownerId: row.owner_id as string,
-        boardType: row.board_type as string,
-        layoutId: row.layout_id as number,
-        sizeId: row.size_id as number,
-        setIds: row.set_ids as string,
-        name: row.name as string,
-        description: (row.description as string | null) ?? null,
-        locationName: (row.location_name as string | null) ?? null,
-        latitude: row.latitude != null ? Number(row.latitude) : null,
-        longitude: row.longitude != null ? Number(row.longitude) : null,
-        isPublic: row.is_public as boolean,
-        isOwned: row.is_owned as boolean,
-        angle: row.angle != null ? Number(row.angle) : 40,
-        gymId: row.gym_id != null ? Number(row.gym_id) : null,
-        isAngleAdjustable: row.is_angle_adjustable as boolean ?? true,
-        createdAt: row.created_at as Date,
-        updatedAt: row.updated_at as Date,
-        deletedAt: (row.deleted_at as Date | null) ?? null,
-      }) as BoardRow);
+        board: {
+          id: row.id as number,
+          uuid: row.uuid as string,
+          slug: (row.slug as string) || '',
+          ownerId: row.owner_id as string,
+          boardType: row.board_type as string,
+          layoutId: row.layout_id as number,
+          sizeId: row.size_id as number,
+          setIds: row.set_ids as string,
+          name: row.name as string,
+          description: (row.description as string | null) ?? null,
+          locationName: (row.location_name as string | null) ?? null,
+          latitude: row.latitude != null ? Number(row.latitude) : null,
+          longitude: row.longitude != null ? Number(row.longitude) : null,
+          isPublic: row.is_public as boolean,
+          isOwned: row.is_owned as boolean,
+          angle: row.angle != null ? Number(row.angle) : 40,
+          gymId: row.gym_id != null ? Number(row.gym_id) : null,
+          isAngleAdjustable: row.is_angle_adjustable as boolean ?? true,
+          createdAt: row.created_at as Date,
+          updatedAt: row.updated_at as Date,
+          deletedAt: (row.deleted_at as Date | null) ?? null,
+        } as BoardRow,
+        distanceMeters: row.distance_meters != null ? Number(row.distance_meters) : null,
+      }));
 
       const enrichedBoards = await Promise.all(
-        mappedBoards.map((b) => enrichBoard(b, ctx.isAuthenticated ? ctx.userId : undefined)),
+        mappedBoards.map(({ board, distanceMeters }) =>
+          enrichBoard(board, ctx.isAuthenticated ? ctx.userId : undefined, distanceMeters),
+        ),
       );
 
       return {
         boards: enrichedBoards,
         totalCount,
-        hasMore: offset + mappedBoards.length < totalCount,
+        hasMore: offset + enrichedBoards.length < totalCount,
       };
     }
 
