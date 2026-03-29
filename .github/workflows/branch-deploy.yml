@@ -133,6 +133,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       deployments: write
     outputs:
       deployment_id: ${{ steps.create.outputs.deployment_id }}
@@ -142,14 +143,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DEPLOYMENT_ID=$(gh api repos/${{ github.repository }}/deployments \
-            --method POST \
-            --field ref="${{ github.sha }}" \
-            --field environment="preview-pr-${{ env.PR_NUMBER }}" \
-            --field description="Preview deployment for PR #${{ env.PR_NUMBER }}" \
-            --field auto_merge=false \
-            --field required_contexts='[]' \
-            --jq '.id')
+          DEPLOYMENT_ID=$(printf '{"ref":"%s","environment":"preview-pr-%s","description":"Preview deployment for PR #%s","auto_merge":false,"required_contexts":[]}' \
+            "${{ github.sha }}" "${{ env.PR_NUMBER }}" "${{ env.PR_NUMBER }}" | \
+            gh api repos/${{ github.repository }}/deployments \
+              --method POST --input - --jq '.id')
           if [ -z "$DEPLOYMENT_ID" ]; then
             echo "Failed to create deployment"
             exit 1
