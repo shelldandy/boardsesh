@@ -127,6 +127,8 @@ jobs:
           sleep 10
           docker ps --filter "name=web-pr-${PR_NUM}" --filter "name=backend-pr-${PR_NUM}" --format "table {{.Names}}\t{{.Status}}"
 
+  # Note: deployment tracking only runs for pull_request events.
+  # Manual workflow_dispatch deploys skip deployment creation since there's no PR to attach to.
   create-deployment:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -148,6 +150,10 @@ jobs:
             --field auto_merge=false \
             --field required_contexts='[]' \
             --jq '.id')
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "Failed to create deployment"
+            exit 1
+          fi
           echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Set deployment status to in_progress

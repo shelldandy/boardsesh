@@ -39,6 +39,11 @@ jobs:
           DEPLOYMENT_IDS=$(gh api "repos/${{ github.repository }}/deployments?environment=preview-pr-${{ env.PR_NUMBER }}&per_page=100" \
             --jq '.[].id')
 
+          if [ -z "$DEPLOYMENT_IDS" ]; then
+            echo "No deployments to deactivate"
+            exit 0
+          fi
+
           for DEPLOY_ID in $DEPLOYMENT_IDS; do
             echo "Marking deployment ${DEPLOY_ID} as inactive"
             gh api "repos/${{ github.repository }}/deployments/${DEPLOY_ID}/statuses" \
