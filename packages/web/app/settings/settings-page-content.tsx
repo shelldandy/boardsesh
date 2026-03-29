@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import Logo from '@/app/components/brand/logo';
 import AuroraCredentialsSection from '@/app/components/settings/aurora-credentials-section';
 import ControllersSection from '@/app/components/settings/controllers-section';
+import SetPasswordSection from '@/app/components/settings/set-password-section';
 import BackButton from '@/app/components/back-button';
 import { useWsAuthToken } from '@/app/hooks/use-ws-auth-token';
 import { usePartyProfile } from '@/app/components/party-manager/party-profile-context';
@@ -34,6 +35,8 @@ interface UserProfile {
   email: string;
   name: string | null;
   image: string | null;
+  hasPassword: boolean;
+  linkedProviders: string[];
   profile: {
     displayName: string | null;
     avatarUrl: string | null;
@@ -392,6 +395,15 @@ export default function SettingsPageContent() {
             </Box>
           </CardContent>
         </Card>
+
+        <MuiDivider sx={{ my: 2 }} />
+
+        <SetPasswordSection
+          hasPassword={profile?.hasPassword ?? false}
+          userEmail={profile?.email || session?.user?.email || ''}
+          linkedProviders={profile?.linkedProviders ?? []}
+          onPasswordSet={fetchProfile}
+        />
 
         <MuiDivider sx={{ my: 2 }} />
 

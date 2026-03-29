@@ -22,19 +22,28 @@ export async function GET() {
 
     const db = getDb();
 
-    // Get user profile
-    const profiles = await db
-      .select()
-      .from(schema.userProfiles)
-      .where(eq(schema.userProfiles.userId, session.user.id))
-      .limit(1);
-
-    // Get base user data
-    const users = await db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.id, session.user.id))
-      .limit(1);
+    // Run all queries in parallel since they are independent
+    const [profiles, users, credentials, linkedAccounts] = await Promise.all([
+      db
+        .select()
+        .from(schema.userProfiles)
+        .where(eq(schema.userProfiles.userId, session.user.id))
+        .limit(1),
+      db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, session.user.id))
+        .limit(1),
+      db
+        .select({ userId: schema.userCredentials.userId })
+        .from(schema.userCredentials)
+        .where(eq(schema.userCredentials.userId, session.user.id))
+        .limit(1),
+      db
+        .select({ provider: schema.accounts.provider })
+        .from(schema.accounts)
+        .where(eq(schema.accounts.userId, session.user.id)),
+    ]);
 
     if (users.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -48,6 +57,8 @@ export async function GET() {
       email: user.email,
       name: user.name,
       image: user.image,
+      hasPassword: credentials.length > 0,
+      linkedProviders: linkedAccounts.map((a) => a.provider),
       profile: profile
         ? {
             displayName: profile.displayName,
