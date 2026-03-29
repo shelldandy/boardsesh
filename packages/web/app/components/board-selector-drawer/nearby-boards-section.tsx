@@ -26,18 +26,16 @@ export default function NearbyBoardsSection({
     limit: 10,
   });
 
-  // Don't render anything if permission is denied
-  if (permissionState === 'denied') {
-    return null;
-  }
-
-  // Show loading while permission state is being determined or coords are being fetched
-  if (permissionState === null || (permissionState === 'granted' && isLoading)) {
+  // Show loading while coords are being fetched (permission already granted)
+  if (permissionState === 'granted' && isLoading) {
     return <BoardScrollSection title="Found Nearby" loading />;
   }
 
-  // Show permission prompt
-  if (permissionState === 'prompt' && !isLoading) {
+  // Show permission prompt when permission is unknown (null — iOS Safari
+  // doesn't support the Permissions API), prompt, or denied (on iOS, calling
+  // getCurrentPosition can still trigger the native prompt even when the
+  // Permissions API reports 'denied', so we always offer the button).
+  if (!boards.length && permissionState !== 'granted') {
     return (
       <BoardScrollSection title="Found Nearby">
         <Box

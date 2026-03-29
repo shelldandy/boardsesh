@@ -190,25 +190,21 @@ export default function BoardMapView({ onBoardSelect }: BoardMapViewProps) {
     limit: 100,
   });
 
-  if (permissionState === 'prompt') {
+  // Show enable button when permission is unknown (null — iOS Safari doesn't
+  // support the Permissions API), prompt, or denied (on iOS, calling
+  // getCurrentPosition() can still trigger the native prompt even when the
+  // Permissions API reports 'denied').
+  if (!coordinates && permissionState !== 'granted') {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 2, textAlign: 'center' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 2, textAlign: 'center', px: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Enable location access to see boards on the map
+          {permissionState === 'denied'
+            ? 'Location access was denied. Tap below to try again, or enable location in your browser settings.'
+            : 'Enable location access to see boards on the map'}
         </Typography>
         <Button variant="contained" onClick={requestPermission}>
           Enable Location
         </Button>
-      </Box>
-    );
-  }
-
-  if (permissionState === 'denied') {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-        <Typography variant="body2" color="text.secondary">
-          Location access is required to show the map. Please enable it in your browser settings.
-        </Typography>
       </Box>
     );
   }

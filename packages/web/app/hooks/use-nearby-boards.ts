@@ -43,11 +43,13 @@ export function useNearbyBoards({
 
   // Auto-fetch position when enabled and permission allows it.
   // useGeolocation only checks permission state on mount — it doesn't
-  // auto-fetch coordinates. We need to trigger requestPermission (which
-  // calls getCurrentPosition) when permission is 'granted' or 'prompt'.
+  // auto-fetch coordinates. We trigger requestPermission (which calls
+  // getCurrentPosition) when permission is 'granted'. On iOS Safari where
+  // the Permissions API isn't supported, permissionState stays null — we
+  // don't auto-request in that case to avoid an unexpected browser prompt.
+  // The NearbyBoardsSection and BoardMapView show an explicit button instead.
   useEffect(() => {
-    if (!enabled || !permissionState) return;
-    if (permissionState === 'denied') return;
+    if (!enabled || permissionState !== 'granted') return;
     if (coordinates) return; // already have coords
     requestPermission();
   }, [enabled, permissionState, coordinates, requestPermission]);
