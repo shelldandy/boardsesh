@@ -55,7 +55,7 @@ function mergeResults(a: ImportResult, b: ImportResult): ImportResult {
 async function sendChunk(
   payload: ChunkPayload,
   onEvent: (event: ImportProgressEvent) => void,
-): Promise<ImportResult | null> {
+): Promise<ImportResult> {
   const response = await fetch('/api/internal/aurora-import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -116,6 +116,9 @@ async function sendChunk(
       event = JSON.parse(buffer);
     } catch {
       console.warn('Failed to parse import stream buffer:', buffer);
+      if (!result) {
+        throw new Error('Import was interrupted: server response ended without a result');
+      }
       return result;
     }
     if (event.type === 'complete') {
@@ -123,6 +126,10 @@ async function sendChunk(
     } else if (event.type === 'error') {
       throw new Error(event.error);
     }
+  }
+
+  if (!result) {
+    throw new Error('Import was interrupted: server response ended without a result');
   }
 
   return result;
@@ -212,9 +219,7 @@ export async function streamImport(
     });
 
     const chunkResult = await sendChunk(allChunks[i], onEvent);
-    if (chunkResult) {
-      merged = mergeResults(merged, chunkResult);
-    }
+    merged = mergeResults(merged, chunkResult);
   }
 
   onEvent({ type: 'complete', results: merged });

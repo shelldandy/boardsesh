@@ -193,6 +193,26 @@ describe('streamImport', () => {
 
       expect(warnSpy).toHaveBeenCalledWith('Failed to parse import stream buffer:', 'not json at all');
     });
+
+    it('throws when server stream ends without a complete or error event', async () => {
+      // Stream with only progress events, no complete/error
+      const progressOnly: ImportProgressEvent = { type: 'progress', step: 'resolving', message: 'working...' };
+      const stream = createMockReadableStream([JSON.stringify(progressOnly) + '\n']);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockFetchResponse(stream));
+
+      await expect(
+        streamImport('kilter', { user: { username: 'test' }, ascents: [1] }, vi.fn()),
+      ).rejects.toThrow('Import was interrupted: server response ended without a result');
+    });
+
+    it('throws when server stream is completely empty', async () => {
+      const stream = createMockReadableStream([]);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockFetchResponse(stream));
+
+      await expect(
+        streamImport('kilter', { user: { username: 'test' } }, vi.fn()),
+      ).rejects.toThrow('Import was interrupted: server response ended without a result');
+    });
   });
 
   describe('chunking', () => {

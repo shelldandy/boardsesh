@@ -24,8 +24,8 @@ import {
   ImportProgressSteps,
   type ImportPhase,
   type ImportProgress,
-  type ImportPreview,
 } from './aurora-credentials-section';
+import { parseAuroraExport, type AuroraExportPreview } from '@/app/lib/data-sync/aurora/parse-aurora-export';
 import styles from './aurora-credentials-section.module.css';
 
 interface BoardImportPromptProps {
@@ -46,7 +46,7 @@ export default function BoardImportPrompt({ boardType }: BoardImportPromptProps)
 
   // Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [importPreview, setImportPreview] = useState<AuroraExportPreview | null>(null);
   const [importRawData, setImportRawData] = useState<Record<string, unknown> | null>(null);
   const [importPhase, setImportPhase] = useState<ImportPhase | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
@@ -169,47 +169,20 @@ export default function BoardImportPrompt({ boardType }: BoardImportPromptProps)
     reader.onload = (e) => {
       try {
         const json = JSON.parse(e.target?.result as string);
+        const parsed = parseAuroraExport(json, boardType);
 
-        if (!json.user?.username) {
-          showMessage('Invalid file: missing user data. Please select an Aurora JSON export file.', 'error');
-          return;
+        if (parsed.boardWarning) {
+          showMessage(parsed.boardWarning, 'warning');
         }
 
-        if (Array.isArray(json.climbs) && json.climbs.length > 0) {
-          const layout = json.climbs[0]?.layout?.toLowerCase() ?? '';
-          const layoutMatchesBoard =
-            (boardType === 'kilter' && layout.includes('kilter')) ||
-            (boardType === 'tension' && layout.includes('tension'));
-
-          if (!layoutMatchesBoard && layout) {
-            showMessage(
-              `Warning: This export appears to be from "${json.climbs[0].layout}" but you're importing to ${boardName}. Climbs may not match.`,
-              'warning',
-            );
-          }
-        }
-
-        // Strip heavy unused fields before storing - only keep what the import uses.
-        // The full export can be 50MB+ due to the climbs array containing all climb
-        // definitions with hold data. We only need user, ascents, attempts, and circuits.
-        // TODO: Import user's own climbs (drafts) once the export format is verified.
-        const strippedData = {
-          user: json.user,
-          ascents: Array.isArray(json.ascents) ? json.ascents : [],
-          attempts: Array.isArray(json.attempts) ? json.attempts : [],
-          circuits: Array.isArray(json.circuits) ? json.circuits : [],
-        };
-
-        setImportRawData(strippedData);
-        setImportPreview({
-          ascents: strippedData.ascents.length,
-          attempts: strippedData.attempts.length,
-          circuits: strippedData.circuits.length,
-          username: json.user.username,
-        });
+        setImportRawData(parsed.data);
+        setImportPreview(parsed.preview);
         setImportPhase('preview');
-      } catch {
-        showMessage('Failed to parse JSON file. Please check the file format.', 'error');
+      } catch (err) {
+        showMessage(
+          err instanceof Error ? err.message : 'Failed to parse JSON file. Please check the file format.',
+          'error',
+        );
       }
     };
     reader.onerror = () => {
