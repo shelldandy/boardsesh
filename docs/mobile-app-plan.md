@@ -40,6 +40,8 @@ This document outlines the implementation plan for distributing Boardsesh as nat
 │  │   ┌─────────────────────────────┐     │   │
 │  │   │  Capacitor JS Bridge        │     │   │
 │  │   │  - BLE plugin               │     │   │
+│  │   │  - Geolocation              │     │   │
+│  │   │  - Browser (ext. URLs)      │     │   │
 │  │   │  - StatusBar                 │     │   │
 │  │   │  - Keyboard                  │     │   │
 │  │   │  - App (deep links)          │     │   │
