@@ -25,7 +25,7 @@ import {
   type ImportPhase,
   type ImportProgress,
 } from './aurora-credentials-section';
-import { parseAuroraExport, type AuroraExportPreview } from '@/app/lib/data-sync/aurora/parse-aurora-export';
+import { parseAuroraExport, type AuroraExportPreview, type StrippedExportData } from '@/app/lib/data-sync/aurora/parse-aurora-export';
 import styles from './aurora-credentials-section.module.css';
 
 interface BoardImportPromptProps {
@@ -47,7 +47,7 @@ export default function BoardImportPrompt({ boardType }: BoardImportPromptProps)
   // Import state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importPreview, setImportPreview] = useState<AuroraExportPreview | null>(null);
-  const [importRawData, setImportRawData] = useState<Record<string, unknown> | null>(null);
+  const [importRawData, setImportRawData] = useState<StrippedExportData | null>(null);
   const [importPhase, setImportPhase] = useState<ImportPhase | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);

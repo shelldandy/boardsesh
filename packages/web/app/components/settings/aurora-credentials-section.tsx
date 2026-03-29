@@ -36,7 +36,7 @@ import type { AuroraCredentialStatus } from '@/app/api/internal/aurora-credentia
 import type { UnsyncedCounts } from '@/app/api/internal/aurora-credentials/unsynced/route';
 import type { ImportResult } from '@/app/lib/data-sync/aurora/json-import';
 import { streamImport } from '@/app/lib/data-sync/aurora/json-import-stream';
-import { parseAuroraExport, type AuroraExportPreview } from '@/app/lib/data-sync/aurora/parse-aurora-export';
+import { parseAuroraExport, type AuroraExportPreview, type StrippedExportData } from '@/app/lib/data-sync/aurora/parse-aurora-export';
 import styles from './aurora-credentials-section.module.css';
 
 interface BoardUnsyncedCounts {
@@ -288,7 +288,7 @@ export default function AuroraCredentialsSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importingBoard, setImportingBoard] = useState<'kilter' | 'tension' | null>(null);
   const [importPreview, setAuroraExportPreview] = useState<AuroraExportPreview | null>(null);
-  const [importRawData, setImportRawData] = useState<unknown>(null);
+  const [importRawData, setImportRawData] = useState<StrippedExportData | null>(null);
   const [importPhase, setImportPhase] = useState<ImportPhase | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
