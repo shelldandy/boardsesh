@@ -264,6 +264,73 @@ describe('Climb Query Functions', () => {
     });
   });
 
+  describe('User tick LEFT JOIN (userAscents/userAttempts)', () => {
+    it('should return 0 for userAscents and userAttempts when user has no ticks', async () => {
+      const searchParams: ClimbSearchParams = {
+        page: 0,
+        pageSize: 5,
+      };
+      // Use a non-existent user ID to guarantee no ticks
+      const userId = 'nonexistent-user-id-no-ticks';
+
+      const result = await searchClimbs(testParams, searchParams, userId);
+
+      // Skip assertions if no test data available for these params
+      if (result.climbs.length === 0) return;
+
+      result.climbs.forEach((climb) => {
+        expect(climb.userAscents).toBe(0);
+        expect(climb.userAttempts).toBe(0);
+      });
+    });
+
+    it('should not reduce result count when userId is provided', async () => {
+      const searchParams: ClimbSearchParams = {
+        page: 0,
+        pageSize: 10,
+      };
+
+      const withoutUser = await searchClimbs(testParams, searchParams);
+      const withUser = await searchClimbs(testParams, searchParams, 'some-user-id');
+
+      // LEFT JOIN should not filter out any climbs
+      expect(withUser.climbs.length).toBe(withoutUser.climbs.length);
+    });
+
+    it('should return same climb UUIDs with and without userId', async () => {
+      const searchParams: ClimbSearchParams = {
+        page: 0,
+        pageSize: 10,
+        sortBy: 'ascents',
+        sortOrder: 'desc',
+      };
+
+      const withoutUser = await searchClimbs(testParams, searchParams);
+      const withUser = await searchClimbs(testParams, searchParams, 'some-user-id');
+
+      const withoutUuids = withoutUser.climbs.map((c) => c.uuid);
+      const withUuids = withUser.climbs.map((c) => c.uuid);
+
+      expect(withUuids).toEqual(withoutUuids);
+    });
+
+    it('should return numeric values for userAscents and userAttempts', async () => {
+      const searchParams: ClimbSearchParams = {
+        page: 0,
+        pageSize: 5,
+      };
+
+      const result = await searchClimbs(testParams, searchParams, 'any-user');
+
+      result.climbs.forEach((climb) => {
+        expect(typeof climb.userAscents).toBe('number');
+        expect(typeof climb.userAttempts).toBe('number');
+        expect(climb.userAscents).toBeGreaterThanOrEqual(0);
+        expect(climb.userAttempts).toBeGreaterThanOrEqual(0);
+      });
+    });
+  });
+
   describe('Performance and Edge Cases', () => {
     it('should handle empty search results', async () => {
       const searchParams: ClimbSearchParams = {

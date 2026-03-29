@@ -69,7 +69,7 @@ export default function ActivityFeed({
       return lastPage.cursor ?? undefined;
     },
     enabled: isAuthenticated ? !!token : true,
-    staleTime: 60 * 1000,
+    staleTime: isAuthenticated ? 60 * 1000 : 24 * 60 * 60 * 1000,
     ...(hasInitialData
       ? {
           initialData: {

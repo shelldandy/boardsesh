@@ -208,6 +208,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: mockQueue,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,
@@ -239,6 +240,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: queueWithClimb,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,
@@ -259,6 +261,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: mockQueue,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,
@@ -277,6 +280,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: mockQueue,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: true,
@@ -297,6 +301,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: mockQueue,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,
@@ -323,6 +328,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: mockQueue,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,
@@ -353,6 +359,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: mockQueue,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,
@@ -379,6 +386,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: mockQueue,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,
@@ -407,6 +415,7 @@ describe('useQueueDataFetching', () => {
       () =>
         useQueueDataFetching({
           searchParams: mockSearchParams,
+          countSearchParams: mockSearchParams,
           queue: queueWithClimb,
           parsedParams: mockParsedParams,
           hasDoneFirstFetch: false,

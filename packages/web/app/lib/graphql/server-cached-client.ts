@@ -1,9 +1,14 @@
 import 'server-only';
+import { createHash } from 'crypto';
 import { unstable_cache } from 'next/cache';
 import { GraphQLClient, RequestDocument, Variables } from 'graphql-request';
 import { sortObjectKeys } from '@/app/lib/cache-utils';
 import { getGraphQLHttpUrl } from './client';
 import type { GroupedNotificationConnection } from '@boardsesh/shared-schema';
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex').slice(0, 16);
+}
 
 /**
  * Cache durations for climb search queries (in seconds)
@@ -89,6 +94,12 @@ interface ClimbSearchInput {
   sortOrder?: string;
   name?: string;
   setter?: string | string[];
+  onlyTallClimbs?: boolean;
+  holdsFilter?: Record<string, string>;
+  hideAttempted?: boolean;
+  hideCompleted?: boolean;
+  showOnlyAttempted?: boolean;
+  showOnlyCompleted?: boolean;
 }
 
 /**
@@ -102,6 +113,7 @@ export async function cachedSearchClimbs<T = unknown>(
   document: RequestDocument,
   variables: { input: ClimbSearchInput },
   isDefaultSearch: boolean = false,
+  authToken?: string,
 ): Promise<T> {
   const revalidate = isDefaultSearch
     ? CACHE_DURATION_DEFAULT_SEARCH
@@ -131,11 +143,19 @@ export async function cachedSearchClimbs<T = unknown>(
       sortOrder: input.sortOrder,
       name: input.name,
       setter: input.setter,
+      hideAttempted: input.hideAttempted,
+      hideCompleted: input.hideCompleted,
+      showOnlyAttempted: input.showOnlyAttempted,
+      showOnlyCompleted: input.showOnlyCompleted,
     })),
+    // Hash auth token for per-user cache keying without exposing the raw token in logs
+    ...(authToken ? [`user:${hashToken(authToken)}`] : []),
   ];
 
   const cachedFn = unstable_cache(
-    async () => executeGraphQLInternal<T>(document, variables),
+    async () => authToken
+      ? executeAuthenticatedGraphQL<T>(document, variables, authToken)
+      : executeGraphQLInternal<T>(document, variables),
     cacheKey,
     {
       revalidate,
@@ -193,15 +213,18 @@ export async function serverMyBoards(
  */
 export async function cachedSessionGroupedFeed(
   boardUuid?: string,
+  isAuthenticated: boolean = false,
 ) {
   const { GET_SESSION_GROUPED_FEED } = await import('@/app/lib/graphql/operations/activity-feed');
+
+  const revalidate = isAuthenticated ? 300 : 86400;
 
   const query = createCachedGraphQLQuery<{
     sessionGroupedFeed: import('@boardsesh/shared-schema').SessionFeedResult;
   }>(
     GET_SESSION_GROUPED_FEED,
-    'session-grouped-feed',
-    300, // 5 min cache
+    isAuthenticated ? 'session-grouped-feed-auth' : 'session-grouped-feed-public',
+    revalidate,
   );
 
   const result = await query({ input: { boardUuid, limit: 20 } });

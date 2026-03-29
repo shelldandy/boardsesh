@@ -1,15 +1,16 @@
 import { useCallback, useRef, useEffect, useMemo } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { PAGE_LIMIT } from '../../board-page/constants';
 import { ClimbQueue } from '../types';
 import { ParsedBoardRouteParameters, SearchRequestPagination, SearchClimbsResult } from '@/app/lib/types';
 import { useOptionalBoardProvider } from '../../board-provider/board-provider-context';
 import { createGraphQLHttpClient } from '@/app/lib/graphql/client';
-import { SEARCH_CLIMBS, type ClimbSearchResponse } from '@/app/lib/graphql/operations/climb-search';
+import { SEARCH_CLIMBS, SEARCH_CLIMBS_COUNT, type ClimbSearchResponse, type ClimbSearchCountResponse } from '@/app/lib/graphql/operations/climb-search';
 import { useWsAuthToken } from '@/app/hooks/use-ws-auth-token';
 
 interface UseQueueDataFetchingProps {
   searchParams: SearchRequestPagination;
+  countSearchParams: SearchRequestPagination;
   queue: ClimbQueue;
   parsedParams: ParsedBoardRouteParameters;
   hasDoneFirstFetch: boolean;
@@ -18,6 +19,7 @@ interface UseQueueDataFetchingProps {
 
 export const useQueueDataFetching = ({
   searchParams,
+  countSearchParams,
   queue,
   parsedParams,
   hasDoneFirstFetch,
@@ -45,6 +47,36 @@ export const useQueueDataFetching = ({
     ] as const;
   }, [searchParams, parsedParams]);
 
+  // Shared base input for both search and count queries — single source of truth
+  const baseInput = useMemo(() => ({
+    boardName: parsedParams.board_name,
+    layoutId: parsedParams.layout_id,
+    sizeId: parsedParams.size_id,
+    setIds: parsedParams.set_ids.join(','),
+    angle: parsedParams.angle,
+    gradeAccuracy: searchParams.gradeAccuracy ? String(searchParams.gradeAccuracy) : undefined,
+    minGrade: searchParams.minGrade || undefined,
+    maxGrade: searchParams.maxGrade || undefined,
+    minAscents: searchParams.minAscents || undefined,
+    sortBy: searchParams.sortBy || 'ascents',
+    sortOrder: searchParams.sortOrder || 'desc',
+    name: searchParams.name || undefined,
+    setter: searchParams.settername && searchParams.settername.length > 0 ? searchParams.settername : undefined,
+    onlyTallClimbs: searchParams.onlyTallClimbs || undefined,
+    holdsFilter: searchParams.holdsFilter && Object.keys(searchParams.holdsFilter).length > 0
+      ? Object.fromEntries(
+          Object.entries(searchParams.holdsFilter).map(([key, value]) => [
+            key.replace('hold_', ''),
+            value.state
+          ])
+        )
+      : undefined,
+    hideAttempted: searchParams.hideAttempted || undefined,
+    hideCompleted: searchParams.hideCompleted || undefined,
+    showOnlyAttempted: searchParams.showOnlyAttempted || undefined,
+    showOnlyCompleted: searchParams.showOnlyCompleted || undefined,
+  }), [searchParams, parsedParams]);
+
   const {
     data,
     fetchNextPage,
@@ -55,40 +87,12 @@ export const useQueueDataFetching = ({
   } = useInfiniteQuery({
     queryKey,
     queryFn: async ({ pageParam }): Promise<SearchClimbsResult> => {
-      // Build GraphQL input from search params
       const input = {
-        boardName: parsedParams.board_name,
-        layoutId: parsedParams.layout_id,
-        sizeId: parsedParams.size_id,
-        setIds: parsedParams.set_ids.join(','),
-        angle: parsedParams.angle,
+        ...baseInput,
         page: pageParam,
         pageSize: searchParams.pageSize || PAGE_LIMIT,
-        gradeAccuracy: searchParams.gradeAccuracy ? String(searchParams.gradeAccuracy) : undefined,
-        minGrade: searchParams.minGrade || undefined,
-        maxGrade: searchParams.maxGrade || undefined,
-        minAscents: searchParams.minAscents || undefined,
-        sortBy: searchParams.sortBy || 'ascents',
-        sortOrder: searchParams.sortOrder || 'desc',
-        name: searchParams.name || undefined,
-        setter: searchParams.settername && searchParams.settername.length > 0 ? searchParams.settername : undefined,
-        onlyTallClimbs: searchParams.onlyTallClimbs || undefined,
-        // Convert holdsFilter from LitUpHoldsMap to Record<string, HoldState> format expected by GraphQL
-        holdsFilter: searchParams.holdsFilter && Object.keys(searchParams.holdsFilter).length > 0
-          ? Object.fromEntries(
-              Object.entries(searchParams.holdsFilter).map(([key, value]) => [
-                key.replace('hold_', ''),
-                value.state
-              ])
-            )
-          : undefined,
-        hideAttempted: searchParams.hideAttempted || undefined,
-        hideCompleted: searchParams.hideCompleted || undefined,
-        showOnlyAttempted: searchParams.showOnlyAttempted || undefined,
-        showOnlyCompleted: searchParams.showOnlyCompleted || undefined,
       };
 
-      // Create GraphQL client with auth token if available
       const client = createGraphQLHttpClient(wsAuthToken);
 
       try {
@@ -106,19 +110,10 @@ export const useQueueDataFetching = ({
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-      // Use hasMore flag if available (preferred), otherwise fall back to totalCount comparison
       if (lastPage.hasMore === false) {
-        return undefined; // No more pages
+        return undefined;
       }
       if (lastPage.hasMore === true) {
-        return allPages.length; // Next page number
-      }
-      // Fallback for backwards compatibility with totalCount
-      if (lastPage.totalCount !== undefined) {
-        const totalFetched = allPages.length * PAGE_LIMIT;
-        if (totalFetched >= lastPage.totalCount) {
-          return undefined;
-        }
         return allPages.length;
       }
       return undefined;
@@ -127,7 +122,56 @@ export const useQueueDataFetching = ({
     refetchOnWindowFocus: false,
   });
 
-  const totalSearchResultCount = data?.pages[0]?.totalCount ?? null;
+  // Count query uses instant (un-debounced) params so the count updates
+  // immediately as the user tweaks filters, without waiting for the search debounce.
+  const countInput = useMemo(() => ({
+    boardName: parsedParams.board_name,
+    layoutId: parsedParams.layout_id,
+    sizeId: parsedParams.size_id,
+    setIds: parsedParams.set_ids.join(','),
+    angle: parsedParams.angle,
+    gradeAccuracy: countSearchParams.gradeAccuracy ? String(countSearchParams.gradeAccuracy) : undefined,
+    minGrade: countSearchParams.minGrade || undefined,
+    maxGrade: countSearchParams.maxGrade || undefined,
+    minAscents: countSearchParams.minAscents || undefined,
+    sortBy: countSearchParams.sortBy || 'ascents',
+    sortOrder: countSearchParams.sortOrder || 'desc',
+    name: countSearchParams.name || undefined,
+    setter: countSearchParams.settername && countSearchParams.settername.length > 0 ? countSearchParams.settername : undefined,
+    onlyTallClimbs: countSearchParams.onlyTallClimbs || undefined,
+    holdsFilter: countSearchParams.holdsFilter && Object.keys(countSearchParams.holdsFilter).length > 0
+      ? Object.fromEntries(
+          Object.entries(countSearchParams.holdsFilter).map(([key, value]) => [
+            key.replace('hold_', ''),
+            value.state
+          ])
+        )
+      : undefined,
+    hideAttempted: countSearchParams.hideAttempted || undefined,
+    hideCompleted: countSearchParams.hideCompleted || undefined,
+    showOnlyAttempted: countSearchParams.showOnlyAttempted || undefined,
+    showOnlyCompleted: countSearchParams.showOnlyCompleted || undefined,
+  }), [countSearchParams, parsedParams]);
+
+  const countQueryKey = useMemo(() => {
+    const { page: _, ...paramsWithoutPage } = countSearchParams;
+    return ['climbSearchCount', parsedParams.board_name, parsedParams.layout_id,
+      parsedParams.size_id, parsedParams.set_ids.join(','), parsedParams.angle,
+      JSON.stringify(paramsWithoutPage)] as const;
+  }, [countSearchParams, parsedParams]);
+
+  const { data: countData } = useQuery({
+    queryKey: countQueryKey,
+    queryFn: async () => {
+      const client = createGraphQLHttpClient(wsAuthToken);
+      const result = await client.request<ClimbSearchCountResponse>(SEARCH_CLIMBS_COUNT, { input: countInput });
+      return result.searchClimbs.totalCount;
+    },
+    staleTime: 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const totalSearchResultCount = countData ?? null;
   const hasMoreResults = hasNextPage ?? false;
 
   const climbSearchResults = useMemo(

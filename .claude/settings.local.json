@@ -4,7 +4,8 @@
       "WebFetch(domain:github.com)",
       "Bash(bun run lint:*)",
       "Bash(bun run typecheck:*)",
-      "Bash(git -C ~/Projects/Github/boardsesh/second --no-pager diff --no-ext-diff packages/web/app/theme/mui-theme.ts)"
+      "Bash(git -C ~/Projects/Github/boardsesh/second --no-pager diff --no-ext-diff packages/web/app/theme/mui-theme.ts)",
+      "Bash(ls:*)"
     ]
   }
 }

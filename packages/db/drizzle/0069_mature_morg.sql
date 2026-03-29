@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS "board_climb_stats_ascents_idx";

@@ -8,6 +8,7 @@ import { cachedSearchClimbs } from '@/app/lib/graphql/server-cached-client';
 import { SEARCH_CLIMBS, type ClimbSearchResponse } from '@/app/lib/graphql/operations/climb-search';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { MAX_PAGE_SIZE } from '@/app/components/board-page/constants';
+import { getServerAuthToken } from '@/app/lib/auth/server-auth';
 
 interface BoardSlugListPageProps {
   params: Promise<{ board_slug: string; angle: string }>;
@@ -28,6 +29,16 @@ export default async function BoardSlugListPage(props: BoardSlugListPageProps) {
   const requestedPageSize = (Number(searchParamsObject.page) + 1) * Number(searchParamsObject.pageSize);
   searchParamsObject.pageSize = Math.min(requestedPageSize, MAX_PAGE_SIZE);
   searchParamsObject.page = 0;
+
+  // Personal progress filters require auth which SSR doesn't have.
+  // Include them in the input so the cache key differentiates filtered vs unfiltered results,
+  // but skip the server cache entirely when they're active.
+  const hasProgressFilters = !!(
+    searchParamsObject.hideAttempted ||
+    searchParamsObject.hideCompleted ||
+    searchParamsObject.showOnlyAttempted ||
+    searchParamsObject.showOnlyCompleted
+  );
 
   const searchInput = {
     boardName: parsedParams.board_name,
@@ -54,6 +65,10 @@ export default async function BoardSlugListPage(props: BoardSlugListPageProps) {
           ])
         )
       : undefined,
+    hideAttempted: searchParamsObject.hideAttempted || undefined,
+    hideCompleted: searchParamsObject.hideCompleted || undefined,
+    showOnlyAttempted: searchParamsObject.showOnlyAttempted || undefined,
+    showOnlyCompleted: searchParamsObject.showOnlyCompleted || undefined,
   };
 
   const isDefaultSearch =
@@ -66,7 +81,8 @@ export default async function BoardSlugListPage(props: BoardSlugListPageProps) {
     (searchParamsObject.sortBy || 'ascents') === 'ascents' &&
     (searchParamsObject.sortOrder || 'desc') === 'desc' &&
     !searchParamsObject.onlyTallClimbs &&
-    (!searchParamsObject.holdsFilter || Object.keys(searchParamsObject.holdsFilter).length === 0);
+    (!searchParamsObject.holdsFilter || Object.keys(searchParamsObject.holdsFilter).length === 0) &&
+    !hasProgressFilters;
 
   let searchResponse: ClimbSearchResponse;
   let boardDetails: BoardDetails;
@@ -77,21 +93,21 @@ export default async function BoardSlugListPage(props: BoardSlugListPageProps) {
     return notFound();
   }
 
+  // When progress filters are active, fetch with auth so the backend can apply
+  // per-user NOT EXISTS/EXISTS filters. The auth token is included in the cache key
+  // so each user gets their own cached result.
+  const authToken = hasProgressFilters ? await getServerAuthToken() : undefined;
+
   try {
     searchResponse = await cachedSearchClimbs<ClimbSearchResponse>(
       SEARCH_CLIMBS,
       { input: searchInput },
       isDefaultSearch,
+      authToken,
     );
   } catch (error) {
     console.error('Error fetching climb search results:', error);
-    searchResponse = {
-      searchClimbs: {
-        climbs: [],
-        totalCount: 0,
-        hasMore: false,
-      },
-    };
+    searchResponse = { searchClimbs: { climbs: [], hasMore: false } };
   }
 
   return <BoardPageClimbsList {...parsedParams} boardDetails={boardDetails} initialClimbs={searchResponse.searchClimbs.climbs} />;

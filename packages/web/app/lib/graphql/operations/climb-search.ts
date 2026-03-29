@@ -27,8 +27,15 @@ export const SEARCH_CLIMBS = gql`
       climbs {
         ${CLIMB_FIELDS}
       }
-      totalCount
       hasMore
+    }
+  }
+`;
+
+export const SEARCH_CLIMBS_COUNT = gql`
+  query SearchClimbsCount($input: ClimbSearchInput!) {
+    searchClimbs(input: $input) {
+      totalCount
     }
   }
 `;
@@ -86,7 +93,13 @@ export interface ClimbSearchInputVariables {
 export interface ClimbSearchResponse {
   searchClimbs: {
     climbs: Climb[];
-    totalCount: number;
+    totalCount?: number;
     hasMore: boolean;
+  };
+}
+
+export interface ClimbSearchCountResponse {
+  searchClimbs: {
+    totalCount: number;
   };
 }

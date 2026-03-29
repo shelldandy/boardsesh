@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useContext, createContext, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useContext, createContext, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { useQueueReducer } from '../queue-control/reducer';
@@ -46,6 +46,7 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
   const searchParamsHook = useSearchParams();
   const initialSearchParams = urlParamsToSearchParams(searchParamsHook);
   const [state, dispatch] = useQueueReducer(initialSearchParams);
+  const [countSearchParams, setCountSearchParams] = useState<SearchRequestPagination>(initialSearchParams);
 
   const isOffBoardMode = propsBaseBoardPath !== undefined;
   const correlationCounterRef = useRef(0);
@@ -135,6 +136,7 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
     isFetchingClimbs, isFetchingNextPage, fetchMoreClimbs, climbUuids,
   } = useQueueDataFetching({
     searchParams: state.climbSearchParams,
+    countSearchParams,
     queue: state.queue,
     parsedParams,
     hasDoneFirstFetch: state.hasDoneFirstFetch,
@@ -268,6 +270,10 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
         }
       },
 
+      setCountSearchParams: (params: SearchRequestPagination) => {
+        setCountSearchParams(params);
+      },
+
       mirrorClimb: () => {
         if (guardMutation()) return;
         if (!state.currentClimbQueueItem?.climb) return;
@@ -304,7 +310,7 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
       isFetchingClimbs, isFetchingNextPage, viewOnlyMode, parsedParams,
       clientId, isLeader, users, hasConnected, connectionError, backendUrl,
       persistentSession, isPersistentSessionActive, dispatch, pathname, router,
-      fetchMoreClimbs, currentUserInfo, isSessionActive, sessionId,
+      fetchMoreClimbs, currentUserInfo, isSessionActive, sessionId, setCountSearchParams,
       startSession, joinSession, endSession, sessionSummary, dismissSessionSummary,
       isOffBoardMode, connectionState, canMutate, guardMutation, searchParams,
     ],

@@ -22,7 +22,7 @@ const UISearchParamsContext = createContext<UISearchParamsContextType | undefine
  *
  */
 export const UISearchParamsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { climbSearchParams, setClimbSearchParams } = useQueueContext();
+  const { climbSearchParams, setClimbSearchParams, setCountSearchParams } = useQueueContext();
   const [uiSearchParams, setUISearchParams] = useState<SearchRequestPagination>(climbSearchParams);
 
   const debouncedUpdate = useDebouncedCallback(() => {
@@ -61,6 +61,8 @@ export const UISearchParamsProvider: React.FC<{ children: React.ReactNode }> = (
     };
 
     setUISearchParams(updatedFilters);
+    // Always update count params instantly so the count refreshes as user tweaks filters
+    setCountSearchParams(updatedFilters);
 
     if (instant) {
       setClimbSearchParams(updatedFilters);
