@@ -59,10 +59,10 @@ export default function SettingsPageContent() {
   const { showMessage } = useSnackbar();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Redirect if not authenticated
+  // Redirect unauthenticated users to login with a return URL
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/');
+      router.push('/auth/login?callbackUrl=%2Fsettings');
     }
   }, [status, router]);
 
