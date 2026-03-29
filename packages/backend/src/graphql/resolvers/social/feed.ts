@@ -102,7 +102,7 @@ export const socialFeedQueries = {
 
     return {
       items,
-      totalCount: 0,
+      totalCount: 0, // Intentionally 0 — full COUNT(*) was too expensive. No frontend uses this value.
       hasMore,
     };
   },
@@ -182,7 +182,7 @@ export const socialFeedQueries = {
 
     return {
       items,
-      totalCount: 0,
+      totalCount: 0, // Intentionally 0 — full COUNT(*) was too expensive. No frontend uses this value.
       hasMore,
     };
   },

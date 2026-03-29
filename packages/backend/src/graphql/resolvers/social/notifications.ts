@@ -56,7 +56,10 @@ export const socialNotificationQueries = {
     // Build where clause
     const unreadFilter = unreadOnly ? sql`AND n."read_at" IS NULL` : sql``;
 
-    // Single query with window functions for totalCount and unreadCount
+    // Single query with scalar subqueries for totalCount and unreadCount.
+    // These must be computed over ALL user notifications (not filtered by unreadOnly),
+    // so we use subqueries instead of window functions which would only count
+    // the filtered result set.
     const rawResult = await db.execute(sql`
       SELECT
         n."uuid",
@@ -72,8 +75,8 @@ export const socialNotificationQueries = {
         u."name" as "actorName",
         u."image" as "actorImage",
         c."body" as "commentBody",
-        COUNT(*) OVER() as "totalCount",
-        COUNT(*) FILTER (WHERE n."read_at" IS NULL) OVER() as "unreadCount"
+        (SELECT COUNT(*) FROM "notifications" WHERE "recipient_id" = ${userId}) as "totalCount",
+        (SELECT COUNT(*) FROM "notifications" WHERE "recipient_id" = ${userId} AND "read_at" IS NULL) as "unreadCount"
       FROM "notifications" n
       LEFT JOIN "users" u ON n."actor_id" = u."id"
       LEFT JOIN "user_profiles" up ON n."actor_id" = up."user_id"

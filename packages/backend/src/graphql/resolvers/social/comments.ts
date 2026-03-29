@@ -183,10 +183,11 @@ export const socialCommentQueries = {
       LEFT JOIN "user_profiles" up ON c."user_id" = up."user_id"
       LEFT JOIN "comments" parent_c ON c."parent_comment_id" = parent_c."id"
       LEFT JOIN (
-        SELECT "parent_comment_id", COUNT(*) as cnt
-        FROM "comments"
-        WHERE "parent_comment_id" IS NOT NULL AND "deleted_at" IS NULL
-        GROUP BY "parent_comment_id"
+        SELECT r."parent_comment_id", COUNT(*) as cnt
+        FROM "comments" r
+        WHERE r."parent_comment_id" IS NOT NULL AND r."deleted_at" IS NULL
+          AND r."entity_type" = ${entityType} AND r."entity_id" = ${entityId}
+        GROUP BY r."parent_comment_id"
       ) reply_cnt ON reply_cnt."parent_comment_id" = c."id"
       LEFT JOIN "vote_counts" vc ON vc."entity_type" = 'comment' AND vc."entity_id" = c."uuid"
       ${authenticatedUserId
@@ -304,6 +305,8 @@ export const socialCommentQueries = {
       LEFT JOIN "user_profiles" up ON c."user_id" = up."user_id"
       LEFT JOIN "comments" parent_c ON c."parent_comment_id" = parent_c."id"
       LEFT JOIN (
+        -- Global feed spans all entities, so reply counts are computed globally.
+        -- The join naturally scopes to only matching parent IDs.
         SELECT "parent_comment_id", COUNT(*) as cnt
         FROM "comments"
         WHERE "parent_comment_id" IS NOT NULL AND "deleted_at" IS NULL
