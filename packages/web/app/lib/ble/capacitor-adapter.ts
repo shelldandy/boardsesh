@@ -5,18 +5,19 @@ const AURORA_ADVERTISED_SERVICE_UUID = '4488b571-7806-4df6-bcff-a2897e4953ff';
 const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const UART_WRITE_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
-// Typed interface for the subset of the BLE plugin API we actually use.
-// The plugin JS is injected by the Capacitor native shell — not imported from npm.
+// Raw Capacitor plugin interface as exposed via window.Capacitor.Plugins.BluetoothLe.
+// This is the LOW-LEVEL plugin — NOT the BleClient wrapper from the npm package.
+// Key difference: `write` expects `value` as a hex string, not a DataView.
+// The BleClient wrapper normally handles this conversion, but we bypass it in hosted mode.
 interface CapacitorBlePlugin {
-  initialize(): Promise<void>;
+  initialize(options?: Record<string, unknown>): Promise<void>;
   isEnabled(): Promise<{ value: boolean }>;
   requestDevice(options: {
     services: string[];
     optionalServices?: string[];
-  }): Promise<{ deviceId: string; name?: string }>;
+  }): Promise<{ device: { deviceId: string; name?: string } }>;
   connect(options: {
     deviceId: string;
-    onDisconnect?: () => void;
   }): Promise<void>;
   disconnect(options: {
     deviceId: string;
@@ -25,12 +26,16 @@ interface CapacitorBlePlugin {
     deviceId: string;
     service: string;
     characteristic: string;
-    value: DataView;
+    value: string; // Hex string, e.g. "01 02 ff"
   }): Promise<void>;
   requestMtu(options: {
     deviceId: string;
     mtu: number;
   }): Promise<{ value: number }>;
+  addListener(
+    eventName: string,
+    callback: (event: Record<string, unknown>) => void,
+  ): Promise<{ remove: () => void }>;
 }
 
 function getBlePlugin(): CapacitorBlePlugin {
@@ -41,19 +46,23 @@ function getBlePlugin(): CapacitorBlePlugin {
   return plugin as CapacitorBlePlugin;
 }
 
-function uint8ArrayToDataView(data: Uint8Array): DataView {
-  return new DataView(data.buffer, data.byteOffset, data.byteLength);
+/** Convert a Uint8Array to the space-separated hex string the raw plugin expects */
+function toHexString(data: Uint8Array): string {
+  return Array.from(data)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join(' ');
 }
 
 export class CapacitorBleAdapter implements BluetoothAdapter {
   private deviceId: string | null = null;
   private disconnectCallback: (() => void) | null = null;
+  private disconnectListenerRemove: (() => void) | null = null;
   private mtu = 20; // Conservative default; updated via MTU negotiation after connection
 
   async isAvailable(): Promise<boolean> {
     try {
       const ble = getBlePlugin();
-      await ble.initialize();
+      await ble.initialize({});
       const result = await ble.isEnabled();
       return result.value;
     } catch {
@@ -63,28 +72,33 @@ export class CapacitorBleAdapter implements BluetoothAdapter {
 
   async requestAndConnect(): Promise<BleConnection> {
     const ble = getBlePlugin();
-    await ble.initialize();
+    await ble.initialize({});
 
     // Request device — shows native scan dialog on iOS
-    const device = await ble.requestDevice({
+    const result = await ble.requestDevice({
       services: [AURORA_ADVERTISED_SERVICE_UUID],
       optionalServices: [UART_SERVICE_UUID],
     });
+    const device = result.device;
 
-    // Connect with disconnect callback
-    await ble.connect({
-      deviceId: device.deviceId,
-      onDisconnect: () => {
+    // Register disconnect listener BEFORE connecting
+    const listener = await ble.addListener(
+      `disconnected|${device.deviceId}`,
+      () => {
         this.deviceId = null;
         this.disconnectCallback?.();
       },
-    });
+    );
+    this.disconnectListenerRemove = () => listener.remove();
+
+    // Connect to the device
+    await ble.connect({ deviceId: device.deviceId });
 
     // Negotiate larger MTU (iOS negotiates automatically, but requesting
     // explicitly ensures we know the actual value for chunking)
     try {
-      const result = await ble.requestMtu({ deviceId: device.deviceId, mtu: 512 });
-      this.mtu = result.value - 3; // MTU minus ATT header overhead
+      const mtuResult = await ble.requestMtu({ deviceId: device.deviceId, mtu: 512 });
+      this.mtu = mtuResult.value - 3; // MTU minus ATT header overhead
     } catch {
       // MTU negotiation not supported or failed — keep default 20
     }
@@ -105,6 +119,8 @@ export class CapacitorBleAdapter implements BluetoothAdapter {
       } catch {
         // Ignore disconnect errors (device may already be disconnected)
       }
+      this.disconnectListenerRemove?.();
+      this.disconnectListenerRemove = null;
       this.deviceId = null;
     }
   }
@@ -124,7 +140,7 @@ export class CapacitorBleAdapter implements BluetoothAdapter {
         deviceId: this.deviceId,
         service: UART_SERVICE_UUID,
         characteristic: UART_WRITE_UUID,
-        value: uint8ArrayToDataView(chunk),
+        value: toHexString(chunk),
       });
     }
   }

@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
+const mockListenerRemove = vi.fn();
+
 // Mock window.Capacitor before importing the adapter
 const mockBlePlugin = {
   initialize: vi.fn().mockResolvedValue(undefined),
   isEnabled: vi.fn().mockResolvedValue({ value: true }),
-  requestDevice: vi.fn().mockResolvedValue({ deviceId: 'dev-1', name: 'Kilter Board' }),
+  requestDevice: vi.fn().mockResolvedValue({ device: { deviceId: 'dev-1', name: 'Kilter Board' } }),
   connect: vi.fn().mockResolvedValue(undefined),
   disconnect: vi.fn().mockResolvedValue(undefined),
   write: vi.fn().mockResolvedValue(undefined),
   requestMtu: vi.fn().mockResolvedValue({ value: 185 }),
+  addListener: vi.fn().mockResolvedValue({ remove: mockListenerRemove }),
 };
 
 // Store original window.Capacitor so we can clean up
@@ -68,15 +71,22 @@ describe('CapacitorBleAdapter', () => {
 
       expect(connection.deviceId).toBe('dev-1');
       expect(connection.deviceName).toBe('Kilter Board');
-      expect(mockBlePlugin.initialize).toHaveBeenCalled();
       expect(mockBlePlugin.requestDevice).toHaveBeenCalledWith({
         services: ['4488b571-7806-4df6-bcff-a2897e4953ff'],
         optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'],
       });
       expect(mockBlePlugin.connect).toHaveBeenCalledWith({
         deviceId: 'dev-1',
-        onDisconnect: expect.any(Function),
       });
+    });
+
+    it('registers disconnect listener via addListener', async () => {
+      await adapter.requestAndConnect();
+
+      expect(mockBlePlugin.addListener).toHaveBeenCalledWith(
+        'disconnected|dev-1',
+        expect.any(Function),
+      );
     });
 
     it('negotiates MTU after connecting', async () => {
@@ -106,9 +116,9 @@ describe('CapacitorBleAdapter', () => {
 
       await adapter.requestAndConnect();
 
-      // Simulate the native disconnect callback
-      const connectCall = mockBlePlugin.connect.mock.calls[0][0];
-      connectCall.onDisconnect();
+      // Simulate the native disconnect event via the addListener callback
+      const listenerCallback = mockBlePlugin.addListener.mock.calls[0][1];
+      listenerCallback({});
 
       expect(onDisconnect).toHaveBeenCalledOnce();
     });
@@ -120,6 +130,13 @@ describe('CapacitorBleAdapter', () => {
       await adapter.disconnect();
 
       expect(mockBlePlugin.disconnect).toHaveBeenCalledWith({ deviceId: 'dev-1' });
+    });
+
+    it('removes disconnect listener on disconnect', async () => {
+      await adapter.requestAndConnect();
+      await adapter.disconnect();
+
+      expect(mockListenerRemove).toHaveBeenCalled();
     });
 
     it('does nothing when not connected', async () => {
@@ -153,7 +170,7 @@ describe('CapacitorBleAdapter', () => {
         deviceId: 'dev-1',
         service: '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
         characteristic: '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
-        value: expect.any(DataView),
+        value: '01 02 03 04 05',
       });
     });
 
@@ -180,17 +197,14 @@ describe('CapacitorBleAdapter', () => {
       expect(mockBlePlugin.write).toHaveBeenCalledTimes(3);
     });
 
-    it('converts Uint8Array chunks to DataView', async () => {
+    it('sends value as hex string', async () => {
       await adapter.requestAndConnect();
 
-      const data = new Uint8Array([0x01, 0x02, 0x03]);
+      const data = new Uint8Array([0x01, 0x02, 0xff]);
       await adapter.write(data);
 
       const writtenValue = mockBlePlugin.write.mock.calls[0][0].value;
-      expect(writtenValue).toBeInstanceOf(DataView);
-      expect(new Uint8Array(writtenValue.buffer, writtenValue.byteOffset, writtenValue.byteLength)).toEqual(
-        new Uint8Array([0x01, 0x02, 0x03]),
-      );
+      expect(writtenValue).toBe('01 02 ff');
     });
   });
 
@@ -204,8 +218,9 @@ describe('CapacitorBleAdapter', () => {
       // Unsubscribe before disconnect fires
       unsub();
 
-      const connectCall = mockBlePlugin.connect.mock.calls[0][0];
-      connectCall.onDisconnect();
+      // Simulate disconnect event
+      const listenerCallback = mockBlePlugin.addListener.mock.calls[0][1];
+      listenerCallback({});
 
       expect(callback).not.toHaveBeenCalled();
     });
