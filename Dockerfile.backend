@@ -9,7 +9,7 @@ RUN apk add --no-cache bash curl unzip && \
     ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
     ln -s /usr/local/bin/bun /usr/local/bin/bunx
 
-# Copy package files for all workspaces (all needed for lockfile resolution)
+# Copy package files for all workspaces (Bun needs the full workspace graph to match the lockfile)
 COPY package.json bun.lock ./
 COPY packages/web/package.json ./packages/web/
 COPY packages/shared-schema/package.json ./packages/shared-schema/
@@ -26,8 +26,8 @@ COPY packages/db/src ./packages/db/src
 COPY packages/aurora-sync/src ./packages/aurora-sync/src
 COPY packages/backend/src ./packages/backend/src
 
-# Install production dependencies (tsx is now a production dep for running TypeScript)
-RUN bun install --production --frozen-lockfile
+# Install dependencies (--production is incompatible with --frozen-lockfile in Bun)
+RUN bun install --frozen-lockfile
 
 # Expose port
 EXPOSE 8080

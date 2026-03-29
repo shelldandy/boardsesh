@@ -4,7 +4,7 @@
 
 A centralized hub for all your LED climbing board training.
 
-Try it out at [boardsesh.com](https://www.boardsesh.com/) | [Join us on Discord](https://discord.gg/YXA8GsXfQK)
+Try it out at [boardsesh.com](https://www.boardsesh.com/) | [Join us on Discord](https://discord.gg/YXA8GsXfQK) | [Sponsor us](https://github.com/sponsors/boardsesh)
 
 ## Our Vision
 
@@ -29,6 +29,16 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup instructions.
 ## API Documentation
 
 Building something cool with climbing data? We provide a public API that developers can use to access climb information and build their own integrations. [Explore the API Documentation →](https://www.boardsesh.com/docs)
+
+## Support Boardsesh
+
+When the official Kilter app suddenly disappeared, it became clear why an open-source alternative needs to exist. Aurora's backend shutdown left climbers without access to their playlists, logbooks, and draft climbs — a single-vendor risk we're working to eliminate.
+
+Boardsesh is free, open source, and always will be. But running it costs real money — hosting, database, and infrastructure bills add up, especially as more climbers join. We promise not to enshittify Boardsesh, and self-hosting will always be an option.
+
+If you find Boardsesh useful and can spare it, sponsorship helps us keep the lights on:
+
+[![Sponsor Boardsesh](https://img.shields.io/badge/Sponsor-Boardsesh-ea4aaa?logo=github-sponsors&style=for-the-badge)](https://github.com/sponsors/boardsesh)
 
 ## Join the Community
 

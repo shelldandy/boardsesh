@@ -31,9 +31,9 @@ RUN apk add --no-cache bash curl unzip && \
     ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
     ln -s /root/.bun/bin/bunx /usr/local/bin/bunx
 
-# Copy package files and install production dependencies only
+# Copy package files and install dependencies
 COPY package.json bun.lock ./
-RUN bun install --production --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 # Copy built files
 COPY --from=builder /app/dist ./dist
