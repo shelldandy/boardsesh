@@ -89,6 +89,12 @@ interface ClimbSearchInput {
   sortOrder?: string;
   name?: string;
   setter?: string | string[];
+  onlyTallClimbs?: boolean;
+  holdsFilter?: Record<string, string>;
+  hideAttempted?: boolean;
+  hideCompleted?: boolean;
+  showOnlyAttempted?: boolean;
+  showOnlyCompleted?: boolean;
 }
 
 /**
@@ -102,6 +108,7 @@ export async function cachedSearchClimbs<T = unknown>(
   document: RequestDocument,
   variables: { input: ClimbSearchInput },
   isDefaultSearch: boolean = false,
+  authToken?: string,
 ): Promise<T> {
   const revalidate = isDefaultSearch
     ? CACHE_DURATION_DEFAULT_SEARCH
@@ -131,11 +138,19 @@ export async function cachedSearchClimbs<T = unknown>(
       sortOrder: input.sortOrder,
       name: input.name,
       setter: input.setter,
+      hideAttempted: input.hideAttempted,
+      hideCompleted: input.hideCompleted,
+      showOnlyAttempted: input.showOnlyAttempted,
+      showOnlyCompleted: input.showOnlyCompleted,
     })),
+    // Include auth token in cache key so per-user progress filters get their own cache entry
+    ...(authToken ? [authToken] : []),
   ];
 
   const cachedFn = unstable_cache(
-    async () => executeGraphQLInternal<T>(document, variables),
+    async () => authToken
+      ? executeAuthenticatedGraphQL<T>(document, variables, authToken)
+      : executeGraphQLInternal<T>(document, variables),
     cacheKey,
     {
       revalidate,

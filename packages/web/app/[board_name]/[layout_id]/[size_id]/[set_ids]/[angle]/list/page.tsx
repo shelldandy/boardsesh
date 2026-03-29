@@ -12,6 +12,7 @@ import { cachedSearchClimbs } from '@/app/lib/graphql/server-cached-client';
 import { SEARCH_CLIMBS, type ClimbSearchResponse } from '@/app/lib/graphql/operations/climb-search';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { MAX_PAGE_SIZE } from '@/app/components/board-page/constants';
+import { getServerAuthToken } from '@/app/lib/auth/server-auth';
 
 export default async function DynamicResultsPage(props: {
   params: Promise<BoardRouteParametersWithUuid>;
@@ -130,11 +131,14 @@ export default async function DynamicResultsPage(props: {
     return notFound();
   }
 
+  const authToken = hasProgressFilters ? await getServerAuthToken() : undefined;
+
   try {
     searchResponse = await cachedSearchClimbs<ClimbSearchResponse>(
       SEARCH_CLIMBS,
       { input: searchInput },
       isDefaultSearch,
+      authToken,
     );
   } catch (error) {
     // Log the error for server-side visibility. We intentionally degrade to empty results
