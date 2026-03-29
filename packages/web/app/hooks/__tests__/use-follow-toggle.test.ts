@@ -18,6 +18,8 @@ vi.mock('@/app/lib/graphql/client', () => ({
 import { useWsAuthToken } from '@/app/hooks/use-ws-auth-token';
 import { useFollowToggle } from '../use-follow-toggle';
 
+type FollowToggleConfig = Parameters<typeof useFollowToggle>[0];
+
 const mockUseWsAuthToken = vi.mocked(useWsAuthToken);
 
 function createDefaultConfig(overrides: Record<string, unknown> = {}) {
@@ -47,7 +49,7 @@ describe('useFollowToggle', () => {
 
   it('initial state matches initialIsFollowing', () => {
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig({ initialIsFollowing: true }) as any),
+      useFollowToggle(createDefaultConfig({ initialIsFollowing: true }) as FollowToggleConfig),
     );
 
     expect(result.current.isFollowing).toBe(true);
@@ -62,7 +64,7 @@ describe('useFollowToggle', () => {
     });
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig() as any),
+      useFollowToggle(createDefaultConfig() as FollowToggleConfig),
     );
 
     await act(async () => {
@@ -76,7 +78,7 @@ describe('useFollowToggle', () => {
     mockRequest.mockReturnValue(new Promise(() => {})); // never resolves
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig({ initialIsFollowing: false }) as any),
+      useFollowToggle(createDefaultConfig({ initialIsFollowing: false }) as FollowToggleConfig),
     );
 
     expect(result.current.isFollowing).toBe(false);
@@ -92,7 +94,7 @@ describe('useFollowToggle', () => {
     mockRequest.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig({ initialIsFollowing: false }) as any),
+      useFollowToggle(createDefaultConfig({ initialIsFollowing: false }) as FollowToggleConfig),
     );
 
     await act(async () => {
@@ -107,7 +109,7 @@ describe('useFollowToggle', () => {
     mockRequest.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig({ initialIsFollowing: true }) as any),
+      useFollowToggle(createDefaultConfig({ initialIsFollowing: true }) as FollowToggleConfig),
     );
 
     await act(async () => {
@@ -122,7 +124,7 @@ describe('useFollowToggle', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig({ initialIsFollowing: false }) as any),
+      useFollowToggle(createDefaultConfig({ initialIsFollowing: false }) as FollowToggleConfig),
     );
 
     await act(async () => {
@@ -139,7 +141,7 @@ describe('useFollowToggle', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig() as any),
+      useFollowToggle(createDefaultConfig() as FollowToggleConfig),
     );
 
     await act(async () => {
@@ -155,7 +157,7 @@ describe('useFollowToggle', () => {
     const onFollowChange = vi.fn();
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig({ onFollowChange, initialIsFollowing: false }) as any),
+      useFollowToggle(createDefaultConfig({ onFollowChange, initialIsFollowing: false }) as FollowToggleConfig),
     );
 
     await act(async () => {
@@ -171,7 +173,7 @@ describe('useFollowToggle', () => {
     mockRequest.mockReturnValue(new Promise((resolve) => { resolveRequest = resolve; }));
 
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig() as any),
+      useFollowToggle(createDefaultConfig() as FollowToggleConfig),
     );
 
     expect(result.current.isLoading).toBe(false);
@@ -191,7 +193,7 @@ describe('useFollowToggle', () => {
 
   it('provides setIsHovered for hover state', () => {
     const { result } = renderHook(() =>
-      useFollowToggle(createDefaultConfig() as any),
+      useFollowToggle(createDefaultConfig() as FollowToggleConfig),
     );
 
     expect(result.current.isHovered).toBe(false);

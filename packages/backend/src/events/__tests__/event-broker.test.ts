@@ -1,13 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { EventBroker } from '../event-broker';
+import type { SocialEvent } from '@boardsesh/shared-schema';
 
-/**
- * Unit tests for EventBroker's parseEvent logic.
- * We test the private method by accessing it through a subclass.
- */
 class TestableEventBroker extends EventBroker {
-  public testParseEvent(fields: string[]) {
-    return (this as any).parseEvent(fields);
+  public testParseEvent(fields: string[]): SocialEvent | null {
+    return (this as unknown as { parseEvent(fields: string[]): SocialEvent | null }).parseEvent(fields);
   }
 }
 

@@ -12,6 +12,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "lint": "oxlint .",
+    "lint-fix": "oxlint --fix .",
     "test:db:up": "docker-compose up -d db",
     "test:db:migrate": "DATABASE_URL=postgresql://postgres:postgres@localhost:5433/boardsesh_backend_test drizzle-kit migrate",
     "test:integration": "vitest run src/__tests__/integration.test.ts",
@@ -53,6 +55,7 @@
     "drizzle-kit": "^0.31.9",
     "postgres": "^3.4.8",
     "typescript": "^5.9.3",
+    "oxlint": "^1.50.0",
     "vitest": "^4.0.18"
   }
 }

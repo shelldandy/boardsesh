@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 // Capture the config passed to useSwipeable
-let capturedSwipeableConfig: Record<string, any> = {};
+let capturedSwipeableConfig: Record<string, (...args: unknown[]) => unknown> = {};
 vi.mock('react-swipeable', () => ({
-  useSwipeable: (config: Record<string, any>) => {
+  useSwipeable: (config: Record<string, (...args: unknown[]) => unknown>) => {
     capturedSwipeableConfig = config;
     return { ref: vi.fn() };
   },

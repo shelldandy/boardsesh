@@ -16,6 +16,7 @@ vi.mock('@/app/lib/graphql/operations/create-session', () => ({
 
 import { useWsAuthToken } from '@/app/hooks/use-ws-auth-token';
 import { useCreateSession } from '../use-create-session';
+import type { SessionCreationFormData } from '@/app/components/session-creation/session-creation-form';
 
 const mockUseWsAuthToken = vi.mocked(useWsAuthToken);
 
@@ -73,7 +74,7 @@ describe('useCreateSession', () => {
 
     await expect(
       act(async () => {
-        await result.current.createSession(createFormData() as any, '/kilter/1/2/3/40');
+        await result.current.createSession(createFormData() as SessionCreationFormData, '/kilter/1/2/3/40');
       }),
     ).rejects.toThrow('Not authenticated');
   });
@@ -103,7 +104,7 @@ describe('useCreateSession', () => {
     let sessionId: string | undefined;
     await act(async () => {
       sessionId = await result.current.createSession(
-        createFormData({ discoverable: true }) as any,
+        createFormData({ discoverable: true }) as SessionCreationFormData,
         '/kilter/1/2/3/40',
       );
     });
@@ -145,7 +146,7 @@ describe('useCreateSession', () => {
     let sessionId: string | undefined;
     await act(async () => {
       sessionId = await result.current.createSession(
-        createFormData({ discoverable: false }) as any,
+        createFormData({ discoverable: false }) as SessionCreationFormData,
         '/kilter/1/2/3/40',
       );
     });
@@ -183,7 +184,7 @@ describe('useCreateSession', () => {
 
     await act(async () => {
       await result.current.createSession(
-        createFormData({ discoverable: true }) as any,
+        createFormData({ discoverable: true }) as SessionCreationFormData,
         '/kilter/1/2/3/40',
       );
     });
@@ -218,7 +219,7 @@ describe('useCreateSession', () => {
 
     await act(async () => {
       await result.current.createSession(
-        createFormData({ discoverable: true }) as any,
+        createFormData({ discoverable: true }) as SessionCreationFormData,
         '/kilter/1/2/3/40',
       );
     });
@@ -240,7 +241,7 @@ describe('useCreateSession', () => {
 
     let createPromise: Promise<string>;
     act(() => {
-      createPromise = result.current.createSession(createFormData() as any, '/kilter/1/2/3/40');
+      createPromise = result.current.createSession(createFormData() as SessionCreationFormData, '/kilter/1/2/3/40');
     });
 
     expect(result.current.isCreating).toBe(true);
@@ -282,7 +283,7 @@ describe('useCreateSession', () => {
 
     let sessionId: string | undefined;
     await act(async () => {
-      sessionId = await result.current.createSession(createFormData() as any, '/kilter/1/2/3/40');
+      sessionId = await result.current.createSession(createFormData() as SessionCreationFormData, '/kilter/1/2/3/40');
     });
 
     expect(sessionId).toBe('returned-session-id');
@@ -295,7 +296,7 @@ describe('useCreateSession', () => {
 
     await expect(
       act(async () => {
-        await result.current.createSession(createFormData() as any, '/kilter/1/2/3/40');
+        await result.current.createSession(createFormData() as SessionCreationFormData, '/kilter/1/2/3/40');
       }),
     ).rejects.toThrow('Server error');
 

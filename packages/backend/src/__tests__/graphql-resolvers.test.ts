@@ -284,7 +284,7 @@ describe('GraphQL Resolver Input Validation', () => {
       `;
 
       // This should succeed (not throw)
-      const result = await execute<{ searchClimbs: { climbs: any[]; hasMore: boolean } }>(client, {
+      const result = await execute<{ searchClimbs: { climbs: Array<{ uuid: string }>; hasMore: boolean } }>(client, {
         query,
         variables: {
           input: {

@@ -2,8 +2,7 @@ import { WEB_HOSTS, SaveAttemptOptions, AuroraBoardName } from './types';
 import { generateUuid } from './util';
 import dayjs from 'dayjs';
 
-// eslint-disable-next-line  @typescript-eslint/no-explicit-any
-export async function saveAttempt(board: AuroraBoardName, token: string, options: SaveAttemptOptions): Promise<any> {
+export async function saveAttempt(board: AuroraBoardName, token: string, options: SaveAttemptOptions): Promise<unknown> {
   const uuid = generateUuid();
 
   // Convert the ISO date to the required format "YYYY-MM-DD HH:mm:ss"

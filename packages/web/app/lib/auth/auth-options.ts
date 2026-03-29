@@ -10,8 +10,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 // Build providers array conditionally based on available env vars
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const providers: any[] = [];
+const providers: NextAuthOptions['providers'] = [];
 
 // Only add Google provider if credentials are configured
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {

@@ -29,6 +29,7 @@ vi.mock('@/app/lib/graphql/operations', () => ({
 import { useWsAuthToken } from '../use-ws-auth-token';
 import { useSession } from 'next-auth/react';
 import { useSaveTick, type SaveTickOptions } from '../use-save-tick';
+import type { LogbookEntry } from '../use-logbook';
 
 const mockUseWsAuthToken = vi.mocked(useWsAuthToken);
 const mockUseSession = vi.mocked(useSession);
@@ -178,7 +179,7 @@ describe('useSaveTick', () => {
 
     // Check that the optimistic entry was added
     await waitFor(() => {
-      const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as any[];
+      const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as LogbookEntry[];
       expect(data?.length).toBe(1);
       expect(data?.[0].uuid).toMatch(/^temp-/);
       expect(data?.[0].climb_uuid).toBe('climb-1');
@@ -215,7 +216,7 @@ describe('useSaveTick', () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as any[];
+    const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as LogbookEntry[];
     if (data && data.length > 0) {
       expect(data[0].uuid).toBe('server-uuid-123');
     }
@@ -239,7 +240,7 @@ describe('useSaveTick', () => {
     });
 
     // The optimistic entry should have been rolled back
-    const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as any[];
+    const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as LogbookEntry[];
     expect(data?.length).toBe(0);
   });
 
@@ -279,7 +280,7 @@ describe('useSaveTick', () => {
     });
 
     await waitFor(() => {
-      const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as any[];
+      const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as LogbookEntry[];
       expect(data?.length).toBe(1);
       expect(data?.[0].is_ascent).toBe(true);
     });
@@ -308,7 +309,7 @@ describe('useSaveTick', () => {
     });
 
     await waitFor(() => {
-      const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as any[];
+      const data = queryClient.getQueryData(['logbook', 'kilter', 'climb-1']) as LogbookEntry[];
       expect(data?.length).toBe(1);
       expect(data?.[0].is_ascent).toBe(false);
     });
@@ -321,8 +322,8 @@ describe('useSaveTick', () => {
   });
 
   it('extracts GraphQL error message from response', async () => {
-    const graphqlError = new Error('GraphQL error');
-    (graphqlError as any).response = {
+    const graphqlError: Error & { response?: { errors: { message: string }[] } } = new Error('GraphQL error');
+    graphqlError.response = {
       errors: [{ message: 'Climb not found' }],
     };
     mockRequest.mockRejectedValue(graphqlError);

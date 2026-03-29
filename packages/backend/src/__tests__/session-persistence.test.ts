@@ -216,7 +216,7 @@ describe('Session Persistence - Hybrid Redis + Postgres', () => {
       await roomManager.leaveSession('client-1');
 
       // Simulate Redis expiry by clearing Redis and resetting room manager
-      const redisHashes = (mockRedis as any)._hashes as Map<string, Record<string, string>>;
+      const redisHashes = mockRedis._hashes;
       redisHashes.clear();
 
       roomManager.reset();
@@ -458,7 +458,7 @@ describe('Session Persistence - Hybrid Redis + Postgres', () => {
       await roomManager.leaveSession('client-1');
 
       // Clear both in-memory and Redis (simulate TTL expiry)
-      const redisHashes = (mockRedis as any)._hashes as Map<string, Record<string, string>>;
+      const redisHashes = mockRedis._hashes;
       redisHashes.clear();
 
       roomManager.reset();
@@ -568,7 +568,7 @@ describe('Session Persistence - Hybrid Redis + Postgres', () => {
       await roomManager.flushPendingWrites();
 
       // Verify in Redis
-      const redisHashes = (mockRedis as any)._hashes as Map<string, Record<string, string>>;
+      const redisHashes = mockRedis._hashes;
       const redisSession = redisHashes.get(`boardsesh:session:${sessionId}`);
       expect(redisSession?.queue).toBeDefined();
 
@@ -602,7 +602,7 @@ describe('Session Persistence - Hybrid Redis + Postgres', () => {
       expect(users.length).toBeGreaterThan(0);
 
       // Session queue state should be in Redis (written by updateQueueState)
-      const redisHashes = (mockRedis as any)._hashes as Map<string, Record<string, string>>;
+      const redisHashes = mockRedis._hashes;
       const redisSession = redisHashes.get(`boardsesh:session:${sessionId}`);
       expect(redisSession).toBeDefined();
     });

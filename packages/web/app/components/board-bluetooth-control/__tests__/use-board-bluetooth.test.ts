@@ -38,14 +38,14 @@ const mockBoardDetails = {
   size_description: 'Full',
   set_names: ['Standard'],
   supportsMirroring: true,
-} as any;
+} as unknown as Parameters<typeof useBoardBluetooth>[0]['boardDetails'];
 
 describe('useBoardBluetooth', () => {
-  let originalBluetooth: any;
+  let originalBluetooth: unknown;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    originalBluetooth = (navigator as any).bluetooth;
+    originalBluetooth = (navigator as unknown as Record<string, unknown>).bluetooth;
 
     // Set up navigator.bluetooth as available
     Object.defineProperty(navigator, 'bluetooth', {
@@ -112,7 +112,7 @@ describe('useBoardBluetooth', () => {
   });
 
   it('sets loading during connect', async () => {
-    let resolveDevice: (value: any) => void;
+    let resolveDevice: (value: unknown) => void;
     const devicePromise = new Promise((resolve) => {
       resolveDevice = resolve;
     });

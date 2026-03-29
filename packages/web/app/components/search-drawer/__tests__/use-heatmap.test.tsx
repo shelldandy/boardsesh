@@ -14,7 +14,7 @@ const defaultProps = {
   sizeId: 10,
   setIds: '1,2',
   angle: 40,
-  filters: { minGrade: 1 } as any,
+  filters: { minGrade: 1 } as unknown as Parameters<typeof useHeatmapData>[0]['filters'],
   enabled: true,
 };
 
@@ -99,7 +99,7 @@ describe('useHeatmapData', () => {
   });
 
   it('cancels fetch on unmount (cancelled flag)', async () => {
-    let resolvePromise: (value: any) => void;
+    let resolvePromise: (value: unknown) => void;
     const fetchPromise = new Promise((resolve) => {
       resolvePromise = resolve;
     });

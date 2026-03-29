@@ -294,8 +294,7 @@ export default function AuroraCredentialsSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importingBoard, setImportingBoard] = useState<'kilter' | 'tension' | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [importRawData, setImportRawData] = useState<any>(null);
+  const [importRawData, setImportRawData] = useState<unknown>(null);
   const [importPhase, setImportPhase] = useState<ImportPhase | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);

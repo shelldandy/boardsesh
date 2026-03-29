@@ -3,21 +3,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Shared mock state, declared with vi.hoisted to ensure availability before mock setup
 const mockState = vi.hoisted(() => ({
   selectCallIndex: 0,
-  sessionRows: [] as any[],
-  gradeDistRows: [] as any[],
-  hardestRows: [] as any[],
-  participantRows: [] as any[],
+  sessionRows: [] as Record<string, unknown>[],
+  gradeDistRows: [] as Record<string, unknown>[],
+  hardestRows: [] as Record<string, unknown>[],
+  participantRows: [] as Record<string, unknown>[],
 }));
 
 // Chainable mock builder, also hoisted for use in mock factory
 const { createChainableMock } = vi.hoisted(() => ({
-  createChainableMock: (resolveData: any) => {
-    const chain: any = {};
+  createChainableMock: (resolveData: unknown) => {
+    const chain: Record<string, unknown> = {};
     for (const method of ['select', 'from', 'where', 'leftJoin', 'groupBy', 'orderBy', 'limit']) {
-      chain[method] = (..._args: any[]) => chain;
+      chain[method] = (..._args: unknown[]) => chain;
     }
-    // Make it thenable so `await` resolves to the predetermined data
-    chain.then = (resolve: any, reject: any) =>
+    chain.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
       Promise.resolve(resolveData).then(resolve, reject);
     return chain;
   },
@@ -30,7 +29,7 @@ vi.mock('../db/client', () => ({
     {
       get(_, prop) {
         if (prop === 'select') {
-          return (..._args: any[]) => {
+          return (..._args: unknown[]) => {
             const index = mockState.selectCallIndex++;
             const dataByIndex = [
               mockState.sessionRows,
@@ -41,7 +40,7 @@ vi.mock('../db/client', () => ({
           };
         }
         if (prop === 'execute') {
-          return (..._args: any[]) => Promise.resolve(mockState.participantRows);
+          return (..._args: unknown[]) => Promise.resolve(mockState.participantRows);
         }
       },
     },
@@ -58,13 +57,13 @@ vi.mock('@boardsesh/db/schema', () => ({
 
 // Mock drizzle-orm functions to prevent errors from passing mock schema objects
 vi.mock('drizzle-orm', () => ({
-  eq: (..._args: any[]) => ({}),
-  and: (..._args: any[]) => ({}),
-  inArray: (..._args: any[]) => ({}),
-  sql: (_strings: TemplateStringsArray, ..._values: any[]) => ({}),
-  count: (..._args: any[]) => ({}),
-  desc: (..._args: any[]) => ({}),
-  isNotNull: (..._args: any[]) => ({}),
+  eq: (..._args: unknown[]) => ({}),
+  and: (..._args: unknown[]) => ({}),
+  inArray: (..._args: unknown[]) => ({}),
+  sql: (_strings: TemplateStringsArray, ..._values: unknown[]) => ({}),
+  count: (..._args: unknown[]) => ({}),
+  desc: (..._args: unknown[]) => ({}),
+  isNotNull: (..._args: unknown[]) => ({}),
 }));
 
 import { generateSessionSummary } from '../graphql/resolvers/sessions/session-summary';

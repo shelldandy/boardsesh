@@ -8,7 +8,7 @@ function createMockWakeLockSentinel(): WakeLockSentinel {
     released: false,
     type: 'screen' as const,
     release: vi.fn(async function (this: WakeLockSentinel) {
-      (this as any).released = true;
+      (this as unknown as { released: boolean }).released = true;
       // Trigger release listeners
       listeners['release']?.forEach((fn) => fn());
     }),
@@ -63,7 +63,7 @@ describe('useWakeLock', () => {
       configurable: true,
     });
     // Delete the property entirely to make 'wakeLock' in navigator return false
-    delete (navigator as any).wakeLock;
+    delete (navigator as unknown as Record<string, unknown>).wakeLock;
 
     const { result } = renderHook(() => useWakeLock(false));
     expect(result.current.isSupported).toBe(false);

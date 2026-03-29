@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from 'vitest';
 import {
   searchParamsToUrlParams,
@@ -23,6 +22,7 @@ import {
   constructBoardSlugPlaylistsUrl,
   DEFAULT_SEARCH_PARAMS
 } from '../url-utils';
+import type { SearchRequestPagination, BoardDetails } from '../types';
 
 describe('searchParamsToUrlParams', () => {
   it('should return empty URLSearchParams when all values are defaults', () => {
@@ -82,7 +82,7 @@ describe('searchParamsToUrlParams', () => {
       holdsFilter: {
         'red': { state: 'include' },
         'blue': { state: 'exclude' },
-      } as any,
+      } as unknown as SearchRequestPagination['holdsFilter'],
     });
     
     const params = result.toString();
@@ -137,14 +137,14 @@ describe('parsedRouteSearchParamsToSearchParams', () => {
   it('should convert string numbers to actual numbers', () => {
     const input = {
       ...DEFAULT_SEARCH_PARAMS,
-      minGrade: '5' as any,
-      maxGrade: '10' as any,
-      minAscents: '20' as any,
-      minRating: '3' as any,
-      gradeAccuracy: '1' as any,
-      page: '2' as any,
-      pageSize: '50' as any,
-    };
+      minGrade: '5',
+      maxGrade: '10',
+      minAscents: '20',
+      minRating: '3',
+      gradeAccuracy: '1',
+      page: '2',
+      pageSize: '50',
+    } as unknown as SearchRequestPagination;
 
     const result = parsedRouteSearchParamsToSearchParams(input);
 
@@ -162,10 +162,10 @@ describe('parsedRouteSearchParamsToSearchParams', () => {
   it('should use defaults when values are undefined', () => {
     const input = {
       ...DEFAULT_SEARCH_PARAMS,
-      minGrade: undefined as any,
-      maxGrade: undefined as any,
+      minGrade: undefined,
+      maxGrade: undefined,
       name: 'test climb',
-    };
+    } as unknown as SearchRequestPagination;
 
     const result = parsedRouteSearchParamsToSearchParams(input);
 
@@ -177,9 +177,9 @@ describe('parsedRouteSearchParamsToSearchParams', () => {
   it('should handle null values by using defaults', () => {
     const input = {
       ...DEFAULT_SEARCH_PARAMS,
-      minGrade: null as any,
-      maxGrade: null as any,
-      page: null as any,
+      minGrade: null as unknown as number,
+      maxGrade: null as unknown as number,
+      page: null as unknown as number,
     };
 
     const result = parsedRouteSearchParamsToSearchParams(input);
@@ -192,9 +192,9 @@ describe('parsedRouteSearchParamsToSearchParams', () => {
   it('should handle empty string values by using defaults', () => {
     const input = {
       ...DEFAULT_SEARCH_PARAMS,
-      minGrade: '' as any,
-      maxGrade: '' as any,
-      minAscents: '' as any,
+      minGrade: '' as unknown as number,
+      maxGrade: '' as unknown as number,
+      minAscents: '' as unknown as number,
     };
 
     const result = parsedRouteSearchParamsToSearchParams(input);
@@ -209,8 +209,8 @@ describe('parsedRouteSearchParamsToSearchParams', () => {
       ...DEFAULT_SEARCH_PARAMS,
       name: 'test climb',
       settername: ['john doe'],
-      sortBy: 'difficulty' as any,
-      sortOrder: 'asc' as any,
+      sortBy: 'difficulty' as SearchRequestPagination['sortBy'],
+      sortOrder: 'asc' as SearchRequestPagination['sortOrder'],
       onlyClassics: true,
       holdsFilter: { red: { state: 'include' } },
     };
@@ -228,10 +228,10 @@ describe('parsedRouteSearchParamsToSearchParams', () => {
   it('should handle mixed string and number inputs', () => {
     const input = {
       ...DEFAULT_SEARCH_PARAMS,
-      minGrade: '5' as any,
+      minGrade: '5' as unknown as number,
       maxGrade: 10, // already a number
       name: 'test',
-      page: '1' as any,
+      page: '1' as unknown as number,
       pageSize: 25, // already a number
     };
 
@@ -251,9 +251,9 @@ describe('parsedRouteSearchParamsToSearchParams', () => {
   it('should handle invalid number strings by falling back to defaults', () => {
     const input = {
       ...DEFAULT_SEARCH_PARAMS,
-      minGrade: 'invalid' as any,
-      maxGrade: 'NaN' as any,
-      page: 'not-a-number' as any,
+      minGrade: 'invalid' as unknown as number,
+      maxGrade: 'NaN' as unknown as number,
+      page: 'not-a-number' as unknown as number,
     };
 
     const result = parsedRouteSearchParamsToSearchParams(input);
@@ -379,13 +379,13 @@ describe('URL construction functions', () => {
   describe('constructClimbInfoUrl', () => {
     it('should construct external info URL for kilter', () => {
       const boardDetails = { board_name: 'kilter' as const };
-      const result = constructClimbInfoUrl(boardDetails as any, 'abc123');
+      const result = constructClimbInfoUrl(boardDetails as unknown as BoardDetails, 'abc123');
       expect(result).toBe('https://kilterboardapp.com/climbs/abc123');
     });
 
     it('should construct external info URL for tension', () => {
       const boardDetails = { board_name: 'tension' as const };
-      const result = constructClimbInfoUrl(boardDetails as any, 'def456');
+      const result = constructClimbInfoUrl(boardDetails as unknown as BoardDetails, 'def456');
       expect(result).toBe('https://tensionboardapp2.com/climbs/def456');
     });
   });
@@ -1003,7 +1003,7 @@ describe('getContextAwareClimbViewUrl', () => {
     size_name: '8x12 Full Ride',
     size_description: 'Main',
     set_names: ['Main Kicker', 'Aux Kicker'],
-  } as any;
+  } as unknown as BoardDetails;
 
   it('should preserve /b/{slug}/{angle} context from list routes', () => {
     expect(getContextAwareClimbViewUrl('/b/moonrise-gym/40/list', boardDetails, 40, 'ABC123', 'Moon Landing'))

@@ -187,8 +187,8 @@ describe('useNotificationSubscription', () => {
     renderHook(() => useNotificationSubscription());
 
     // Get the subscription callbacks
-    const subscribeCall = mockSubscribe.mock.calls[0] as any[];
-    const callbacks = subscribeCall[2] as { next: (data: any) => void; error: (err: any) => void };
+    const subscribeCall = mockSubscribe.mock.calls[0] as unknown[];
+    const callbacks = subscribeCall[2] as { next: (data: unknown) => void; error: (err: unknown) => void };
 
     // Simulate receiving a notification
     callbacks.next({
@@ -218,7 +218,7 @@ describe('useNotificationSubscription', () => {
 
     // Call the updater function to verify it increments
     const updaterFn = mockSetQueryData.mock.calls.find(
-      (call: any[]) => call[0][0] === 'notifications' && call[0][1] === 'unreadCount',
+      (call: unknown[]) => (call[0] as string[])[0] === 'notifications' && (call[0] as string[])[1] === 'unreadCount',
     )?.[1];
 
     if (typeof updaterFn === 'function') {
@@ -237,8 +237,8 @@ describe('useNotificationSubscription', () => {
 
     renderHook(() => useNotificationSubscription());
 
-    const subscribeCall = mockSubscribe.mock.calls[0] as any[];
-    const callbacks = subscribeCall[2] as { next: (data: any) => void; error: (err: any) => void };
+    const subscribeCall = mockSubscribe.mock.calls[0] as unknown[];
+    const callbacks = subscribeCall[2] as { next: (data: unknown) => void; error: (err: unknown) => void };
 
     callbacks.next({
       notificationReceived: {
@@ -274,8 +274,8 @@ describe('useNotificationSubscription', () => {
 
     renderHook(() => useNotificationSubscription());
 
-    const subscribeCall = mockSubscribe.mock.calls[0] as any[];
-    const callbacks = subscribeCall[2] as { next: (data: any) => void; error: (err: any) => void };
+    const subscribeCall = mockSubscribe.mock.calls[0] as unknown[];
+    const callbacks = subscribeCall[2] as { next: (data: unknown) => void; error: (err: unknown) => void };
 
     // Should not throw
     expect(() => {
@@ -300,8 +300,8 @@ describe('useNotificationSubscription', () => {
 
     renderHook(() => useNotificationSubscription());
 
-    const subscribeCall = mockSubscribe.mock.calls[0] as any[];
-    const callbacks = subscribeCall[2] as { next: (data: any) => void; error: (err: any) => void };
+    const subscribeCall = mockSubscribe.mock.calls[0] as unknown[];
+    const callbacks = subscribeCall[2] as { next: (data: unknown) => void; error: (err: unknown) => void };
 
     callbacks.next({
       notificationReceived: {

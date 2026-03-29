@@ -32,14 +32,15 @@ interface UpsertResult {
   skippedReason?: string;
 }
 
+type AuroraApiRow = Record<string, string>;
+
 async function upsertTableData(
   db: NeonDatabase<Record<string, never>>,
   boardName: AuroraBoardName,
   tableName: string,
   auroraUserId: number,
   nextAuthUserId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any[],
+  data: AuroraApiRow[],
   log: (message: string) => void = console.log,
 ): Promise<UpsertResult> {
   if (data.length === 0) return { synced: 0, skipped: 0 };
@@ -174,7 +175,7 @@ async function upsertTableData(
             isMirror: Boolean(item.is_mirror),
             status: (Number(item.attempt_id) === 1 ? 'flash' : 'send') as 'flash' | 'send' | 'attempt',
             attemptCount: Number(item.bid_count || 1),
-            quality: convertQuality(item.quality),
+            quality: convertQuality(item.quality ? Number(item.quality) : null),
             difficulty: item.difficulty ? Number(item.difficulty) : null,
             isBenchmark: Boolean(item.is_benchmark || 0),
             comment: item.comment || '',

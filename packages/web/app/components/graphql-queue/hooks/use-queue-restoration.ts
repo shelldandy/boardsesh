@@ -1,5 +1,5 @@
 import { useState, useEffect, Dispatch } from 'react';
-import type { QueueAction } from '../../queue-control/types';
+import type { QueueAction, ClimbQueue, ClimbQueueItem } from '../../queue-control/types';
 
 interface UseQueueRestorationParams {
   isPersistentSessionActive: boolean;
@@ -72,10 +72,8 @@ export function useQueueRestoration({
       dispatch({
         type: 'INITIAL_QUEUE_DATA',
         payload: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          queue: persistentSession.localQueue as any,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          currentClimbQueueItem: persistentSession.localCurrentClimbQueueItem as any,
+          queue: persistentSession.localQueue as unknown as ClimbQueue,
+          currentClimbQueueItem: persistentSession.localCurrentClimbQueueItem as unknown as ClimbQueueItem | null,
         },
       });
       setHasRestored(true);
@@ -88,10 +86,8 @@ export function useQueueRestoration({
           dispatch({
             type: 'INITIAL_QUEUE_DATA',
             payload: {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              queue: stored.queue as any,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              currentClimbQueueItem: stored.currentClimbQueueItem as any,
+              queue: stored.queue as unknown as ClimbQueue,
+              currentClimbQueueItem: stored.currentClimbQueueItem as unknown as ClimbQueueItem | null,
             },
           });
         }

@@ -28,6 +28,7 @@ vi.mock('../use-grouped-notifications', () => ({
 
 import { useWsAuthToken } from '../use-ws-auth-token';
 import { useMarkGroupAsRead, useMarkAllAsRead } from '../use-mark-notifications-read';
+import type { GroupedNotification, GroupedNotificationConnection } from '@boardsesh/shared-schema';
 
 const mockUseWsAuthToken = vi.mocked(useWsAuthToken);
 
@@ -82,7 +83,7 @@ describe('useMarkGroupAsRead', () => {
     const { result } = renderHook(() => useMarkGroupAsRead(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync(notification as any);
+      await result.current.mutateAsync(notification as unknown as GroupedNotification);
     });
 
     expect(mockRequest).toHaveBeenCalledWith(
@@ -121,10 +122,10 @@ describe('useMarkGroupAsRead', () => {
     const { result } = renderHook(() => useMarkGroupAsRead(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync(notification as any);
+      await result.current.mutateAsync(notification as unknown as GroupedNotification);
     });
 
-    const cache = queryClient.getQueryData(['notifications', 'grouped']) as any;
+    const cache = queryClient.getQueryData(['notifications', 'grouped']) as { pages: GroupedNotificationConnection[]; pageParams: unknown[] };
     expect(cache.pages[0].groups[0].isRead).toBe(true);
     expect(cache.pages[0].groups[1].isRead).toBe(false);
   });
@@ -141,7 +142,7 @@ describe('useMarkGroupAsRead', () => {
     const { result } = renderHook(() => useMarkGroupAsRead(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync(notification as any);
+      await result.current.mutateAsync(notification as unknown as GroupedNotification);
     });
 
     const count = queryClient.getQueryData(['notifications', 'unreadCount']);
@@ -160,7 +161,7 @@ describe('useMarkGroupAsRead', () => {
     const { result } = renderHook(() => useMarkGroupAsRead(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync(notification as any);
+      await result.current.mutateAsync(notification as unknown as GroupedNotification);
     });
 
     const count = queryClient.getQueryData(['notifications', 'unreadCount']);
@@ -222,8 +223,8 @@ describe('useMarkAllAsRead', () => {
       await result.current.mutateAsync();
     });
 
-    const cache = queryClient.getQueryData(['notifications', 'grouped']) as any;
-    expect(cache.pages[0].groups.every((n: any) => n.isRead === true)).toBe(true);
+    const cache = queryClient.getQueryData(['notifications', 'grouped']) as { pages: GroupedNotificationConnection[]; pageParams: unknown[] };
+    expect(cache.pages[0].groups.every((n: GroupedNotification) => n.isRead === true)).toBe(true);
   });
 
   it('resets unread count to 0', async () => {

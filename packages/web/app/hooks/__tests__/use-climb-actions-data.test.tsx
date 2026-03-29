@@ -31,6 +31,7 @@ import { useWsAuthToken } from '@/app/hooks/use-ws-auth-token';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { useClimbActionsData } from '../use-climb-actions-data';
 import { createQueryWrapper } from '@/app/test-utils/test-providers';
+import type { Playlist } from '@/app/lib/graphql/operations/playlists';
 
 const mockUseWsAuthToken = vi.mocked(useWsAuthToken);
 const mockUseSnackbar = vi.mocked(useSnackbar);
@@ -53,7 +54,7 @@ describe('useClimbActionsData', () => {
       isLoading: false,
       error: null,
     });
-    mockUseSnackbar.mockReturnValue({ showMessage: mockShowMessage } as any);
+    mockUseSnackbar.mockReturnValue({ showMessage: mockShowMessage });
     mockRequest.mockReset();
   });
 
@@ -152,7 +153,7 @@ describe('useClimbActionsData', () => {
     });
 
     // Create a promise we can control to keep mutation pending
-    let resolveMutation: (value: any) => void;
+    let resolveMutation: (value: unknown) => void;
     mockRequest.mockReturnValueOnce(
       new Promise((resolve) => {
         resolveMutation = resolve;
@@ -324,7 +325,7 @@ describe('useClimbActionsData', () => {
     const newPlaylist = { uuid: 'pl-new', name: 'New Playlist', climbCount: 0 };
     mockRequest.mockResolvedValueOnce({ createPlaylist: newPlaylist });
 
-    let created: any;
+    let created: Playlist | undefined;
     await act(async () => {
       created = await result.current.playlistsProviderProps.createPlaylist('New Playlist');
     });
@@ -360,7 +361,7 @@ describe('useClimbActionsData', () => {
     await waitFor(() => {
       const lastCallArgs = mockRequest.mock.calls;
       const hasRefetchCall = lastCallArgs.some(
-        (call: any[]) => call[0] === 'GET_ALL_USER_PLAYLISTS',
+        (call: unknown[]) => call[0] === 'GET_ALL_USER_PLAYLISTS',
       );
       expect(hasRefetchCall).toBe(true);
     });
@@ -399,7 +400,7 @@ describe('useClimbActionsData', () => {
 
     // The favorites fetch should only include climb-3 (not climb-1, climb-2)
     const favCalls = mockRequest.mock.calls.filter(
-      (call: any[]) => call[0] === 'GET_FAVORITES',
+      (call: unknown[]) => call[0] === 'GET_FAVORITES',
     );
     // Second favorites call should only contain the new UUID
     const lastFavCall = favCalls[favCalls.length - 1];

@@ -55,7 +55,7 @@ const mockClimb = {
   name: 'Test Climb',
   difficulty: 'V5',
   frames: 'p1r42',
-} as any;
+} as unknown as Parameters<typeof useClimbActions>[0]['climb'];
 
 const mockBoardDetails = {
   board_name: 'kilter',
@@ -67,7 +67,7 @@ const mockBoardDetails = {
   size_description: 'Full',
   set_names: ['Standard'],
   supportsMirroring: true,
-} as any;
+} as unknown as Parameters<typeof useClimbActions>[0]['boardDetails'];
 
 const defaultOptions = {
   climb: mockClimb,

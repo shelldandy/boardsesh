@@ -96,7 +96,7 @@ describe('ForkAction', () => {
   describe('availability', () => {
     it('returns available: false when board_name is moonboard', () => {
       const props = createTestProps({
-        boardDetails: createTestBoardDetails({ board_name: 'moonboard' as any }),
+        boardDetails: createTestBoardDetails({ board_name: 'moonboard' }),
       });
       const result = ForkAction(props);
       expect(result.available).toBe(false);
@@ -134,7 +134,7 @@ describe('ForkAction', () => {
 
     it('returns available: true for tension board with all fields', () => {
       const props = createTestProps({
-        boardDetails: createTestBoardDetails({ board_name: 'tension' as any }),
+        boardDetails: createTestBoardDetails({ board_name: 'tension' }),
       });
       const result = ForkAction(props);
       expect(result.available).toBe(true);
@@ -159,7 +159,7 @@ describe('ForkAction', () => {
 
     it('does not call constructCreateClimbUrl when not available', () => {
       const props = createTestProps({
-        boardDetails: createTestBoardDetails({ board_name: 'moonboard' as any }),
+        boardDetails: createTestBoardDetails({ board_name: 'moonboard' }),
       });
       ForkAction(props);
 
@@ -177,7 +177,7 @@ describe('ForkAction', () => {
 
     it('returns a disabled menuItem when not available', () => {
       const props = createTestProps({
-        boardDetails: createTestBoardDetails({ board_name: 'moonboard' as any }),
+        boardDetails: createTestBoardDetails({ board_name: 'moonboard' }),
       });
       const result = ForkAction(props);
       expect(result.menuItem.key).toBe('fork');

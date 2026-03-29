@@ -3,18 +3,19 @@ import { render, screen, act } from '@testing-library/react';
 import React from 'react';
 import { connectionManager } from '../websocket-connection-manager';
 import { WebSocketConnectionProvider, useWebSocketConnection } from '../websocket-connection-provider';
+import type { Client } from 'graphql-ws';
 
 class FakeClient {
-  listeners = new Map<string, (...args: any[]) => void>();
+  listeners = new Map<string, (...args: unknown[]) => void>();
   terminate = vi.fn();
   dispose = vi.fn();
 
-  on(event: string, listener: (...args: any[]) => void) {
+  on(event: string, listener: (...args: unknown[]) => void) {
     this.listeners.set(event, listener);
     return () => this.listeners.delete(event);
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     const handler = this.listeners.get(event);
     if (handler) handler(...args);
   }
@@ -55,7 +56,7 @@ describe('WebSocketConnectionProvider', () => {
     );
 
     act(() => {
-      connectionManager.registerClient(client as any, 'session');
+      connectionManager.registerClient(client as unknown as Client, 'session');
     });
 
     expect(screen.getByTestId('state').textContent).toBe('connecting:session');
@@ -77,7 +78,7 @@ describe('WebSocketConnectionProvider', () => {
     );
 
     act(() => {
-      connectionManager.registerClient(client as any, 'session');
+      connectionManager.registerClient(client as unknown as Client, 'session');
       client.emit('connected');
     });
 
@@ -113,7 +114,7 @@ describe('WebSocketConnectionProvider', () => {
     );
 
     act(() => {
-      unregister = connectionManager.registerClient(client as any, 'session');
+      unregister = connectionManager.registerClient(client as unknown as Client, 'session');
       client.emit('connected');
     });
 
@@ -144,7 +145,7 @@ describe('useWebSocketConnection fallback (no provider)', () => {
   });
 
   it('returns a stable reference across renders without a provider', () => {
-    const refs: any[] = [];
+    const refs: ReturnType<typeof useWebSocketConnection>[] = [];
 
     function RefTracker() {
       const value = useWebSocketConnection();

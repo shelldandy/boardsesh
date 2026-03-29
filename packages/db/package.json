@@ -46,6 +46,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "lint-fix": "oxlint --fix .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "test": "tsx --test scripts/**/*.test.ts",
@@ -67,6 +69,7 @@
     "@types/ws": "^8.18.1",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",
+    "oxlint": "^1.50.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },

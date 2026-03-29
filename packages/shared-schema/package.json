@@ -30,12 +30,15 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "lint-fix": "oxlint --fix ."
   },
   "dependencies": {
     "graphql": "^16.13.0"
   },
   "devDependencies": {
+    "oxlint": "^1.50.0",
     "typescript": "^5.9.3"
   }
 }

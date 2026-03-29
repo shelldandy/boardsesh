@@ -5,6 +5,51 @@ import { v4 as uuidv4 } from 'uuid';
 import { startServer } from '../server';
 import type { ClimbQueueItem } from '@boardsesh/shared-schema';
 
+interface JoinSessionResult {
+  id: string;
+  boardPath: string;
+  isLeader: boolean;
+  clientId: string;
+  users: Array<{ id: string; username: string; isLeader: boolean }>;
+  queueState: { queue: Array<{ uuid: string }>; currentClimbQueueItem: { uuid: string } | null };
+}
+
+interface AddQueueItemResult {
+  uuid: string;
+  climb: { name: string };
+}
+
+interface SetCurrentClimbResult {
+  uuid: string;
+  climb: { name: string; mirrored: boolean };
+}
+
+interface MirrorCurrentClimbResult {
+  uuid: string;
+  climb: { mirrored: boolean };
+}
+
+interface SessionQueryResult {
+  queueState: { queue: Array<{ uuid: string }>; currentClimbQueueItem: { uuid: string } | null };
+  users: Array<{ id: string }>;
+}
+
+interface QueueEvent {
+  __typename: string;
+  state?: { queue: Array<{ uuid: string }>; currentClimbQueueItem?: { uuid: string } | null };
+  item?: { uuid: string; climb?: { name: string } };
+  uuid?: string;
+  oldIndex?: number;
+  newIndex?: number;
+}
+
+interface SessionEvent {
+  __typename: string;
+  user?: { id: string; username: string };
+  userId?: string;
+  leaderId?: string;
+}
+
 // Test fixtures
 const TEST_BOARD_PATH = '/kilter/1/2/3/40';
 const TEST_PORT = 8082;
@@ -89,7 +134,8 @@ function waitForEvent<T>(
       { query },
       {
         next: (data) => {
-          const event = (data.data as any)?.queueUpdates || (data.data as any)?.sessionUpdates;
+          const d = data.data as Record<string, T> | null | undefined;
+          const event = d?.queueUpdates || d?.sessionUpdates;
           if (event && predicate(event)) {
             clearTimeout(timeoutId);
             unsubscribe();
@@ -123,7 +169,8 @@ function collectEvents<T>(
       { query },
       {
         next: (data) => {
-          const event = (data.data as any)?.queueUpdates || (data.data as any)?.sessionUpdates;
+          const d = data.data as Record<string, T> | null | undefined;
+          const event = d?.queueUpdates || d?.sessionUpdates;
           if (event) {
             events.push(event);
             if (events.length >= count) {
@@ -183,7 +230,7 @@ describe('Daemon Integration Tests', () => {
       const sessionId = createTestSessionId();
       const client = createTestClient();
 
-      const result = await execute<{ joinSession: any }>(client, {
+      const result = await execute<{ joinSession: JoinSessionResult }>(client, {
         query: `
           mutation JoinSession($sessionId: ID!, $boardPath: String!, $username: String) {
             joinSession(sessionId: $sessionId, boardPath: $boardPath, username: $username) {
@@ -215,7 +262,7 @@ describe('Daemon Integration Tests', () => {
       const sessionId = createTestSessionId();
       const client = createTestClient();
 
-      const result = await execute<{ joinSession: any }>(client, {
+      const result = await execute<{ joinSession: JoinSessionResult }>(client, {
         query: `
           mutation {
             joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Leader") {
@@ -234,12 +281,12 @@ describe('Daemon Integration Tests', () => {
       const client2 = createTestClient();
 
       // First client joins
-      const result1 = await execute<{ joinSession: any }>(client1, {
+      const result1 = await execute<{ joinSession: JoinSessionResult }>(client1, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Leader") { isLeader clientId } }`,
       });
 
       // Second client joins
-      const result2 = await execute<{ joinSession: any }>(client2, {
+      const result2 = await execute<{ joinSession: JoinSessionResult }>(client2, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Follower") { isLeader clientId users { id isLeader } } }`,
       });
 
@@ -248,7 +295,7 @@ describe('Daemon Integration Tests', () => {
       expect(result2.joinSession.users).toHaveLength(2);
 
       // Verify one user is leader
-      const leader = result2.joinSession.users.find((u: any) => u.isLeader);
+      const leader = result2.joinSession.users.find((u) => u.isLeader);
       expect(leader).toBeDefined();
       expect(leader.id).toBe(result1.joinSession.clientId);
     });
@@ -265,7 +312,7 @@ describe('Daemon Integration Tests', () => {
       });
 
       // Subscribe and wait for initial FullSync
-      const event = await waitForEvent<any>(
+      const event = await waitForEvent<QueueEvent | SessionEvent>(
         client,
         `subscription { queueUpdates(sessionId: "${sessionId}") { __typename ... on FullSync { state { queue { uuid } } } } }`,
         (e) => e.__typename === 'FullSync'
@@ -288,7 +335,7 @@ describe('Daemon Integration Tests', () => {
 
       // Add a queue item
       const testClimb = createTestClimb('test-climb-1');
-      const result = await execute<{ addQueueItem: any }>(client, {
+      const result = await execute<{ addQueueItem: AddQueueItemResult }>(client, {
         query: `
           mutation AddQueueItem($item: ClimbQueueItemInput!) {
             addQueueItem(item: $item) { uuid climb { name } }
@@ -312,7 +359,7 @@ describe('Daemon Integration Tests', () => {
 
       // Set current climb
       const testClimb = createTestClimb('current-test');
-      const result = await execute<{ setCurrentClimb: any }>(client, {
+      const result = await execute<{ setCurrentClimb: SetCurrentClimbResult }>(client, {
         query: `
           mutation SetCurrentClimb($item: ClimbQueueItemInput) {
             setCurrentClimb(item: $item, shouldAddToQueue: true) { uuid climb { name } }
@@ -341,7 +388,7 @@ describe('Daemon Integration Tests', () => {
       });
 
       // Mirror the climb
-      const result = await execute<{ mirrorCurrentClimb: any }>(client, {
+      const result = await execute<{ mirrorCurrentClimb: MirrorCurrentClimbResult }>(client, {
         query: `mutation { mirrorCurrentClimb(mirrored: true) { uuid climb { mirrored } } }`,
       });
 
@@ -403,7 +450,7 @@ describe('Daemon Integration Tests', () => {
       expect(result.reorderQueueItem).toBe(true);
 
       // Verify the order by querying the session
-      const sessionResult = await execute<{ session: any }>(client, {
+      const sessionResult = await execute<{ session: SessionQueryResult }>(client, {
         query: `query { session(sessionId: "${sessionId}") { queueState { queue { uuid } } } }`,
       });
 
@@ -428,7 +475,7 @@ describe('Daemon Integration Tests', () => {
       });
 
       // Client 2 subscribes to queue updates
-      const eventPromise = collectEvents<any>(
+      const eventPromise = collectEvents<QueueEvent>(
         client2,
         `subscription { queueUpdates(sessionId: "${sessionId}") { __typename ... on FullSync { state { queue { uuid } } } ... on QueueItemAdded { item { uuid climb { name } } } } }`,
         2 // FullSync + QueueItemAdded
@@ -465,7 +512,7 @@ describe('Daemon Integration Tests', () => {
       });
 
       // Client 2 subscribes to queue updates
-      const eventPromise = collectEvents<any>(
+      const eventPromise = collectEvents<QueueEvent>(
         client2,
         `subscription { queueUpdates(sessionId: "${sessionId}") { __typename ... on FullSync { state { currentClimbQueueItem { uuid } } } ... on CurrentClimbChanged { item { uuid } } } }`,
         2 // FullSync + CurrentClimbChanged
@@ -509,7 +556,7 @@ describe('Daemon Integration Tests', () => {
       });
 
       // Client 2 subscribes
-      const eventPromise = waitForEvent<any>(
+      const eventPromise = waitForEvent<QueueEvent | SessionEvent>(
         client2,
         `subscription { queueUpdates(sessionId: "${sessionId}") { __typename ... on FullSync { state { queue { uuid } } } ... on QueueReordered { uuid oldIndex newIndex } } }`,
         (e) => e.__typename === 'QueueReordered'
@@ -538,19 +585,19 @@ describe('Daemon Integration Tests', () => {
       const client2 = createTestClient();
 
       // Client 1 joins first (becomes leader)
-      const result1 = await execute<{ joinSession: any }>(client1, {
+      const result1 = await execute<{ joinSession: JoinSessionResult }>(client1, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Leader") { isLeader clientId } }`,
       });
       expect(result1.joinSession.isLeader).toBe(true);
 
       // Client 2 joins second (not leader)
-      const result2 = await execute<{ joinSession: any }>(client2, {
+      const result2 = await execute<{ joinSession: JoinSessionResult }>(client2, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Follower") { isLeader clientId } }`,
       });
       expect(result2.joinSession.isLeader).toBe(false);
 
       // Client 2 subscribes to session updates
-      const eventPromise = waitForEvent<any>(
+      const eventPromise = waitForEvent<QueueEvent | SessionEvent>(
         client2,
         `subscription { sessionUpdates(sessionId: "${sessionId}") { __typename ... on LeaderChanged { leaderId } ... on UserLeft { userId } } }`,
         (e) => e.__typename === 'LeaderChanged'
@@ -574,7 +621,7 @@ describe('Daemon Integration Tests', () => {
       const client2 = createTestClient();
 
       // Client 1 joins first (becomes leader)
-      const result1 = await execute<{ joinSession: any }>(client1, {
+      const result1 = await execute<{ joinSession: JoinSessionResult }>(client1, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Leader") { isLeader clientId } }`,
       });
       expect(result1.joinSession.isLeader).toBe(true);
@@ -585,7 +632,7 @@ describe('Daemon Integration Tests', () => {
       });
 
       // Client 1 subscribes to session updates to detect UserLeft
-      const eventPromise = waitForEvent<any>(
+      const eventPromise = waitForEvent<QueueEvent | SessionEvent>(
         client1,
         `subscription { sessionUpdates(sessionId: "${sessionId}") { __typename ... on UserLeft { userId } ... on LeaderChanged { leaderId } } }`,
         (e) => e.__typename === 'UserLeft'
@@ -614,7 +661,7 @@ describe('Daemon Integration Tests', () => {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "First") { id } }`,
       });
 
-      const eventPromise = waitForEvent<any>(
+      const eventPromise = waitForEvent<QueueEvent | SessionEvent>(
         client1,
         `subscription { sessionUpdates(sessionId: "${sessionId}") { __typename ... on UserJoined { user { id username } } } }`,
         (e) => e.__typename === 'UserJoined'
@@ -642,12 +689,12 @@ describe('Daemon Integration Tests', () => {
       await execute(client1, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "First") { id } }`,
       });
-      const result2 = await execute<{ joinSession: any }>(client2, {
+      const result2 = await execute<{ joinSession: JoinSessionResult }>(client2, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Second") { clientId } }`,
       });
 
       // Client 1 subscribes to session updates
-      const eventPromise = waitForEvent<any>(
+      const eventPromise = waitForEvent<QueueEvent | SessionEvent>(
         client1,
         `subscription { sessionUpdates(sessionId: "${sessionId}") { __typename ... on UserLeft { userId } } }`,
         (e) => e.__typename === 'UserLeft'
@@ -672,17 +719,17 @@ describe('Daemon Integration Tests', () => {
       const client2 = createTestClient();
 
       // Client 1 joins first (becomes leader)
-      const result1 = await execute<{ joinSession: any }>(client1, {
+      const result1 = await execute<{ joinSession: JoinSessionResult }>(client1, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Leader") { clientId } }`,
       });
 
       // Client 2 joins second
-      const result2 = await execute<{ joinSession: any }>(client2, {
+      const result2 = await execute<{ joinSession: JoinSessionResult }>(client2, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}", username: "Follower") { clientId } }`,
       });
 
       // Client 2 subscribes to session updates
-      const eventPromise = collectEvents<any>(
+      const eventPromise = collectEvents<SessionEvent>(
         client2,
         `subscription { sessionUpdates(sessionId: "${sessionId}") { __typename ... on UserLeft { userId } ... on LeaderChanged { leaderId } } }`,
         2 // UserLeft + LeaderChanged
@@ -732,7 +779,7 @@ describe('Daemon Integration Tests', () => {
 
       // New client joins same session - should get empty state (session was cleaned up)
       const client2 = createTestClient();
-      const result = await execute<{ joinSession: any }>(client2, {
+      const result = await execute<{ joinSession: JoinSessionResult }>(client2, {
         query: `mutation { joinSession(sessionId: "${sessionId}", boardPath: "${TEST_BOARD_PATH}") { isLeader users { id } queueState { queue { uuid } } } }`,
       });
 
@@ -769,7 +816,7 @@ describe('Daemon Integration Tests', () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Client 2 should still see the queue item (query session state)
-      const result = await execute<{ session: any }>(client2, {
+      const result = await execute<{ session: SessionQueryResult }>(client2, {
         query: `query { session(sessionId: "${sessionId}") { queueState { queue { uuid } } users { id } } }`,
       });
 

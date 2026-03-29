@@ -331,7 +331,7 @@ export function useSessionLifecycle({
 
     triggerResyncRef.current = handleReconnect;
 
-    function applyFullSync(sessionData: any) {
+    function applyFullSync(sessionData: Session) {
       if (sessionData.queueState) {
         handleQueueEvent({
           __typename: 'FullSync',

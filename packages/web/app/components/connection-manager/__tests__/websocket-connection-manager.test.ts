@@ -1,17 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Client } from 'graphql-ws';
 import { connectionManager, STALE_GRACE_MS } from '../websocket-connection-manager';
 
 class FakeClient {
-  listeners = new Map<string, (...args: any[]) => void>();
+  listeners = new Map<string, (...args: unknown[]) => void>();
   terminate = vi.fn();
   dispose = vi.fn();
 
-  on(event: string, listener: (...args: any[]) => void) {
+  on(event: string, listener: (...args: unknown[]) => void) {
     this.listeners.set(event, listener);
     return () => this.listeners.delete(event);
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     const handler = this.listeners.get(event);
     if (handler) handler(...args);
   }
@@ -32,13 +33,13 @@ describe('WebSocketConnectionManager', () => {
     if (originalVisibilityState) {
       Object.defineProperty(document, 'visibilityState', originalVisibilityState);
     } else {
-      delete (document as any).visibilityState;
+      delete (document as unknown as Record<string, unknown>).visibilityState;
     }
   });
 
   it('terminates a stale connection and marks reconnecting', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
     client.emit('connected');
 
     // Advance past stale threshold and health check interval
@@ -52,7 +53,7 @@ describe('WebSocketConnectionManager', () => {
 
   it('forces reconnect on visibilitychange to visible', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
     client.emit('connected');
 
     // Ensure document reports visible
@@ -68,7 +69,7 @@ describe('WebSocketConnectionManager', () => {
 
   it('exposes error state when client errors', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
 
     client.emit('error', new Error('boom'));
 
@@ -79,7 +80,7 @@ describe('WebSocketConnectionManager', () => {
 
   it('sets state to reconnecting on closed event', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
     client.emit('connected');
 
     expect(connectionManager.getSnapshot().state).toBe('connected');
@@ -93,7 +94,7 @@ describe('WebSocketConnectionManager', () => {
 
   it('ping with received=true marks activity, received=false does not', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
     client.emit('connected');
 
     const activityAfterConnect = connectionManager.getSnapshot().lastActivity!;
@@ -113,7 +114,7 @@ describe('WebSocketConnectionManager', () => {
 
   it('pong with received=true resets state to connected', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
 
     // Start in connecting state
     expect(connectionManager.getSnapshot().state).toBe('connecting');
@@ -128,8 +129,8 @@ describe('WebSocketConnectionManager', () => {
   it('switches primary with setPrimaryName()', () => {
     const clientA = new FakeClient();
     const clientB = new FakeClient();
-    const unregA = connectionManager.registerClient(clientA as any, 'queue');
-    const unregB = connectionManager.registerClient(clientB as any, 'session');
+    const unregA = connectionManager.registerClient(clientA as unknown as Client, 'queue');
+    const unregB = connectionManager.registerClient(clientB as unknown as Client, 'session');
 
     clientA.emit('connected');
     clientB.emit('connecting');
@@ -149,7 +150,7 @@ describe('WebSocketConnectionManager', () => {
 
   it('unregister cleans up listeners and resets state to idle when last client removed', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
     client.emit('connected');
 
     expect(connectionManager.getSnapshot().state).toBe('connected');
@@ -169,7 +170,7 @@ describe('WebSocketConnectionManager', () => {
     const states: string[] = [];
     connectionManager.subscribe((snapshot) => states.push(snapshot.state));
 
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
 
     // connecting → connected
     client.emit('connected');
@@ -201,7 +202,7 @@ describe('WebSocketConnectionManager', () => {
 
   it('pauses health check when tab is hidden and resumes when visible', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
     client.emit('connected');
 
     // Hide the tab
@@ -227,10 +228,10 @@ describe('WebSocketConnectionManager', () => {
 
   it('subscribe delivers initial snapshot immediately', () => {
     const client = new FakeClient();
-    const unregister = connectionManager.registerClient(client as any, 'session');
+    const unregister = connectionManager.registerClient(client as unknown as Client, 'session');
     client.emit('connected');
 
-    const snapshots: any[] = [];
+    const snapshots: ReturnType<typeof connectionManager.getSnapshot>[] = [];
     const unsub = connectionManager.subscribe((snapshot) => snapshots.push(snapshot));
 
     // Should have received exactly one snapshot immediately

@@ -8,7 +8,10 @@ import { UNIFIED_TABLES } from '../../db/queries/util/table-select';
 import { boardseshTicks, auroraCredentials, playlists, playlistClimbs, playlistOwnership } from '../../db/schema';
 import { randomUUID } from 'crypto';
 import { convertQuality } from './convert-quality';
+
 import { buildInferredSessionsForUser } from './inferred-session-builder';
+
+type AuroraRowData = Record<string, string>;
 
 /**
  * Get NextAuth user ID from Aurora user ID
@@ -33,8 +36,7 @@ async function upsertTableData(
   tableName: string,
   auroraUserId: number,
   nextAuthUserId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any[],
+  data: Record<string, string>[],
 ) {
   if (data.length === 0) return;
 
@@ -150,7 +152,7 @@ async function upsertTableData(
       // Write directly to boardsesh_ticks (requires NextAuth user ID)
       for (const item of data) {
         const status = Number(item.attempt_id) === 1 ? 'flash' : 'send';
-        const convertedQuality = convertQuality(item.quality);
+        const convertedQuality = convertQuality(item.quality ? Number(item.quality) : null);
 
         await db
           .insert(boardseshTicks)

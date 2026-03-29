@@ -12,7 +12,7 @@
     "build:shared": "bun run --filter=@boardsesh/shared-schema build",
     "build:crypto": "bun run --filter=@boardsesh/crypto build",
     "build:db": "bun run --filter=@boardsesh/db build",
-    "lint": "bun run --filter=@boardsesh/web lint",
+    "lint": "bun run --filter='*' lint",
     "typecheck": "bun run --filter='*' typecheck",
     "typecheck:web": "bun run --filter=@boardsesh/web typecheck",
     "typecheck:backend": "bun run --filter=boardsesh-backend typecheck",
