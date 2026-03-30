@@ -38,7 +38,6 @@ const UnifiedSearchDrawer = dynamic(
 
 interface HomePageContentProps {
   boardConfigs: BoardConfigData;
-  isAuthenticatedSSR?: boolean;
   initialPopularConfigs?: PopularBoardConfig[];
 }
 
@@ -101,7 +100,7 @@ function OnboardingCard({ icon, title, description, onClick }: OnboardingCardPro
   );
 }
 
-export default function HomePageContent({ boardConfigs, isAuthenticatedSSR, initialPopularConfigs }: HomePageContentProps) {
+export default function HomePageContent({ boardConfigs, initialPopularConfigs }: HomePageContentProps) {
   const { status } = useSession();
   const router = useRouter();
   const { activeSession } = usePersistentSession();
@@ -118,7 +117,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR, init
     if (findClimbersOpen) setFindClimbersMounted(true);
   }, [findClimbersOpen]);
 
-  const isAuthenticated = status === 'authenticated' ? true : (status === 'loading' ? (isAuthenticatedSSR ?? false) : false);
+  const isAuthenticated = status === 'authenticated';
 
   const { boards: discoverBoards, isLoading: isBoardsLoading } = useDiscoverBoards({ limit: 20 });
   const { configs: popularConfigs, isLoading: isConfigsLoading, isLoadingMore, hasMore, loadMore } = usePopularBoardConfigs({ limit: 12, initialData: initialPopularConfigs });
