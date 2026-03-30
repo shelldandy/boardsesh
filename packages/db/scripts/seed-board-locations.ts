@@ -8,8 +8,7 @@
 
 import { eq, and, sql, isNull } from 'drizzle-orm';
 import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 
 import { users } from '../src/schema/auth/users.js';
@@ -21,18 +20,33 @@ import { createScriptDb, getScriptDatabaseUrl } from './db-connection.js';
 // Constants
 // =============================================================================
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURES_DIR = join(__dirname, 'fixtures/board-locations');
 const BATCH_SIZE = 50;
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const SYSTEM_USER_EMAIL = 'system@boardsesh.com';
 
-// UUID v5 namespace for deterministic UUID generation
-const UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // DNS namespace
+// When @hangtime/climbing-boards is published to npm, just swap the git
+// dependency in package.json to "^1.0.0" — this constant already matches.
+const GEOJSON_PACKAGE = '@hangtime/climbing-boards';
 
 // =============================================================================
-// Types for hangtime JSON data
+// GeoJSON types
+// =============================================================================
+
+interface GeoJsonFeature<P> {
+  type: 'Feature';
+  id?: string | number;
+  properties: P;
+  geometry: { type: 'Point'; coordinates: [number, number] };
+}
+
+interface GeoJsonFeatureCollection<P> {
+  type: 'FeatureCollection';
+  features: GeoJsonFeature<P>[];
+}
+
+// =============================================================================
+// Types for hangtime GeoJSON feature properties
 // =============================================================================
 
 interface KilterWall {
@@ -190,13 +204,15 @@ function isValidCoord(lat: number | null | undefined, lon: number | null | undef
 }
 
 // =============================================================================
-// Data loading
+// Data loading (GeoJSON from @hangtime/climbing-boards package)
 // =============================================================================
 
-function loadJson<T>(filename: string): T {
-  const filepath = join(FIXTURES_DIR, filename);
+const require = createRequire(import.meta.url);
+
+function loadGeoJson<P>(filename: string): GeoJsonFeatureCollection<P> {
+  const filepath = require.resolve(`${GEOJSON_PACKAGE}/geojson/${filename}`);
   const raw = readFileSync(filepath, 'utf-8');
-  return JSON.parse(raw) as T;
+  return JSON.parse(raw) as GeoJsonFeatureCollection<P>;
 }
 
 // =============================================================================
@@ -222,10 +238,11 @@ interface BoardRecord {
 }
 
 function buildKilterRecords(): BoardRecord[] {
-  const data = loadJson<{ gyms: KilterGym[] }>('kilterboardapp.json');
+  const fc = loadGeoJson<KilterGym>('kilterboardapp.geojson');
   const records: BoardRecord[] = [];
 
-  for (const gym of data.gyms) {
+  for (const feature of fc.features) {
+    const gym = feature.properties;
     if (!isValidCoord(gym.latitude, gym.longitude)) continue;
     if (!gym.walls || gym.walls.length === 0) continue;
 
@@ -276,11 +293,12 @@ function buildKilterRecords(): BoardRecord[] {
 }
 
 function buildTensionRecords(): BoardRecord[] {
-  const data = loadJson<{ gyms: TensionGym[] }>('tensionboardapp2.json');
+  const fc = loadGeoJson<TensionGym>('tensionboardapp2.geojson');
   const records: BoardRecord[] = [];
   const config = DEFAULT_CONFIGS.tension;
 
-  for (const gym of data.gyms) {
+  for (const feature of fc.features) {
+    const gym = feature.properties;
     if (!isValidCoord(gym.latitude, gym.longitude)) continue;
 
     const gymName = gym.name || `Tension Gym ${gym.id}`;
@@ -310,11 +328,12 @@ function buildTensionRecords(): BoardRecord[] {
 }
 
 function buildMoonboardRecords(): BoardRecord[] {
-  const data = loadJson<{ gyms: MoonboardGym[] }>('moonboard.json');
+  const fc = loadGeoJson<MoonboardGym>('moonboard.geojson');
   const records: BoardRecord[] = [];
   const config = DEFAULT_CONFIGS.moonboard;
 
-  for (const gym of data.gyms) {
+  for (const feature of fc.features) {
+    const gym = feature.properties;
     if (!isValidCoord(gym.Latitude, gym.Longitude)) continue;
 
     const gymName = gym.Name || 'MoonBoard Gym';
