@@ -105,7 +105,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
   }, [router]);
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', pb: '60px' }}>
+    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', pb: 'calc(120px + env(safe-area-inset-bottom, 0px))' }}>
       <Box
         component="main"
         sx={{
