@@ -5,8 +5,6 @@ export const GET_TICKS = gql`
   query GetTicks($input: GetTicksInput!) {
     ticks(input: $input) {
       uuid
-      userId
-      boardType
       climbUuid
       angle
       isMirror
@@ -17,12 +15,6 @@ export const GET_TICKS = gql`
       isBenchmark
       comment
       climbedAt
-      createdAt
-      updatedAt
-      sessionId
-      auroraType
-      auroraId
-      auroraSyncedAt
     }
   }
 `;
@@ -30,25 +22,12 @@ export const GET_TICKS = gql`
 export const GET_USER_TICKS = gql`
   query GetUserTicks($userId: ID!, $boardType: String!) {
     userTicks(userId: $userId, boardType: $boardType) {
-      uuid
-      userId
-      boardType
       climbUuid
       angle
-      isMirror
       status
       attemptCount
-      quality
       difficulty
-      isBenchmark
-      comment
       climbedAt
-      createdAt
-      updatedAt
-      sessionId
-      auroraType
-      auroraId
-      auroraSyncedAt
       layoutId
     }
   }
@@ -58,25 +37,6 @@ export const SAVE_TICK = gql`
   mutation SaveTick($input: SaveTickInput!) {
     saveTick(input: $input) {
       uuid
-      userId
-      boardType
-      climbUuid
-      angle
-      isMirror
-      status
-      attemptCount
-      quality
-      difficulty
-      isBenchmark
-      comment
-      climbedAt
-      createdAt
-      updatedAt
-      sessionId
-      boardId
-      auroraType
-      auroraId
-      auroraSyncedAt
     }
   }
 `;
