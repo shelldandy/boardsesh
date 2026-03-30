@@ -86,8 +86,10 @@ export default function BoardSeshHeader({ boardDetails, angle, isAngleAdjustable
 
   // Check if we have any content to show — if not, don't render the toolbar
   const hasBackButton = pageMode === 'play';
-  const hasAngleSelector = angle !== undefined;
-  const hasCreateButton = !!createClimbUrl;
+  // Angle selector is now rendered inside ClimbsList on list pages
+  const hasAngleSelector = angle !== undefined && pageMode !== 'list';
+  // Create button is only shown on desktop, so skip rendering the container on list pages
+  const hasCreateButton = !!createClimbUrl && pageMode !== 'list';
 
   return (
     <>

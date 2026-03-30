@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import MuiBadge from '@mui/material/Badge';
 import MuiButton from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -16,19 +16,21 @@ import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
+import CheckOutlined from '@mui/icons-material/CheckOutlined';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useQueueContext } from '../graphql-queue';
 import { useFavorite, ClimbActions } from '../climb-actions';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
 import { ShareBoardButton } from '../board-page/share-button';
-import { TickButton } from '../logbook/tick-button';
+import { useBoardProvider } from '../board-provider/board-provider-context';
 import QueueList, { QueueListHandle } from '../queue-control/queue-list';
-import ClimbTitle from '../climb-card/climb-title';
 import SwipeBoardCarousel from '../board-renderer/swipe-board-carousel';
 import { useWakeLock } from '../board-bluetooth-control/use-wake-lock';
 import { themeTokens } from '@/app/theme/theme-config';
 import SwipeableDrawer from '../swipeable-drawer/swipeable-drawer';
+import ClimbDetailHeader from '@/app/components/climb-detail/climb-detail-header';
+import { LogAscentDrawer } from '../logbook/log-ascent-drawer';
 import type { ActiveDrawer } from '../queue-control/queue-control-bar';
 import type { BoardDetails, Angle, Climb } from '@/app/lib/types';
 import Box from '@mui/material/Box';
@@ -82,6 +84,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isPlaylistSelectorOpen, setIsPlaylistSelectorOpen] = useState(false);
+  const [isTickDrawerOpen, setIsTickDrawerOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -90,6 +93,9 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const queueListRef = useRef<QueueListHandle>(null);
   const queueScrollRef = useRef<HTMLDivElement>(null);
   const [queueScrollEl, setQueueScrollEl] = useState<HTMLDivElement | null>(null);
+
+  // Get logbook data for tick FAB badge
+  const { logbook } = useBoardProvider();
 
   const queueScrollCallbackRef = useCallback((node: HTMLDivElement | null) => {
     queueScrollRef.current = node;
@@ -210,12 +216,24 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   }, [isOpen, setActiveDrawer]);
 
   const handleClose = useCallback(() => {
-    if (isActionsOpen || isQueueOpen || isPlaylistSelectorOpen) return;
+    if (isActionsOpen || isQueueOpen || isPlaylistSelectorOpen || isTickDrawerOpen) return;
     setActiveDrawer('none');
     if (window.location.hash === '#playing') {
       window.history.back();
     }
-  }, [setActiveDrawer, isActionsOpen, isQueueOpen, isPlaylistSelectorOpen]);
+  }, [setActiveDrawer, isActionsOpen, isQueueOpen, isPlaylistSelectorOpen, isTickDrawerOpen]);
+
+  // Compute ascent info for tick FAB badge
+  const currentAngle = typeof angle === 'string' ? parseInt(angle, 10) : angle;
+  const filteredLogbook = useMemo(() => {
+    if (!logbook || !currentClimb) return [];
+    return logbook.filter(
+      (asc) => asc.climb_uuid === currentClimb.uuid && Number(asc.angle) === currentAngle
+    );
+  }, [logbook, currentClimb, currentAngle]);
+
+  const hasSuccessfulAscent = filteredLogbook.some((asc) => asc.is_ascent);
+  const ascentCount = filteredLogbook.length;
 
   // Card-swipe navigation
   const nextItem = getNextClimbQueueItem();
@@ -258,36 +276,50 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
           <PlayDrawerContent
             climb={currentClimb}
             boardType={boardDetails.board_name}
-            angle={typeof angle === 'string' ? parseInt(angle, 10) : angle}
+            angle={currentAngle}
             aboveFold={
             <>
-              {/* Board renderer with card-swipe */}
-              {currentClimb && (
-                <SwipeBoardCarousel
-                  boardDetails={boardDetails}
-                  currentClimb={currentClimb}
-                  nextClimb={nextItem?.climb}
-                  previousClimb={prevItem?.climb}
-                  onSwipeNext={handleSwipeNext}
-                  onSwipePrevious={handleSwipePrevious}
-                  canSwipeNext={canSwipeNext}
-                  canSwipePrevious={canSwipePrevious}
-                  className={styles.boardSection}
-                  boardContainerClassName={styles.swipeCardContainer}
-                  fillContainer
-                />
-              )}
-
-              <div className={styles.climbInfoSection}>
-                <ClimbTitle
+              {/* Header: Grade | Name | Angle Selector */}
+              <div className={styles.headerSection}>
+                <ClimbDetailHeader
                   climb={currentClimb}
-                  layout="horizontal"
-                  showSetterInfo
-                  showAngle
-                  centered
-                  titleFontSize={themeTokens.typography.fontSize.xl}
-                  rightAddon={currentClimb && <TickButton currentClimb={currentClimb} angle={angle} boardDetails={boardDetails} />}
+                  boardDetails={boardDetails}
+                  angle={currentAngle}
+                  isAngleAdjustable={true}
                 />
+              </div>
+
+              {/* Board renderer with card-swipe and floating Tick FAB */}
+              <div className={styles.boardSectionWrapper}>
+                {currentClimb && (
+                  <SwipeBoardCarousel
+                    boardDetails={boardDetails}
+                    currentClimb={currentClimb}
+                    nextClimb={nextItem?.climb}
+                    previousClimb={prevItem?.climb}
+                    onSwipeNext={handleSwipeNext}
+                    onSwipePrevious={handleSwipePrevious}
+                    canSwipeNext={canSwipeNext}
+                    canSwipePrevious={canSwipePrevious}
+                    className={styles.boardSection}
+                    boardContainerClassName={styles.swipeCardContainer}
+                    fillContainer
+                  />
+                )}
+
+                {/* Floating Tick FAB - Spotify style */}
+                <div className={styles.tickFabContainer}>
+                  <button
+                    className={`${styles.tickFab} ${hasSuccessfulAscent ? styles.tickFabSuccess : ''}`}
+                    onClick={() => setIsTickDrawerOpen(true)}
+                    aria-label="Log ascent"
+                  >
+                    <CheckOutlined className={styles.tickFabIcon} />
+                    {ascentCount > 0 && (
+                      <span className={styles.tickFabBadge}>{ascentCount}</span>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className={styles.actionBar}>
@@ -389,7 +421,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             <ClimbActions
               climb={currentClimb}
               boardDetails={boardDetails}
-              angle={typeof angle === 'string' ? parseInt(angle, 10) : angle}
+              angle={currentAngle}
               currentPathname={pathname}
               viewMode="list"
               onOpenPlaylistSelector={() => {
@@ -417,10 +449,20 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             <PlaylistSelectionContent
               climbUuid={currentClimb.uuid}
               boardDetails={boardDetails}
-              angle={typeof angle === 'string' ? parseInt(angle, 10) : angle}
+              angle={currentAngle}
               onDone={() => setIsPlaylistSelectorOpen(false)}
             />
           </SwipeableDrawer>
+        )}
+
+        {/* Tick / Log Ascent drawer */}
+        {currentClimb && (
+          <LogAscentDrawer
+            open={isTickDrawerOpen}
+            onClose={() => setIsTickDrawerOpen(false)}
+            currentClimb={currentClimb}
+            boardDetails={boardDetails}
+          />
         )}
 
         {/* Queue list drawer */}

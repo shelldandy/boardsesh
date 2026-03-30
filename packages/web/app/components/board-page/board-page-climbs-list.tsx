@@ -6,6 +6,7 @@ import { useQueueContext } from '../graphql-queue';
 import ClimbsList from './climbs-list';
 import BoardCreationBanner from '../board-entity/board-creation-banner';
 import RecentSearchPills from '../search-drawer/recent-search-pills';
+import AngleSelector from './angle-selector';
 
 type BoardPageClimbsListProps = ParsedBoardRouteParameters & {
   boardDetails: BoardDetails;
@@ -65,6 +66,15 @@ const BoardPageClimbsList = ({
 
   const headerInline = useMemo(() => <RecentSearchPills />, []);
 
+  const angleSelectorElement = useMemo(() => (
+    <AngleSelector
+      boardName={board_name}
+      boardDetails={boardDetails}
+      currentAngle={angle}
+      currentClimb={currentClimb}
+    />
+  ), [board_name, boardDetails, angle, currentClimb]);
+
   return (
     <ClimbsList
       boardDetails={boardDetails}
@@ -76,6 +86,7 @@ const BoardPageClimbsList = ({
       onLoadMore={fetchMoreClimbs}
       header={header}
       headerInline={headerInline}
+      angleSelector={angleSelectorElement}
       showBottomSpacer
     />
   );

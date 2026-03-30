@@ -5,6 +5,19 @@
   min-height: 0;
 }
 
+.headerSection {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--neutral-100);
+}
+
+.boardSectionWrapper {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
 .boardSection {
   flex: 1;
   min-height: 0;
@@ -14,10 +27,72 @@
   touch-action: pan-y;
 }
 
-.climbInfoSection {
-  padding: 8px 16px;
-  flex-shrink: 0;
+/* Floating Tick FAB - Spotify style */
+.tickFabContainer {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  z-index: 10;
 }
+
+.tickFab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-dark, #1b8a4a) 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+/* Badge for ascent count */
+.tickFabBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: var(--color-primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Success state - climb has been sent */
+.tickFabSuccess {
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-dark, #1b8a4a) 100%);
+}
+
+/* Attempt state - climb attempted but not sent */
+.tickFabAttempt {
+  background: linear-gradient(135deg, var(--color-warning, #f59e0b) 0%, var(--color-warning-dark, #d97706) 100%);
+}
+
+.tickFab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.tickFab:active {
+  transform: scale(0.95);
+}
+
+.tickFabIcon {
+  font-size: 28px;
+}
+
 
 .actionBar {
   display: flex;
@@ -25,6 +100,7 @@
   align-items: center;
   padding: 8px 16px 12px;
   flex-shrink: 0;
+  border-top: 1px solid var(--neutral-100);
 }
 
 .swipeCardContainer {
