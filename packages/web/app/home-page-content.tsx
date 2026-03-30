@@ -11,6 +11,7 @@ import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded';
 import PeopleOutlined from '@mui/icons-material/PeopleOutlined';
 import BluetoothOutlined from '@mui/icons-material/BluetoothOutlined';
 import LocalOfferOutlined from '@mui/icons-material/LocalOfferOutlined';
+import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { themeTokens } from '@/app/theme/theme-config';
@@ -189,6 +190,13 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
           >
             Get started
           </Typography>
+
+          <OnboardingCard
+            icon={<WarningAmberOutlined />}
+            title="Old Kilter app users"
+            description="Migrate your data to Boardsesh before it's lost"
+            onClick={() => router.push('/aurora-migration')}
+          />
 
           <OnboardingCard
             icon={<PeopleOutlined />}
