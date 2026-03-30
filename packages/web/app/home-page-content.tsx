@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -8,9 +8,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardActionArea from '@mui/material/CardActionArea';
 import PlayArrowRounded from '@mui/icons-material/PlayArrowRounded';
-import TuneOutlined from '@mui/icons-material/TuneOutlined';
 import PeopleOutlined from '@mui/icons-material/PeopleOutlined';
-import ExploreOutlined from '@mui/icons-material/ExploreOutlined';
 import BluetoothOutlined from '@mui/icons-material/BluetoothOutlined';
 import LocalOfferOutlined from '@mui/icons-material/LocalOfferOutlined';
 import { useSession } from 'next-auth/react';
@@ -18,7 +16,12 @@ import { useRouter } from 'next/navigation';
 import { themeTokens } from '@/app/theme/theme-config';
 import StartSeshDrawer from '@/app/components/session-creation/start-sesh-drawer';
 import UnifiedSearchDrawer from '@/app/components/search-drawer/unified-search-drawer';
+import BoardScrollSection from '@/app/components/board-scroll/board-scroll-section';
+import BoardScrollCard from '@/app/components/board-scroll/board-scroll-card';
+import { useDiscoverBoards } from '@/app/hooks/use-discover-boards';
+import { constructBoardSlugListUrl } from '@/app/lib/url-utils';
 import type { BoardConfigData } from '@/app/lib/server-board-configs';
+import type { UserBoard } from '@boardsesh/shared-schema';
 
 interface HomePageContentProps {
   boardConfigs: BoardConfigData;
@@ -92,6 +95,14 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
 
   const isAuthenticated = status === 'authenticated' ? true : (status === 'loading' ? (isAuthenticatedSSR ?? false) : false);
 
+  const { boards: discoverBoards, isLoading: isBoardsLoading } = useDiscoverBoards({ limit: 20 });
+
+  const handleBoardClick = useCallback((board: UserBoard) => {
+    if (board.slug) {
+      router.push(constructBoardSlugListUrl(board.slug, board.angle));
+    }
+  }, [router]);
+
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', pb: '60px' }}>
       <Box
@@ -150,6 +161,19 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
           </Button>
         </Box>
 
+        {/* Board Discovery - horizontal scroll */}
+        {(isBoardsLoading || discoverBoards.length > 0) && (
+          <BoardScrollSection title="Boards near you" loading={isBoardsLoading}>
+            {discoverBoards.map((board) => (
+              <BoardScrollCard
+                key={board.uuid}
+                userBoard={board}
+                onClick={() => handleBoardClick(board)}
+              />
+            ))}
+          </BoardScrollSection>
+        )}
+
         {/* Onboarding Cards */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           <Typography
@@ -165,20 +189,6 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
           >
             Get started
           </Typography>
-
-          <OnboardingCard
-            icon={<TuneOutlined />}
-            title="Set up your board"
-            description="Configure your Kilter, Tension, or MoonBoard"
-            onClick={() => router.push('/?select=true')}
-          />
-
-          <OnboardingCard
-            icon={<ExploreOutlined />}
-            title="Explore climbs"
-            description="Browse popular climbs and find your next project"
-            onClick={() => router.push('/?select=true')}
-          />
 
           <OnboardingCard
             icon={<PeopleOutlined />}
@@ -204,12 +214,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
 
         {/* Authenticated users: nudge to feed */}
         {isAuthenticated && (
-          <Box
-            sx={{
-              textAlign: 'center',
-              py: 2,
-            }}
-          >
+          <Box sx={{ textAlign: 'center', py: 2 }}>
             <Typography variant="body2" sx={{ color: 'var(--neutral-400)', mb: 1 }}>
               Looking for your activity feed?
             </Typography>
