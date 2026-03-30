@@ -42,6 +42,7 @@ export default async function BoardSlugListPage(props: BoardSlugListPageProps) {
     !searchParamsObject.minGrade &&
     !searchParamsObject.maxGrade &&
     !searchParamsObject.minAscents &&
+    !searchParamsObject.minRating &&
     !searchParamsObject.name &&
     (!searchParamsObject.settername || searchParamsObject.settername.length === 0) &&
     (searchParamsObject.sortBy || 'ascents') === 'ascents' &&

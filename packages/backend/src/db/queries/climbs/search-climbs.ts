@@ -16,17 +16,22 @@ export const searchClimbs = async (
     return { climbs: [], totalCount: 0, hasMore: false };
   }
 
-  const result = await sharedSearchClimbs(db, params, searchParams, sizeEdges, userId);
+  try {
+    const result = await sharedSearchClimbs(db, params, searchParams, sizeEdges, userId);
 
-  // Map ClimbRow to Climb (add fields expected by the GraphQL schema)
-  const climbs: Climb[] = result.climbs.map((row) => ({
-    ...row,
-    mirrored: null,
-  }));
+    // Map ClimbRow to Climb (add fields expected by the GraphQL schema)
+    const climbs: Climb[] = result.climbs.map((row) => ({
+      ...row,
+      mirrored: null,
+    }));
 
-  return {
-    climbs,
-    hasMore: result.hasMore,
-    totalCount: 0,
-  };
+    return {
+      climbs,
+      hasMore: result.hasMore,
+      totalCount: 0, // Resolved lazily by the totalCount field resolver
+    };
+  } catch (error) {
+    console.error('Error in searchClimbs:', error);
+    throw error;
+  }
 };

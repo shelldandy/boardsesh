@@ -78,6 +78,7 @@ export default async function DynamicResultsPage(props: {
     !searchParamsObject.minGrade &&
     !searchParamsObject.maxGrade &&
     !searchParamsObject.minAscents &&
+    !searchParamsObject.minRating &&
     !searchParamsObject.name &&
     (!searchParamsObject.settername || searchParamsObject.settername.length === 0) &&
     (searchParamsObject.sortBy || 'ascents') === 'ascents' &&

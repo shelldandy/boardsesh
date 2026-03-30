@@ -138,6 +138,7 @@ export const createClimbFilters = (
   const personalProgressConditions: SQL[] = [];
   if (userId) {
     if (searchParams.hideAttempted) {
+      // Hide climbs where the user has any tick (attempted or completed)
       personalProgressConditions.push(
         sql`NOT EXISTS (
           SELECT 1 FROM ${boardseshTicks}
@@ -145,7 +146,6 @@ export const createClimbFilters = (
           AND ${boardseshTicks.userId} = ${userId}
           AND ${boardseshTicks.boardType} = ${params.board_name}
           AND ${boardseshTicks.angle} = ${params.angle}
-          AND ${boardseshTicks.status} = 'attempt'
         )`
       );
     }
@@ -164,6 +164,7 @@ export const createClimbFilters = (
     }
 
     if (searchParams.showOnlyAttempted) {
+      // Show only climbs where the user has any tick
       personalProgressConditions.push(
         sql`EXISTS (
           SELECT 1 FROM ${boardseshTicks}
@@ -171,7 +172,6 @@ export const createClimbFilters = (
           AND ${boardseshTicks.userId} = ${userId}
           AND ${boardseshTicks.boardType} = ${params.board_name}
           AND ${boardseshTicks.angle} = ${params.angle}
-          AND ${boardseshTicks.status} = 'attempt'
         )`
       );
     }

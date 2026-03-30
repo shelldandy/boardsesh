@@ -99,6 +99,7 @@ export async function cachedSearchClimbs(
       // Map ClimbRow to the web Climb type
       const climbs: Climb[] = result.climbs.map((row) => ({
         ...row,
+        mirrored: undefined,
       }));
 
       return { climbs, hasMore: result.hasMore };
