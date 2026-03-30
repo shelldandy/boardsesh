@@ -172,23 +172,25 @@ export default function AuroraMigrationContent() {
                     <Typography variant="h6" sx={{ mb: 1 }}>
                       Import your data
                     </Typography>
-                    {isAuthenticated ? (
-                      <Stack spacing={2}>
-                        <Typography variant="body1" component="p">
-                          Link your Aurora account or import from the JSON export file
-                          you received. The Kilter backend is down so only JSON import is
-                          available for Kilter boards.
-                        </Typography>
-                        <BoardImportPrompt boardType="kilter" />
-                        <BoardImportPrompt boardType="tension" />
-                      </Stack>
-                    ) : (
+                    {!isAuthenticated && (
                       <Typography variant="body2" color="text.secondary">
                         Sign in first to import your data.
                       </Typography>
                     )}
                   </div>
                 </div>
+
+                {isAuthenticated && (
+                  <Stack spacing={2}>
+                    <Typography variant="body1" component="p">
+                      The Kilter backend is down so only JSON import is available for
+                      Kilter. For Tension, linking your account will automatically sync
+                      your data every 12 hours so you always have a backup.
+                    </Typography>
+                    <BoardImportPrompt boardType="kilter" />
+                    <BoardImportPrompt boardType="tension" />
+                  </Stack>
+                )}
               </Stack>
             </CardContent>
           </MuiCard>
