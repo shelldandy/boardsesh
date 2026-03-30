@@ -19,7 +19,6 @@ import PlaylistSelectionContent from '../climb-actions/playlist-selection-conten
 import { useOptionalQueueContext } from '../graphql-queue';
 import { useFavorite } from '../climb-actions';
 import { useSwipeActions } from '@/app/hooks/use-swipe-actions';
-import { useDoubleTap } from '@/app/lib/hooks/use-double-tap';
 import { themeTokens } from '@/app/theme/theme-config';
 import { getGradeTintColor } from '@/app/lib/grade-colors';
 import { useIsDarkMode } from '@/app/hooks/use-is-dark-mode';
@@ -67,6 +66,8 @@ type ClimbListItemProps = {
   contentOpacity?: number;
   /** When true, disables thumbnail click-to-navigate (e.g., in edit mode) */
   disableThumbnailNavigation?: boolean;
+  /** Handler for thumbnail clicks. When set, stops propagation so the row onClick doesn't also fire. */
+  onThumbnailClick?: () => void;
 };
 
 const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
@@ -84,6 +85,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
   backgroundColor,
   contentOpacity,
   disableThumbnailNavigation,
+  onThumbnailClick,
 }) => {
   const pathname = usePathname();
   const isDark = useIsDarkMode();
@@ -93,7 +95,6 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
   const queueContext = useOptionalQueueContext();
   const addToQueue = queueContext?.addToQueue;
   const { isFavorited, toggleFavorite } = useFavorite({ climbUuid: climb.uuid });
-  const { ref: doubleTapRef, onDoubleClick: handleDoubleClick } = useDoubleTap(onSelect);
 
   const hasSwipeOverrides = Boolean(swipeLeftAction || swipeRightAction);
 
@@ -371,17 +372,16 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
         <div
           {...(disableSwipe ? {} : swipeHandlers)}
           ref={(node: HTMLDivElement | null) => {
-            doubleTapRef(node);
             if (!disableSwipe) {
               swipeHandlers.ref(node);
               contentRef(node);
             }
           }}
-          onDoubleClick={handleDoubleClick}
+          onClick={onSelect}
           style={swipeableContentStyle}
         >
           {/* Thumbnail */}
-          <div style={thumbnailStyle}>
+          <div style={thumbnailStyle} onClick={onThumbnailClick ? (e) => { e.stopPropagation(); onThumbnailClick(); } : undefined}>
             <ClimbThumbnail
               boardDetails={boardDetails}
               currentClimb={climb}
@@ -479,7 +479,8 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
     && prev.titleProps === next.titleProps
     && prev.backgroundColor === next.backgroundColor
     && prev.contentOpacity === next.contentOpacity
-    && prev.disableThumbnailNavigation === next.disableThumbnailNavigation;
+    && prev.disableThumbnailNavigation === next.disableThumbnailNavigation
+    && prev.onThumbnailClick === next.onThumbnailClick;
 });
 
 ClimbListItem.displayName = 'ClimbListItem';

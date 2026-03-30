@@ -137,10 +137,10 @@ const ClimbsList = ({
     isFetching,
   });
 
-  const handleClimbDoubleClick = useCallback(
+  const handleClimbClick = useCallback(
     (climb: Climb) => {
       onClimbSelectRef.current?.(climb);
-      track('Climb List Card Clicked', { climbUuid: climb.uuid });
+      track('Climb List Item Clicked', { climbUuid: climb.uuid });
     },
     [],
   );
@@ -148,10 +148,10 @@ const ClimbsList = ({
   const climbHandlersMap = useMemo(() => {
     const map = new Map<string, () => void>();
     climbs.forEach(climb => {
-      map.set(climb.uuid, () => handleClimbDoubleClick(climb));
+      map.set(climb.uuid, () => handleClimbClick(climb));
     });
     return map;
-  }, [climbs, handleClimbDoubleClick]);
+  }, [climbs, handleClimbClick]);
 
   const resolveBoardDetails = useCallback(
     (climb: Climb): BoardDetails => {
@@ -308,6 +308,8 @@ const ClimbsList = ({
                       boardDetails={resolveBoardDetails(climb)}
                       selected={selectedClimbUuid === climb.uuid}
                       onSelect={climbHandlersMap.get(climb.uuid)}
+                      onThumbnailClick={climbHandlersMap.get(climb.uuid)}
+                      disableThumbnailNavigation
                       unsupported={unsupportedClimbs?.has(climb.uuid)}
                     />
                   </div>
