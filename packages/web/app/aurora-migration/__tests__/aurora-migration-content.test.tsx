@@ -13,14 +13,6 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/aurora-migration',
 }));
 
-vi.mock('@/app/components/brand/logo', () => ({
-  default: () => <div data-testid="logo" />,
-}));
-
-vi.mock('@/app/components/back-button', () => ({
-  default: () => <button data-testid="back-button">Back</button>,
-}));
-
 vi.mock('@/app/components/auth/auth-modal', () => ({
   default: ({ open, onClose, title }: { open: boolean; onClose: () => void; title: string }) =>
     open ? (
@@ -43,11 +35,6 @@ describe('AuroraMigrationContent', () => {
   beforeEach(() => {
     mockSessionStatus = 'unauthenticated';
     mockSessionData = null;
-  });
-
-  it('renders the page title', () => {
-    render(<AuroraMigrationContent />);
-    expect(screen.getByText('Migrate from Old Kilter app')).toBeTruthy();
   });
 
   it('renders the "What Happened" section', () => {

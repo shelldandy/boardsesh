@@ -15,8 +15,6 @@ import {
   GitHub,
 } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
-import Logo from '@/app/components/brand/logo';
-import BackButton from '@/app/components/back-button';
 import AuthModal from '@/app/components/auth/auth-modal';
 import BoardImportPrompt from '@/app/components/settings/board-import-prompt';
 import { themeTokens } from '@/app/theme/theme-config';
@@ -29,21 +27,13 @@ export default function AuroraMigrationContent() {
 
   return (
     <Box className={styles.pageLayout}>
-      <Box component="header" className={styles.header}>
-        <BackButton fallbackUrl="/" />
-        <Logo size="sm" showText={false} />
-        <Typography variant="h4" className={styles.headerTitle}>
-          Migrate from Old Kilter app
-        </Typography>
-      </Box>
-
       <Box component="main" className={styles.content}>
         <Stack spacing={3}>
           {/* Section 1: What Happened */}
           <MuiCard>
             <CardContent>
               <Stack spacing={2} className={styles.cardContent}>
-                <Typography variant="h3">
+                <Typography variant="h5">
                   What Happened
                 </Typography>
 
@@ -86,7 +76,7 @@ export default function AuroraMigrationContent() {
           <MuiCard>
             <CardContent>
               <Stack spacing={3} className={styles.cardContent}>
-                <Typography variant="h3">
+                <Typography variant="h5">
                   How to Migrate
                 </Typography>
 
@@ -207,7 +197,7 @@ export default function AuroraMigrationContent() {
           <MuiCard>
             <CardContent>
               <Stack spacing={2} className={styles.cardContent}>
-                <Typography variant="h3">
+                <Typography variant="h5">
                   <GitHub className={`${styles.sectionIcon}`} />
                   Get Help
                 </Typography>
