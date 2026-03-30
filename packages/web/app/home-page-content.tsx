@@ -112,7 +112,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
           flex: 1,
           px: 2,
           py: 2,
-          pt: 'calc(var(--global-header-height) + 16px)',
+          pt: 2,
           display: 'flex',
           flexDirection: 'column',
           gap: 3,
@@ -140,7 +140,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
             variant="body1"
             sx={{ color: 'var(--neutral-500)', maxWidth: 320 }}
           >
-            Start a session to track your climbing, control LEDs, and invite friends.
+            Start a session to track your climbing, control your board, measure your performance, and invite friends.
           </Typography>
           <Button
             variant="contained"

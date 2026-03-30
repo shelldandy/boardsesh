@@ -23,6 +23,9 @@ const TITLE_HEADER_PAGES: Record<string, string> = {
   '/aurora-migration': 'Aurora Migration',
 };
 
+/** Pages where the global header is completely hidden */
+const HIDDEN_HEADER_PAGES = ['/'];
+
 interface GlobalHeaderProps {
   boardConfigs: BoardConfigData;
 }
@@ -37,6 +40,11 @@ export default function GlobalHeader({ boardConfigs }: GlobalHeaderProps) {
   const pathname = usePathname();
 
   const hasActiveSession = !!activeSession;
+
+  // Hide header completely on certain pages
+  if (HIDDEN_HEADER_PAGES.includes(pathname)) {
+    return null;
+  }
 
   // Check if current page wants a simple title header
   const titleHeaderPage = Object.entries(TITLE_HEADER_PAGES).find(([prefix]) => pathname.startsWith(prefix));

@@ -60,7 +60,7 @@ describe('GlobalHeader', () => {
     vi.clearAllMocks();
     mockActiveSession = null;
     mockIsOnBoardRoute = false;
-    mockPathname = '/';
+    mockPathname = '/some-page';
     mockBridgeState = {
       openClimbSearchDrawer: null,
       searchPillSummary: null,
