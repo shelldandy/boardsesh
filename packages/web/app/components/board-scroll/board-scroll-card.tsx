@@ -107,6 +107,7 @@ export default function BoardScrollCard({
           .replace(/\bHomewall\b/gi, 'HW')
           .replace(/\bOriginal\b/gi, 'OG')
           .replace(/\bLayout\b/gi, '')
+          .replace(/^2\s+/i, '')
           .replace(/\s+/g, ' ')
           .trim();
         cardName = `${shortLayout} ${popularConfig.sizeName || ''}`.trim();
