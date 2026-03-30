@@ -315,7 +315,7 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
   // Query all per-size configs with climb counts filtered by size edges AND set membership.
   // A climb counts for a config only if ALL its holds belong to placements in that config's sets.
   // board_climb_holds.hold_id = board_placements.id (placement ID).
-  // ~31 configs, ~750ms worst case per LATERAL, cached for 30 days.
+  // ~31 configs, ~750ms worst case per LATERAL, cached in Redis for 1 year (refreshed on deploy).
   const result = await db.execute(sql`
     SELECT
       configs.board_type,
@@ -422,14 +422,21 @@ export async function warmPopularConfigsCache(): Promise<void> {
       const lockAcquired = await publisher.set(REDIS_LOCK_KEY, '1', 'EX', REDIS_LOCK_TTL_SECONDS, 'NX');
       if (!lockAcquired) {
         console.log('[PopularConfigs] Another node is refreshing the cache, waiting...');
-        // Wait for the other node to finish, then load from Redis
-        await new Promise((r) => setTimeout(r, 5000));
-        const cached = await publisher.get(REDIS_CACHE_KEY);
-        if (cached) {
-          memoryCache = JSON.parse(cached) as CachedPopularConfig[];
-          console.log(`[PopularConfigs] Loaded ${memoryCache.length} configs from Redis (refreshed by another node)`);
+        // Poll until the winning node finishes (up to 60s)
+        for (let i = 0; i < 12; i++) {
+          await new Promise((r) => setTimeout(r, 5000));
+          const cached = await publisher.get(REDIS_CACHE_KEY);
+          if (cached) {
+            memoryCache = JSON.parse(cached) as CachedPopularConfig[];
+            console.log(`[PopularConfigs] Loaded ${memoryCache.length} configs from Redis (refreshed by another node)`);
+            return;
+          }
         }
-        return;
+        console.warn('[PopularConfigs] Timed out waiting for another node, will query ourselves');
+        // Fall through to run query as fallback
+      } else {
+        // Winning node: delete stale cache so getPopularConfigs() runs the SQL query
+        await publisher.del(REDIS_CACHE_KEY);
       }
     } catch (err) {
       console.error('[PopularConfigs] Redis lock failed:', err);
