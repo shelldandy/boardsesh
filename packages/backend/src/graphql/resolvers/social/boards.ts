@@ -237,9 +237,10 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
     return popularConfigCache.data;
   }
 
-  // Query all per-size configs with climb counts filtered by size edges.
-  // Deduplication of same-edge variants (Full Ride vs Mainline vs Auxiliary)
-  // happens in JS after the query to allow smart filtering.
+  // Query all per-size configs with climb counts filtered by size edges AND set membership.
+  // A climb counts for a config only if ALL its holds belong to placements in that config's sets.
+  // board_climb_holds.hold_id = board_placements.id (placement ID).
+  // ~31 configs, ~750ms worst case per LATERAL, cached for 30 days.
   const result = await db.execute(sql`
     SELECT
       configs.board_type,
@@ -248,10 +249,6 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
       configs.size_id,
       bps.name AS size_name,
       bps.description AS size_description,
-      bps.edge_left,
-      bps.edge_right,
-      bps.edge_bottom,
-      bps.edge_top,
       configs.set_ids,
       configs.set_names,
       COALESCE(cc.climb_count, 0) AS climb_count
@@ -280,6 +277,18 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
         AND bc.edge_right < bps.edge_right
         AND bc.edge_bottom > bps.edge_bottom
         AND bc.edge_top < bps.edge_top
+        AND NOT EXISTS (
+          SELECT 1 FROM board_climb_holds bch
+          WHERE bch.climb_uuid = bc.uuid
+            AND bch.board_type = bc.board_type
+            AND NOT EXISTS (
+              SELECT 1 FROM board_placements bp
+              WHERE bp.board_type = bch.board_type
+                AND bp.layout_id = bc.layout_id
+                AND bp.id = bch.hold_id
+                AND bp.set_id = ANY(configs.set_ids)
+            )
+        )
     ) cc ON true
     WHERE bl.is_listed = true
       AND bps.is_listed = true

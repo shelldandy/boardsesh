@@ -5,6 +5,7 @@ async function main() {
   const { db, close } = createScriptDb();
 
   try {
+    console.time('query');
     const rows = await db.execute(sql`
       SELECT
         configs.board_type,
@@ -41,11 +42,24 @@ async function main() {
           AND bc.edge_right < bps.edge_right
           AND bc.edge_bottom > bps.edge_bottom
           AND bc.edge_top < bps.edge_top
+          AND NOT EXISTS (
+            SELECT 1 FROM board_climb_holds bch
+            WHERE bch.climb_uuid = bc.uuid
+              AND bch.board_type = bc.board_type
+              AND NOT EXISTS (
+                SELECT 1 FROM board_placements bp
+                WHERE bp.board_type = bch.board_type
+                  AND bp.layout_id = bc.layout_id
+                  AND bp.id = bch.hold_id
+                  AND bp.set_id = ANY(configs.set_ids)
+              )
+          )
       ) cc ON true
       WHERE bl.is_listed = true
         AND bps.is_listed = true
       ORDER BY climb_count DESC, configs.board_type, bl.name
     `);
+    console.timeEnd('query');
 
     // db.execute() returns QueryResult with .rows for neon-serverless, or an array for postgres-js
     const rowsArray = Array.isArray(rows)
