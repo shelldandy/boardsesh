@@ -140,7 +140,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
             variant="body1"
             sx={{ color: 'var(--neutral-500)', maxWidth: 320 }}
           >
-            Start a session to track your climbing, control your board, and invite friends.
+            Start a session to track your climbing, control your board, and invite your friends.
           </Typography>
           <Button
             variant="contained"
