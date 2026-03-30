@@ -110,7 +110,14 @@ export default function BoardScrollCard({
           .replace(/^2\s+/i, '')
           .replace(/\s+/g, ' ')
           .trim();
-        cardName = `${shortLayout} ${popularConfig.sizeName || ''}`.trim();
+        // Include set names for configs where they're distinctive (e.g., Mainline, Auxiliary)
+        const GENERIC_SETS = new Set(['bolt ons', 'screw ons', 'foot set', 'plastic', 'wood']);
+        const distinctiveSets = popularConfig.setNames
+          .filter((s) => !GENERIC_SETS.has(s.toLowerCase()))
+          .map((s) => s.replace(/\bKickboard\b/gi, 'KB'))
+          .join(' + ');
+        const setLabel = distinctiveSets ? ` ${distinctiveSets}` : '';
+        cardName = `${shortLayout} ${popularConfig.sizeName || ''}${setLabel}`.trim();
         cardMeta = `${BOARD_TYPE_LABELS[boardName] || boardName} \u00B7 ${popularConfig.climbCount.toLocaleString()} routes`;
 
         if (boardName === 'moonboard') {
