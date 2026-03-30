@@ -25,6 +25,19 @@ vi.mock('@/app/hooks/use-discover-boards', () => ({
   useDiscoverBoards: () => ({ boards: [], isLoading: false }),
 }));
 
+const mockUsePopularBoardConfigs = vi.fn().mockReturnValue({
+  configs: [],
+  isLoading: false,
+  isLoadingMore: false,
+  hasMore: false,
+  error: null,
+  loadMore: vi.fn(),
+});
+
+vi.mock('@/app/hooks/use-popular-board-configs', () => ({
+  usePopularBoardConfigs: (...args: unknown[]) => mockUsePopularBoardConfigs(...args),
+}));
+
 vi.mock('@/app/components/session-creation/start-sesh-drawer', () => ({
   default: ({ open }: { open: boolean }) =>
     open ? <div data-testid="start-sesh-drawer">Drawer</div> : null,
@@ -72,6 +85,14 @@ describe('HomePageContent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockActiveSession = null;
+    mockUsePopularBoardConfigs.mockReturnValue({
+      configs: [],
+      isLoading: false,
+      isLoadingMore: false,
+      hasMore: false,
+      error: null,
+      loadMore: vi.fn(),
+    });
   });
 
   describe('hero button without active session', () => {
@@ -177,6 +198,41 @@ describe('HomePageContent', () => {
       render(<HomePageContent {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /continue climbing/i }));
       expect(mockPush).toHaveBeenCalledWith('/b/tension-board/-20/list');
+    });
+  });
+
+  describe('SSR popular configs', () => {
+    it('passes initialData to usePopularBoardConfigs when initialPopularConfigs is provided', () => {
+      const initialConfigs = [
+        {
+          boardType: 'kilter',
+          layoutId: 8,
+          layoutName: 'Original',
+          sizeId: 25,
+          sizeName: '12x12',
+          sizeDescription: 'Full size',
+          setIds: [26, 27],
+          setNames: ['Set A', 'Set B'],
+          climbCount: 500,
+          displayName: 'OG 12x12',
+        },
+      ];
+
+      render(<HomePageContent {...defaultProps} initialPopularConfigs={initialConfigs} />);
+
+      expect(mockUsePopularBoardConfigs).toHaveBeenCalledWith({
+        limit: 12,
+        initialData: initialConfigs,
+      });
+    });
+
+    it('does not pass initialData when initialPopularConfigs is not provided', () => {
+      render(<HomePageContent {...defaultProps} />);
+
+      expect(mockUsePopularBoardConfigs).toHaveBeenCalledWith({
+        limit: 12,
+        initialData: undefined,
+      });
     });
   });
 });

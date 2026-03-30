@@ -15,6 +15,7 @@ import {
   UUIDSchema,
 } from '../../../validation/schemas';
 import { generateUniqueGymSlug } from './gyms';
+import { redisClientManager } from '../../../redis/client';
 
 // ============================================
 // Helpers
@@ -213,7 +214,7 @@ async function enrichBoard(
 }
 
 // ============================================
-// Popular Board Config Cache
+// Popular Board Config Cache (Redis-backed)
 // ============================================
 
 export interface CachedPopularConfig {
@@ -226,15 +227,89 @@ export interface CachedPopularConfig {
   setIds: number[];
   setNames: string[];
   climbCount: number;
+  displayName: string;
 }
 
-let popularConfigCache: { data: CachedPopularConfig[]; timestamp: number } | null = null;
-const POPULAR_CONFIG_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const BOARD_TYPE_LABELS: Record<string, string> = {
+  kilter: 'Kilter',
+  tension: 'Tension',
+  moonboard: 'MoonBoard',
+  decoy: 'Decoy',
+  touchstone: 'Touchstone',
+  grasshopper: 'Grasshopper',
+  soill: 'So iLL',
+};
+
+const GENERIC_SETS = new Set(['bolt ons', 'screw ons', 'foot set', 'plastic', 'wood']);
+
+function formatDisplayName(
+  boardType: string,
+  layoutName: string | null,
+  sizeName: string | null,
+  setNames: string[],
+): string {
+  const boardLabel = BOARD_TYPE_LABELS[boardType] || boardType;
+
+  // Shorten layout name: strip board type, "Board", abbreviations
+  const shortLayout = (layoutName || '')
+    .replace(new RegExp(`\\b${boardLabel}\\b\\s*`, 'gi'), '')
+    .replace(/\bBoard\b\s*/gi, '')
+    .replace(/\bHomewall\b/gi, 'HW')
+    .replace(/\bOriginal\b/gi, 'OG')
+    .replace(/\bLayout\b/gi, '')
+    .replace(/^2\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Compact size name: strip "high"/"wide", collapse whitespace around "x"
+  const shortSize = (sizeName || '')
+    .replace(/\s*high\s*/gi, '')
+    .replace(/\s*wide\s*/gi, '')
+    .replace(/\s*x\s*/g, 'x')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Detect distinctive sets (Mainline/Auxiliary vs generic Bolt Ons/Screw Ons)
+  const distinctiveSets = setNames.filter((s) => !GENERIC_SETS.has(s.toLowerCase()));
+  const hasMainline = distinctiveSets.some((s) => /mainline/i.test(s) && !/kickboard/i.test(s));
+  const hasAux = distinctiveSets.some((s) => /auxiliary/i.test(s) && !/kickboard/i.test(s));
+  let setLabel = '';
+  if (hasMainline && hasAux) {
+    setLabel = ' Full Ride';
+  } else if (distinctiveSets.length > 0) {
+    setLabel = ` ${distinctiveSets.map((s) => s.replace(/\bKickboard\b/gi, 'KB')).join(' + ')}`;
+  }
+
+  return `${shortLayout} ${shortSize}${setLabel}`.trim();
+}
+
+const REDIS_CACHE_KEY = 'boardsesh:popular-board-configs';
+const REDIS_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+const REDIS_LOCK_KEY = 'boardsesh:popular-board-configs:lock';
+const REDIS_LOCK_TTL_SECONDS = 120; // 2 min lock to prevent duplicate queries across nodes
+
+// In-memory fallback for when Redis is unavailable
+let memoryCache: CachedPopularConfig[] | null = null;
 
 async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
-  const now = Date.now();
-  if (popularConfigCache && (now - popularConfigCache.timestamp) < POPULAR_CONFIG_CACHE_TTL_MS) {
-    return popularConfigCache.data;
+  // Try Redis cache first
+  if (redisClientManager.isRedisConnected()) {
+    try {
+      const { publisher } = redisClientManager.getClients();
+      const cached = await publisher.get(REDIS_CACHE_KEY);
+      if (cached) {
+        const configs = JSON.parse(cached) as CachedPopularConfig[];
+        memoryCache = configs; // Keep in-memory copy as fallback
+        return configs;
+      }
+    } catch (err) {
+      console.error('[PopularConfigs] Redis read failed:', err);
+    }
+  }
+
+  // Fall back to in-memory cache
+  if (memoryCache) {
+    return memoryCache;
   }
 
   // Query all per-size configs with climb counts filtered by size edges AND set membership.
@@ -300,20 +375,72 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
     ? (result as Array<Record<string, unknown>>)
     : (result as unknown as { rows: Array<Record<string, unknown>> }).rows;
 
-  const configs: CachedPopularConfig[] = rows.map((row) => ({
-    boardType: row.board_type as string,
-    layoutId: Number(row.layout_id),
-    layoutName: (row.layout_name as string) ?? null,
-    sizeId: Number(row.size_id),
-    sizeName: (row.size_name as string) ?? null,
-    sizeDescription: (row.size_description as string) ?? null,
-    setIds: (row.set_ids as number[]).map(Number),
-    setNames: row.set_names as string[],
-    climbCount: Number(row.climb_count),
-  }));
+  const configs: CachedPopularConfig[] = rows.map((row) => {
+    const boardType = row.board_type as string;
+    const layoutName = (row.layout_name as string) ?? null;
+    const sizeName = (row.size_name as string) ?? null;
+    const setNames = row.set_names as string[];
+    return {
+      boardType,
+      layoutId: Number(row.layout_id),
+      layoutName,
+      sizeId: Number(row.size_id),
+      sizeName,
+      sizeDescription: (row.size_description as string) ?? null,
+      setIds: (row.set_ids as number[]).map(Number),
+      setNames,
+      climbCount: Number(row.climb_count),
+      displayName: formatDisplayName(boardType, layoutName, sizeName, setNames),
+    };
+  });
 
-  popularConfigCache = { data: configs, timestamp: now };
+  // Store in Redis and in-memory
+  memoryCache = configs;
+  if (redisClientManager.isRedisConnected()) {
+    try {
+      const { publisher } = redisClientManager.getClients();
+      await publisher.set(REDIS_CACHE_KEY, JSON.stringify(configs), 'EX', REDIS_CACHE_TTL_SECONDS);
+    } catch (err) {
+      console.error('[PopularConfigs] Redis write failed:', err);
+    }
+  }
   return configs;
+}
+
+/**
+ * Warm up the popular configs cache on server startup.
+ * Uses a Redis lock so only one node across the cluster runs the expensive query.
+ */
+export async function warmPopularConfigsCache(): Promise<void> {
+  // Check if already cached in Redis
+  if (redisClientManager.isRedisConnected()) {
+    try {
+      const { publisher } = redisClientManager.getClients();
+      const cached = await publisher.get(REDIS_CACHE_KEY);
+      if (cached) {
+        memoryCache = JSON.parse(cached) as CachedPopularConfig[];
+        console.log(`[PopularConfigs] Loaded ${memoryCache.length} configs from Redis cache`);
+        return;
+      }
+
+      // Acquire lock so only one node runs the query
+      const lockAcquired = await publisher.set(REDIS_LOCK_KEY, '1', 'EX', REDIS_LOCK_TTL_SECONDS, 'NX');
+      if (!lockAcquired) {
+        console.log('[PopularConfigs] Another node is populating the cache, skipping');
+        return;
+      }
+    } catch (err) {
+      console.error('[PopularConfigs] Redis lock check failed:', err);
+    }
+  }
+
+  console.log('[PopularConfigs] Warming cache...');
+  try {
+    const configs = await getPopularConfigs();
+    console.log(`[PopularConfigs] Cache warmed with ${configs.length} configs`);
+  } catch (err) {
+    console.error('[PopularConfigs] Cache warm-up failed:', err);
+  }
 }
 
 // ============================================
