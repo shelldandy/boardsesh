@@ -197,14 +197,10 @@
   }
 }
 
-/* Load more sentinel (infinite scroll) */
+/* Invisible trigger point for infinite scroll IntersectionObserver */
 .loadMoreSentinel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 48px;
+  min-width: 1px;
   flex-shrink: 0;
-  padding: 0 8px;
 }
 
 /* Desktop */

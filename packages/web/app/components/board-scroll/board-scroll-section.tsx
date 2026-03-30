@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import Skeleton from '@mui/material/Skeleton';
-import CircularProgress from '@mui/material/CircularProgress';
 import styles from './board-scroll.module.css';
 
 interface BoardScrollSectionProps {
@@ -13,6 +12,20 @@ interface BoardScrollSectionProps {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   children: React.ReactNode;
+}
+
+function SkeletonCards({ count, isSmall }: { count: number; isSmall: boolean }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={`skeleton-${i}`} className={`${styles.cardScroll} ${isSmall ? styles.cardScrollSmall : ''}`}>
+          <Skeleton variant="rounded" className={styles.skeletonSquare} />
+          <Skeleton variant="text" width="80%" className={styles.skeletonText} />
+          <Skeleton variant="text" width="50%" className={styles.skeletonText} />
+        </div>
+      ))}
+    </>
+  );
 }
 
 export default function BoardScrollSection({
@@ -30,25 +43,26 @@ export default function BoardScrollSection({
   const onLoadMoreRef = useRef(onLoadMore);
   onLoadMoreRef.current = onLoadMore;
 
+  const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0]?.isIntersecting) {
+      onLoadMoreRef.current?.();
+    }
+  }, []);
+
   useEffect(() => {
-    if (!hasMore || !onLoadMoreRef.current || !sentinelRef.current || !scrollRef.current) return;
+    const sentinel = sentinelRef.current;
+    const scrollContainer = scrollRef.current;
+    if (!sentinel || !scrollContainer) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          onLoadMoreRef.current?.();
-        }
-      },
-      {
-        root: scrollRef.current,
-        rootMargin: '0px 200px 0px 0px',
-        threshold: 0,
-      },
-    );
+    const observer = new IntersectionObserver(handleIntersection, {
+      root: scrollContainer,
+      rootMargin: '0px 300px 0px 0px',
+      threshold: 0,
+    });
 
-    observer.observe(sentinelRef.current);
+    observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasMore, handleIntersection]);
 
   return (
     <div className={`${styles.scrollSection} ${isSmall ? styles.scrollSectionSmall : ''}`}>
@@ -58,18 +72,13 @@ export default function BoardScrollSection({
         className={`${styles.scrollContainer} ${isSmall ? styles.scrollContainerSmall : ''}`}
       >
         {loading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className={`${styles.cardScroll} ${isSmall ? styles.cardScrollSmall : ''}`}>
-                <Skeleton variant="rounded" className={styles.skeletonSquare} />
-                <Skeleton variant="text" width="80%" className={styles.skeletonText} />
-                <Skeleton variant="text" width="50%" className={styles.skeletonText} />
-              </div>
-            ))
+          ? <SkeletonCards count={4} isSmall={isSmall} />
           : children}
         {hasMore && (
-          <div ref={sentinelRef} className={styles.loadMoreSentinel}>
-            {isLoadingMore && <CircularProgress size={24} />}
-          </div>
+          <>
+            <div ref={sentinelRef} className={styles.loadMoreSentinel} />
+            {isLoadingMore && <SkeletonCards count={3} isSmall={isSmall} />}
+          </>
         )}
       </div>
     </div>
