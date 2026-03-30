@@ -40,7 +40,7 @@ describe('AuroraMigrationContent', () => {
   it('renders the "What Happened" section', () => {
     render(<AuroraMigrationContent />);
     expect(screen.getByText('What Happened')).toBeTruthy();
-    expect(screen.getByText(/Aurora Kilter backend has been permanently shut down/)).toBeTruthy();
+    expect(screen.getByText(/The Aurora Kilter backend is gone/)).toBeTruthy();
   });
 
   it('renders the "How to Migrate" section with 3 steps', () => {

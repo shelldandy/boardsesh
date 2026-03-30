@@ -19,7 +19,7 @@ function SkeletonCards({ count, isSmall }: { count: number; isSmall: boolean }) 
     <>
       {Array.from({ length: count }).map((_, i) => (
         <div key={`skeleton-${i}`} className={`${styles.cardScroll} ${isSmall ? styles.cardScrollSmall : ''}`}>
-          <Skeleton variant="rounded" className={styles.skeletonSquare} />
+          <Skeleton variant="rounded" className={styles.skeletonSquare} sx={{ height: 'auto' }} />
           <Skeleton variant="text" width="80%" className={styles.skeletonText} />
           <Skeleton variant="text" width="50%" className={styles.skeletonText} />
         </div>

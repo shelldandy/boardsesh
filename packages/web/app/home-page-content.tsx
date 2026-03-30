@@ -22,6 +22,7 @@ import BoardScrollCard from '@/app/components/board-scroll/board-scroll-card';
 import { useDiscoverBoards } from '@/app/hooks/use-discover-boards';
 import { usePopularBoardConfigs } from '@/app/hooks/use-popular-board-configs';
 import { constructBoardSlugListUrl } from '@/app/lib/url-utils';
+import { getDefaultAngleForBoard } from '@/app/lib/board-config-for-playlist';
 import type { BoardConfigData } from '@/app/lib/server-board-configs';
 import type { UserBoard, PopularBoardConfig } from '@boardsesh/shared-schema';
 
@@ -129,8 +130,8 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
 
   const handleConfigClick = useCallback((config: PopularBoardConfig) => {
     const setIds = config.setIds.join(',');
-    // Default angle 40 is the most common starting angle across all board types
-    router.push(`/${config.boardType}/${config.layoutId}/${config.sizeId}/${setIds}/40/list`);
+    const angle = getDefaultAngleForBoard(config.boardType);
+    router.push(`/${config.boardType}/${config.layoutId}/${config.sizeId}/${setIds}/${angle}/list`);
   }, [router]);
 
   return (
