@@ -25,7 +25,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useQueueContext } from '../graphql-queue';
 import { useBluetoothContext } from '../board-bluetooth-control/bluetooth-context';
-import '../board-bluetooth-control/send-climb-to-board-button.css';
+import './share-button.css';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { TabPanel } from '@/app/components/ui/tab-panel';
 import { themeTokens } from '@/app/theme/theme-config';
