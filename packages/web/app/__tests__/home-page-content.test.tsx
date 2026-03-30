@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import type { ActiveSessionInfo } from '@/app/components/persistent-session/types';
 
@@ -80,10 +80,13 @@ describe('HomePageContent', () => {
       expect(screen.getByRole('button', { name: /start climbing/i })).toBeTruthy();
     });
 
-    it('opens the session creation drawer on click', () => {
+    it('opens the session creation drawer on click', async () => {
       render(<HomePageContent {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /start climbing/i }));
-      expect(screen.getByTestId('start-sesh-drawer')).toBeTruthy();
+      // Drawer mounts asynchronously via useEffect after state change
+      await waitFor(() => {
+        expect(screen.getByTestId('start-sesh-drawer')).toBeTruthy();
+      });
       expect(mockPush).not.toHaveBeenCalled();
     });
   });
