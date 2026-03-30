@@ -140,7 +140,7 @@ export function BoardCredentialCard({
           )}
           <div className={styles.buttonRow}>
             {!isKilter && (
-              <Button variant="contained" startIcon={<AddOutlined />} onClick={onAdd} fullWidth>
+              <Button variant="contained" startIcon={<AddOutlined />} onClick={onAdd}>
                 Link Account
               </Button>
             )}
@@ -149,7 +149,6 @@ export function BoardCredentialCard({
               startIcon={isImporting ? <CircularProgress size={16} /> : <FileUploadOutlined />}
               onClick={onImportJson}
               disabled={isImporting}
-              fullWidth
             >
               Import JSON
             </Button>
@@ -206,7 +205,6 @@ export function BoardCredentialCard({
               variant="outlined"
               startIcon={isRemoving ? <CircularProgress size={16} /> : <DeleteOutlined />}
               disabled={isRemoving}
-              fullWidth
             >
               Unlink Account
             </Button>
@@ -216,7 +214,6 @@ export function BoardCredentialCard({
             startIcon={isImporting ? <CircularProgress size={16} /> : <FileUploadOutlined />}
             onClick={onImportJson}
             disabled={isImporting}
-            fullWidth
           >
             Import JSON
           </Button>
