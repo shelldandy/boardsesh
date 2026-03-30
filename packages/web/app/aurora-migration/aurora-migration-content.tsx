@@ -38,9 +38,8 @@ export default function AuroraMigrationContent() {
                 </Typography>
 
                 <Typography variant="body1" component="p" sx={{ fontWeight: 600 }}>
-                  The Aurora Kilter backend has been permanently shut down. Your data
-                  (playlists, logbook entries, and draft climbs) may be lost if you
-                  don&apos;t export it.
+                  The Aurora Kilter backend is gone. Your playlists, logbook, and
+                  draft climbs go with it unless you export them.
                 </Typography>
 
                 <Typography variant="body1" component="p">
@@ -139,7 +138,7 @@ export default function AuroraMigrationContent() {
                     ) : (
                       <>
                         <Typography variant="body1" component="p">
-                          Create an account or sign in to start importing your data.
+                          Create an account or sign in so we have somewhere to put your data.
                         </Typography>
                         <MuiButton
                           variant="contained"
@@ -205,8 +204,7 @@ export default function AuroraMigrationContent() {
                 </Typography>
 
                 <Typography variant="body1" component="p">
-                  Boardsesh is open source. Any help is appreciated &mdash; feel free to
-                  create issues for bugs and feature requests.
+                  Boardsesh is open source. File bugs, request features, or just ask for help.
                 </Typography>
 
                 <Stack spacing={1}>

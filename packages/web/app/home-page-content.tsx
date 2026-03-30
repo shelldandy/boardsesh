@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -15,8 +16,7 @@ import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { themeTokens } from '@/app/theme/theme-config';
-import StartSeshDrawer from '@/app/components/session-creation/start-sesh-drawer';
-import UnifiedSearchDrawer from '@/app/components/search-drawer/unified-search-drawer';
+import { usePersistentSession } from '@/app/components/persistent-session';
 import BoardScrollSection from '@/app/components/board-scroll/board-scroll-section';
 import BoardScrollCard from '@/app/components/board-scroll/board-scroll-card';
 import { useDiscoverBoards } from '@/app/hooks/use-discover-boards';
@@ -24,6 +24,16 @@ import { usePopularBoardConfigs } from '@/app/hooks/use-popular-board-configs';
 import { constructBoardSlugListUrl } from '@/app/lib/url-utils';
 import type { BoardConfigData } from '@/app/lib/server-board-configs';
 import type { UserBoard, PopularBoardConfig } from '@boardsesh/shared-schema';
+
+const StartSeshDrawer = dynamic(
+  () => import('@/app/components/session-creation/start-sesh-drawer'),
+  { ssr: false },
+);
+
+const UnifiedSearchDrawer = dynamic(
+  () => import('@/app/components/search-drawer/unified-search-drawer'),
+  { ssr: false },
+);
 
 interface HomePageContentProps {
   boardConfigs: BoardConfigData;
@@ -92,8 +102,19 @@ function OnboardingCard({ icon, title, description, onClick }: OnboardingCardPro
 export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: HomePageContentProps) {
   const { status } = useSession();
   const router = useRouter();
+  const { activeSession } = usePersistentSession();
   const [seshDrawerOpen, setSeshDrawerOpen] = useState(false);
   const [findClimbersOpen, setFindClimbersOpen] = useState(false);
+  const [seshDrawerMounted, setSeshDrawerMounted] = useState(false);
+  const [findClimbersMounted, setFindClimbersMounted] = useState(false);
+
+  useEffect(() => {
+    if (seshDrawerOpen) setSeshDrawerMounted(true);
+  }, [seshDrawerOpen]);
+
+  useEffect(() => {
+    if (findClimbersOpen) setFindClimbersMounted(true);
+  }, [findClimbersOpen]);
 
   const isAuthenticated = status === 'authenticated' ? true : (status === 'loading' ? (isAuthenticatedSSR ?? false) : false);
 
@@ -113,7 +134,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
   }, [router]);
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', pb: '60px' }}>
+    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', pb: 'calc(120px + env(safe-area-inset-bottom, 0px))' }}>
       <Box
         component="main"
         sx={{
@@ -142,19 +163,31 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
             fontWeight={themeTokens.typography.fontWeight.bold}
             sx={{ color: 'var(--neutral-900)' }}
           >
-            Ready to climb?
+            Get on the board!
           </Typography>
           <Typography
             variant="body1"
             sx={{ color: 'var(--neutral-500)', maxWidth: 320 }}
           >
-            Start a session to track your climbing, control your board, measure your performance, and invite friends.
+            Track your sends across Kilter, Tension, and MoonBoard.
           </Typography>
           <Button
             variant="contained"
             size="large"
             startIcon={<PlayArrowRounded />}
-            onClick={() => setSeshDrawerOpen(true)}
+            onClick={() => {
+              if (activeSession) {
+                if (activeSession.boardPath.startsWith('/b/')) {
+                  const segments = activeSession.boardPath.split('/');
+                  router.push(constructBoardSlugListUrl(segments[2], activeSession.parsedParams.angle));
+                } else {
+                  // Legacy/custom path — navigate directly
+                  router.push(activeSession.boardPath);
+                }
+              } else {
+                setSeshDrawerOpen(true);
+              }
+            }}
             sx={{
               mt: 1,
               borderRadius: `${themeTokens.borderRadius.full}px`,
@@ -166,7 +199,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
               boxShadow: themeTokens.shadows.md,
             }}
           >
-            Start climbing
+            {activeSession ? 'Continue climbing' : 'Start climbing'}
           </Button>
         </Box>
 
@@ -209,34 +242,34 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
               px: 0.5,
             }}
           >
-            Get started
+            Make it yours
           </Typography>
 
           <OnboardingCard
             icon={<WarningAmberOutlined />}
-            title="Old Kilter app users"
-            description="Migrate your data to Boardsesh before it's lost"
+            title="Coming from Kilter?"
+            description="Bring your logbook and history over in one step"
             onClick={() => router.push('/aurora-migration')}
           />
 
           <OnboardingCard
             icon={<PeopleOutlined />}
-            title="Find climbers"
-            description="Follow friends and see their sessions in your feed"
+            title="Find your crew"
+            description="Follow friends and see what they're climbing"
             onClick={() => setFindClimbersOpen(true)}
           />
 
           <OnboardingCard
             icon={<LocalOfferOutlined />}
-            title="Create playlists"
-            description="Organize climbs into collections for your sessions"
+            title="Build a playlist"
+            description="Line up your climbs before you get to the gym"
             onClick={() => router.push('/playlists')}
           />
 
           <OnboardingCard
             icon={<BluetoothOutlined />}
             title="Connect your board"
-            description="Light up holds on your board via Bluetooth"
+            description="Pair via Bluetooth and light up your next climb"
             onClick={() => setSeshDrawerOpen(true)}
           />
         </Box>
@@ -245,7 +278,7 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
         {isAuthenticated && (
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <Typography variant="body2" sx={{ color: 'var(--neutral-400)', mb: 1 }}>
-              Looking for your activity feed?
+              Your friends are climbing.
             </Typography>
             <Button
               variant="text"
@@ -253,23 +286,27 @@ export default function HomePageContent({ boardConfigs, isAuthenticatedSSR }: Ho
               onClick={() => router.push('/feed')}
               sx={{ textTransform: 'none' }}
             >
-              Go to Feed
+              See the feed
             </Button>
           </Box>
         )}
       </Box>
 
-      <StartSeshDrawer
-        open={seshDrawerOpen}
-        onClose={() => setSeshDrawerOpen(false)}
-        boardConfigs={boardConfigs}
-      />
+      {seshDrawerMounted && (
+        <StartSeshDrawer
+          open={seshDrawerOpen}
+          onClose={() => setSeshDrawerOpen(false)}
+          boardConfigs={boardConfigs}
+        />
+      )}
 
-      <UnifiedSearchDrawer
-        open={findClimbersOpen}
-        onClose={() => setFindClimbersOpen(false)}
-        defaultCategory="users"
-      />
+      {findClimbersMounted && (
+        <UnifiedSearchDrawer
+          open={findClimbersOpen}
+          onClose={() => setFindClimbersOpen(false)}
+          defaultCategory="users"
+        />
+      )}
     </Box>
   );
 }

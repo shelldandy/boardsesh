@@ -18,7 +18,11 @@ const nextConfig = {
   // Empty turbopack config to silence warning about webpack config
   turbopack: {},
   experimental: {
-    optimizePackageImports: [],
+    optimizePackageImports: [
+      '@mui/material',
+      '@mui/icons-material',
+      '@mui/material-nextjs',
+    ],
   },
   async headers() {
     return [

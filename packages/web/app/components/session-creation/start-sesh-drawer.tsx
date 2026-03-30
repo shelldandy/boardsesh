@@ -141,8 +141,8 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="body2" component="span">
             {isLoggedIn
-              ? 'Start a session to track your climbing and invite others to join.'
-              : 'Start a quick session. Sign in later for discoverable sessions and more features.'}
+              ? 'Track your climbs and invite others to join.'
+              : 'Jump in without an account. Sign in later to save your progress.'}
           </Typography>
           <SessionCreationForm
             key={formKey}
@@ -179,8 +179,8 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
       <AuthModal
         open={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        title="Sign in to start a session"
-        description="Create an account or sign in to start climbing sessions."
+        title="Sign in to save your session"
+        description="Your sends won't disappear when you close the tab."
       />
     </>
   );

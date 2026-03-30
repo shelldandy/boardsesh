@@ -146,8 +146,7 @@ const JoinSessionTab = () => {
       <Box sx={{ textAlign: 'center', padding: `${themeTokens.spacing[8]}px` }}>
         <EmptyState description="No sessions found nearby">
           <Typography variant="body1" component="p" color="text.secondary" sx={{ marginBottom: 0 }}>
-            There are no active climbing sessions within 500 meters.
-            Start your own session and enable &quot;Allow others to join&quot;!
+            No sessions nearby. Start one and others can find you.
           </Typography>
         </EmptyState>
         <Button

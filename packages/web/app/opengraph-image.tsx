@@ -3,7 +3,7 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
-export const alt = 'Boardsesh - LED Climbing Board Training';
+export const alt = 'Boardsesh - Train smarter on your climbing board';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -61,7 +61,7 @@ export default function Image() {
             marginBottom: 16,
           }}
         >
-          LED Climbing Board Training
+          Train smarter on your climbing board
         </div>
 
         {/* Sub-text */}

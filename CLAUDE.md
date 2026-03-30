@@ -200,6 +200,19 @@ We are using next.js app router, it's important we try to use server side compon
 - While we work together, be careful to remove any code you no longer use, so we dont end up with lots of deadcode
 - **Never use `any` type** - The `no-explicit-any` lint rule is set to `deny` across all packages. Use `unknown`, proper types, or `as unknown as SpecificType` for type assertions. No exceptions - `any` defeats the purpose of TypeScript
 
+### Copy & Microcopy
+
+When writing user-facing text, follow these rules:
+
+- Describe what the user gets, not what the feature does. "Line up your climbs before you get to the gym" is better than "Organize climbs into collections for your sessions."
+- Users opened the app for a reason. Don't ask "Ready to climb?" when you can say "Get on the wall."
+- If a sentence has three commas, it's a feature list in disguise. Pick the strongest point or break it up.
+- Write like a climber talks. "Sends", "crew", "beta", "project" over "hub", "platform", "all-in-one solution."
+- Empty states, error messages, and button labels carry the voice too. "No one's here yet" over "No data available."
+- Use active verbs in CTAs. "See the feed", "Build a playlist", "Start climbing." Avoid "Go to..." and "View your..."
+- Frame migrations and warnings around what users gain, not what they lose.
+- Watch for AI-writing tells: em dash overuse, "not only X but Y" constructions, triple parallel structures, bolded-keyword-colon-explanation bullets, and generic adjectives like "seamless" or "comprehensive." See https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing
+
 ### Component Structure
 
 - Server Components by default
