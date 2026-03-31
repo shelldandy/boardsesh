@@ -165,7 +165,7 @@ const ROLE_TO_CODE: Record<BoardType, Record<string, number>> = {
 };
 
 /** Resolve a layout name (e.g. "Kilter Board Original") to a layout ID. */
-function resolveLayoutName(boardType: BoardType, layoutName: string): number | null {
+export function resolveLayoutName(boardType: BoardType, layoutName: string): number | null {
   const layouts = LAYOUTS[boardType];
   for (const layout of Object.values(layouts)) {
     if (layout.name === layoutName) return layout.id;
@@ -179,7 +179,7 @@ function resolveLayoutName(boardType: BoardType, layoutName: string): number | n
  */
 const coordinateMapCache = new Map<string, Map<string, number>>();
 
-function buildCoordinateMap(boardType: BoardType, layoutId: number): Map<string, number> {
+export function buildCoordinateMap(boardType: BoardType, layoutId: number): Map<string, number> {
   const cacheKey = `${boardType}:${layoutId}`;
   const cached = coordinateMapCache.get(cacheKey);
   if (cached) return cached;
@@ -201,7 +201,7 @@ function buildCoordinateMap(boardType: BoardType, layoutId: number): Map<string,
 }
 
 /** Convert export holds to a frames string (e.g. "p1233r42p1270r42"). */
-function convertHoldsToFrames(
+export function convertHoldsToFrames(
   holds: { x: number; y: number; role: string }[],
   coordMap: Map<string, number>,
   boardType: BoardType,
@@ -223,7 +223,7 @@ function convertHoldsToFrames(
 }
 
 /** Compute bounding box (edge) values from hold coordinates. */
-function computeEdgesFromHolds(holds: { x: number; y: number }[]): {
+export function computeEdgesFromHolds(holds: { x: number; y: number }[]): {
   edgeLeft: number; edgeRight: number; edgeBottom: number; edgeTop: number;
 } | null {
   if (holds.length === 0) return null;
@@ -238,7 +238,7 @@ function computeEdgesFromHolds(holds: { x: number; y: number }[]): {
 }
 
 /** Generate a deterministic UUID for an imported draft climb. */
-function generateClimbImportUuid(
+export function generateClimbImportUuid(
   userId: string,
   boardType: string,
   layoutId: number,
@@ -458,6 +458,7 @@ export async function importJsonExportData(
               and(
                 eq(boardClimbs.boardType, boardType),
                 inArray(boardClimbs.name, chunk),
+                eq(boardClimbs.isDraft, false),
               ),
             );
           for (const row of existing) {
