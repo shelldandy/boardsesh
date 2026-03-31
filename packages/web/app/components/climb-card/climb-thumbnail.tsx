@@ -34,8 +34,6 @@ const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, 
       style={{
         aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}`,
         maxHeight: maxHeight ?? '10vh',
-        width: 'auto',
-        height: '100%',
       }}
     />
   ) : currentClimb ? (
