@@ -321,7 +321,7 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
             icon={<DiscordIcon />}
             title="Join the crew on Discord"
             description="Share beta, report bugs, and help shape what's next"
-            onClick={() => window.open('https://discord.gg/boardsesh', '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open('https://discord.gg/YXA8GsXfQK', '_blank', 'noopener,noreferrer')}
           />
         </Box>
 
