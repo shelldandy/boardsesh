@@ -28,11 +28,10 @@ pub fn render_overlay(config: &RenderConfig) -> Result<(Vec<u8>, u32, u32), Stri
     let parsed_holds = parse_frames(&config.frames, &config.hold_state_map);
 
     // Build a lookup map from hold ID to HoldData for mirroring
-    let holds_by_id: HashMap<u32, &HoldData> = config
-        .holds
-        .iter()
-        .map(|h| (h.id, h))
-        .collect();
+    let mut holds_by_id: HashMap<u32, &HoldData> = HashMap::with_capacity(config.holds.len());
+    for h in &config.holds {
+        holds_by_id.insert(h.id, h);
+    }
 
     // Match SVG renderer exactly:
     // - Thumbnail: strokeWidth=8, fillOpacity=0.3, fill=color
@@ -94,6 +93,7 @@ pub fn render_overlay(config: &RenderConfig) -> Result<(Vec<u8>, u32, u32), Stri
     Ok((data, output_width, output_height))
 }
 
+#[inline]
 fn draw_circle(
     pixmap: &mut Pixmap,
     cx: f32,
