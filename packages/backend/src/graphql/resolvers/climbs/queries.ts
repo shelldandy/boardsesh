@@ -63,6 +63,7 @@ export const climbQueries = {
       hideCompleted: input.hideCompleted,
       showOnlyAttempted: input.showOnlyAttempted,
       showOnlyCompleted: input.showOnlyCompleted,
+      showDrafts: input.showDrafts,
     };
 
     // Return context for field resolvers - queries are executed lazily per field

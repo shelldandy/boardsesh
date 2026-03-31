@@ -75,6 +75,7 @@ export const useQueueDataFetching = ({
     hideCompleted: searchParams.hideCompleted || undefined,
     showOnlyAttempted: searchParams.showOnlyAttempted || undefined,
     showOnlyCompleted: searchParams.showOnlyCompleted || undefined,
+    showDrafts: searchParams.showDrafts || undefined,
   }), [searchParams, parsedParams]);
 
   const {
