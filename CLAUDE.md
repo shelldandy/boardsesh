@@ -213,6 +213,14 @@ When writing user-facing text, follow these rules:
 - Frame migrations and warnings around what users gain, not what they lose.
 - Watch for AI-writing tells: em dash overuse, "not only X but Y" constructions, triple parallel structures, bolded-keyword-colon-explanation bullets, and generic adjectives like "seamless" or "comprehensive." See https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing
 
+### Trademark Usage (Kilter, Tension, MoonBoard)
+
+- Always capitalize correctly: **MoonBoard** (not Moonboard), **Kilter**, **Tension**
+- Use names to describe compatibility, not to brand Boardsesh: "Works with Kilter" not "Kilter app"
+- Prefer "your" to signal the user's hardware: "One app for your boards" not "One app for Kilter"
+- Never imply endorsement or affiliation with Aurora Climbing, Moon Climbing, or any manufacturer
+- See `/legal` route and `LEGAL.md` for the full trademark disclaimer
+
 ### Component Structure
 
 - Server Components by default
