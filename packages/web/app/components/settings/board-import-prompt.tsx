@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -54,7 +54,7 @@ export default function BoardImportPrompt({ boardType }: BoardImportPromptProps)
   const [importError, setImportError] = useState<string | null>(null);
   const receivedCompleteRef = useRef(false);
 
-  const fetchCredential = useCallback(async () => {
+  const fetchCredential = async () => {
     try {
       const response = await fetch('/api/internal/aurora-credentials');
       if (response.ok) {
@@ -69,11 +69,12 @@ export default function BoardImportPrompt({ boardType }: BoardImportPromptProps)
     } finally {
       setLoadingCredential(false);
     }
-  }, [boardType]);
+  };
 
   useEffect(() => {
     fetchCredential();
-  }, [fetchCredential]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardType]);
 
   // --- Link Account handlers ---
 
