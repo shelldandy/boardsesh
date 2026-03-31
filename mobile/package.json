@@ -2,6 +2,9 @@
   "name": "@boardsesh/mobile",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "generate-assets": "bun run scripts/generate-assets.ts"
+  },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
