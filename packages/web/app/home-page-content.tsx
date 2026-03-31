@@ -162,26 +162,30 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
         angle,
       ));
     } else {
-      const details = getBoardDetailsForBoard({
-        board_name: config.boardType as BoardName,
-        layout_id: config.layoutId,
-        size_id: config.sizeId,
-        set_ids: config.setIds,
-      });
-      if (details.layout_name && details.size_name && details.set_names) {
-        router.push(constructClimbListWithSlugs(
-          details.board_name,
-          details.layout_name,
-          details.size_name,
-          details.size_description,
-          details.set_names,
-          angle,
-        ));
-      } else {
-        // Numeric URL fallback — will be redirected server-side
-        const setIds = config.setIds.join(',');
-        router.push(`/${config.boardType}/${config.layoutId}/${config.sizeId}/${setIds}/${angle}/list`);
+      try {
+        const details = getBoardDetailsForBoard({
+          board_name: config.boardType as BoardName,
+          layout_id: config.layoutId,
+          size_id: config.sizeId,
+          set_ids: config.setIds,
+        });
+        if (details.layout_name && details.size_name && details.set_names) {
+          router.push(constructClimbListWithSlugs(
+            details.board_name,
+            details.layout_name,
+            details.size_name,
+            details.size_description,
+            details.set_names,
+            angle,
+          ));
+          return;
+        }
+      } catch {
+        // Static data lookup failed — fall through to numeric URL
       }
+      // Numeric URL fallback — will be redirected server-side
+      const setIds = config.setIds.join(',');
+      router.push(`/${config.boardType}/${config.layoutId}/${config.sizeId}/${setIds}/${angle}/list`);
     }
   }, [router]);
 
