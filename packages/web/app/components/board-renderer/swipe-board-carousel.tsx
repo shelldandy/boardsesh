@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import BoardRenderer from './board-renderer';
+import BoardImageLayers from './board-image-layers';
 import {
   useCardSwipeNavigation,
   EXIT_DURATION,
@@ -9,7 +10,7 @@ import {
   ENTER_ANIMATION_DURATION,
 } from '@/app/hooks/use-card-swipe-navigation';
 import type { BoardDetails } from '@/app/lib/types';
-import { convertLitUpHoldsStringToMap } from './util';
+import { convertLitUpHoldsStringToMap, isRustRendererEnabled } from './util';
 import styles from './swipe-board-carousel.module.css';
 
 interface ClimbBoardData {
@@ -95,13 +96,35 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
   const transition = getSwipeTransition();
 
   const currentLitUpHoldsMap = useMemo(
-    () => convertLitUpHoldsStringToMap(currentClimb.frames, boardDetails.board_name)[0],
+    () => isRustRendererEnabled ? undefined : convertLitUpHoldsStringToMap(currentClimb.frames, boardDetails.board_name)[0],
     [currentClimb.frames, boardDetails.board_name],
   );
   const peekLitUpHoldsMap = useMemo(
-    () => peekClimb ? convertLitUpHoldsStringToMap(peekClimb.frames, boardDetails.board_name)[0] : undefined,
+    () => isRustRendererEnabled || !peekClimb ? undefined : convertLitUpHoldsStringToMap(peekClimb.frames, boardDetails.board_name)[0],
     [peekClimb?.frames, boardDetails.board_name],
   );
+
+  const renderBoard = (climb: ClimbBoardData, litUpHoldsMap: ReturnType<typeof convertLitUpHoldsStringToMap>[0] | undefined) => {
+    if (isRustRendererEnabled) {
+      return (
+        <BoardImageLayers
+          boardDetails={boardDetails}
+          frames={climb.frames}
+          mirrored={!!climb.mirrored}
+          contain
+          style={{ width: '100%', height: '100%' }}
+        />
+      );
+    }
+    return (
+      <BoardRenderer
+        boardDetails={boardDetails}
+        litUpHoldsMap={litUpHoldsMap}
+        mirrored={!!climb.mirrored}
+        fillHeight
+      />
+    );
+  };
 
   return (
     <div
@@ -116,12 +139,7 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
           transition,
         }}
       >
-        <BoardRenderer
-          boardDetails={boardDetails}
-          litUpHoldsMap={currentLitUpHoldsMap}
-          mirrored={!!currentClimb.mirrored}
-          fillHeight
-        />
+        {renderBoard(currentClimb, currentLitUpHoldsMap)}
       </div>
       {showPeek && peekClimb && (
         <div
@@ -131,12 +149,7 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
             transition,
           }}
         >
-          <BoardRenderer
-            boardDetails={boardDetails}
-            litUpHoldsMap={peekLitUpHoldsMap}
-            mirrored={!!peekClimb.mirrored}
-            fillHeight
-          />
+          {renderBoard(peekClimb, peekLitUpHoldsMap)}
         </div>
       )}
     </div>

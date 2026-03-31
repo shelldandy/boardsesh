@@ -4,7 +4,8 @@ import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { BoardDetails, BoardName } from '@/app/lib/types';
 import BoardRenderer from '@/app/components/board-renderer/board-renderer';
-import { convertLitUpHoldsStringToMap } from '@/app/components/board-renderer/util';
+import BoardImageLayers from '@/app/components/board-renderer/board-image-layers';
+import { convertLitUpHoldsStringToMap, isRustRendererEnabled } from '@/app/components/board-renderer/util';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { getDefaultBoardConfig } from '@/app/lib/default-board-configs';
 import { constructClimbViewUrlWithSlugs, constructClimbViewUrl } from '@/app/lib/url-utils';
@@ -50,8 +51,9 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
     }
   }, [boardType, layoutId]);
 
-  // Memoize lit up holds map
+  // Memoize lit up holds map (only needed for legacy SVG renderer)
   const litUpHoldsMap = useMemo(() => {
+    if (isRustRendererEnabled) return undefined;
     if (!frames || !boardType) return undefined;
     const framesData = convertLitUpHoldsStringToMap(frames, boardType as BoardName);
     return framesData[0];
@@ -98,9 +100,34 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
   }, [boardType, layoutId, angle, climbUuid, climbName]);
 
   // If we can't render the thumbnail, don't show anything
-  if (!boardDetails || !litUpHoldsMap || !climbViewPath) {
+  if (!boardDetails || !climbViewPath) {
     return null;
   }
+  if (!isRustRendererEnabled && !litUpHoldsMap) {
+    return null;
+  }
+
+  const thumbnailContent = isRustRendererEnabled && frames ? (
+    <BoardImageLayers
+      boardDetails={boardDetails}
+      frames={frames}
+      mirrored={isMirror}
+      thumbnail
+      lazy
+      style={{
+        aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}`,
+        width: '100%',
+        height: '100%',
+      }}
+    />
+  ) : (
+    <BoardRenderer
+      boardDetails={boardDetails}
+      litUpHoldsMap={litUpHoldsMap}
+      mirrored={isMirror}
+      thumbnail
+    />
+  );
 
   return (
     <Link
@@ -109,12 +136,7 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
       title={`View ${climbName}`}
     >
       <div className={styles.thumbnailContainer}>
-        <BoardRenderer
-          boardDetails={boardDetails}
-          litUpHoldsMap={litUpHoldsMap}
-          mirrored={isMirror}
-          thumbnail
-        />
+        {thumbnailContent}
       </div>
     </Link>
   );

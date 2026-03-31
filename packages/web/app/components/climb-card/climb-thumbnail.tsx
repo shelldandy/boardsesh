@@ -4,8 +4,9 @@ import { usePathname } from 'next/navigation';
 
 import { BoardDetails, Climb } from '@/app/lib/types';
 import BoardRenderer from '../board-renderer/board-renderer';
+import BoardImageLayers from '../board-renderer/board-image-layers';
 import { getContextAwareClimbViewUrl } from '@/app/lib/url-utils';
-import { convertLitUpHoldsStringToMap } from '@/app/components/board-renderer/util';
+import { convertLitUpHoldsStringToMap, isRustRendererEnabled } from '@/app/components/board-renderer/util';
 
 type ClimbThumbnailProps = {
   currentClimb: Climb | null;
@@ -26,13 +27,19 @@ const placeholderStyle = (boardDetails: BoardDetails, maxHeight?: string): React
 const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, onNavigate, maxHeight }: ClimbThumbnailProps) => {
   const pathname = usePathname();
   const litUpHoldsMap = useMemo(
-    () => currentClimb ? convertLitUpHoldsStringToMap(currentClimb.frames, boardDetails.board_name)[0] : undefined,
+    () => currentClimb && !isRustRendererEnabled ? convertLitUpHoldsStringToMap(currentClimb.frames, boardDetails.board_name)[0] : undefined,
     [currentClimb?.frames, boardDetails.board_name],
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Native loading="lazy" handles lazy loading for the rust renderer
+    if (isRustRendererEnabled) {
+      setIsVisible(true);
+      return;
+    }
+
     const el = containerRef.current;
     if (!el) return;
 
@@ -53,6 +60,31 @@ const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, 
     return <div ref={containerRef} style={placeholderStyle(boardDetails, maxHeight)} />;
   }
 
+  // Rust WASM renderer: layered background images + overlay
+  const renderContent = isRustRendererEnabled && currentClimb ? (
+    <BoardImageLayers
+      boardDetails={boardDetails}
+      frames={currentClimb.frames}
+      mirrored={!!currentClimb.mirrored}
+      thumbnail
+      lazy
+      style={{
+        aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}`,
+        maxHeight: maxHeight ?? '10vh',
+        width: 'auto',
+        height: '100%',
+      }}
+    />
+  ) : (
+    <BoardRenderer
+      litUpHoldsMap={litUpHoldsMap}
+      mirrored={!!currentClimb?.mirrored}
+      boardDetails={boardDetails}
+      thumbnail
+      maxHeight={maxHeight}
+    />
+  );
+
   if (enableNavigation && currentClimb) {
     const climbViewUrl = getContextAwareClimbViewUrl(
       pathname,
@@ -65,29 +97,13 @@ const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, 
     return (
       <div ref={containerRef}>
         <Link href={climbViewUrl} prefetch={false} onClick={() => onNavigate?.()} data-testid="climb-thumbnail-link">
-          <BoardRenderer
-            litUpHoldsMap={litUpHoldsMap}
-            mirrored={!!currentClimb?.mirrored}
-            boardDetails={boardDetails}
-            thumbnail
-            maxHeight={maxHeight}
-          />
+          {renderContent}
         </Link>
       </div>
     );
   }
 
-  return (
-    <div ref={containerRef}>
-      <BoardRenderer
-        litUpHoldsMap={litUpHoldsMap}
-        mirrored={!!currentClimb?.mirrored}
-        boardDetails={boardDetails}
-        thumbnail
-        maxHeight={maxHeight}
-      />
-    </div>
-  );
+  return <div ref={containerRef}>{renderContent}</div>;
 };
 
 export default ClimbThumbnail;

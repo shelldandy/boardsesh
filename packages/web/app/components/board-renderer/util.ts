@@ -1,6 +1,15 @@
-import { BoardName } from '@/app/lib/types';
+import { BoardDetails, BoardName } from '@/app/lib/types';
 import { BOARD_IMAGE_DIMENSIONS } from '../../lib/board-data';
 import { LitUpHoldsMap, HOLD_STATE_MAP } from './types';
+
+export const isRustRendererEnabled = process.env.NEXT_PUBLIC_RUST_BOARD_RENDERER_ENABLED === 'true';
+
+/**
+ * Build the URL for the WASM-rendered overlay image.
+ * Mirroring is handled via CSS (scaleX(-1)), not a separate render — halves cache variants.
+ */
+export const buildOverlayUrl = (boardDetails: BoardDetails, frames: string, thumbnail?: boolean) =>
+  `/api/internal/board-render?board_name=${boardDetails.board_name}&layout_id=${boardDetails.layout_id}&size_id=${boardDetails.size_id}&set_ids=${boardDetails.set_ids.join(',')}&frames=${encodeURIComponent(frames)}${thumbnail ? '&thumbnail=1' : ''}`;
 
 const USE_SELF_HOSTED_IMAGES = true;
 

@@ -71,6 +71,10 @@
         "vitest": "^4.0.18",
       },
     },
+    "packages/board-renderer-wasm": {
+      "name": "@boardsesh/board-renderer-wasm",
+      "version": "0.1.0",
+    },
     "packages/crypto": {
       "name": "@boardsesh/crypto",
       "version": "1.0.0",
@@ -151,6 +155,7 @@
         "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
         "@auth/drizzle-adapter": "^1.11.1",
         "@aws-sdk/client-s3": "^3.1000.0",
+        "@boardsesh/board-renderer-wasm": "*",
         "@boardsesh/crypto": "*",
         "@boardsesh/db": "*",
         "@boardsesh/shared-schema": "*",
@@ -416,6 +421,8 @@
     "@bcoe/v8-coverage": ["@bcoe/v8-coverage@1.0.2", "", {}, "sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA=="],
 
     "@boardsesh/aurora-sync": ["@boardsesh/aurora-sync@workspace:packages/aurora-sync"],
+
+    "@boardsesh/board-renderer-wasm": ["@boardsesh/board-renderer-wasm@workspace:packages/board-renderer-wasm"],
 
     "@boardsesh/crypto": ["@boardsesh/crypto@workspace:packages/crypto"],
 
