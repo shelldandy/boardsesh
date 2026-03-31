@@ -15,9 +15,8 @@ import { useQueueContext } from '../graphql-queue';
 import NextClimbButton from './next-climb-button';
 import { usePathname, useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { constructPlayUrlWithSlugs, getContextAwareClimbViewUrl, isNumericId } from '@/app/lib/url-utils';
+import { constructPlayUrlWithSlugs, getContextAwareClimbViewUrl, isNumericId, tryConstructSlugPlayUrl } from '@/app/lib/url-utils';
 import { BoardRouteParameters, BoardDetails, Angle } from '@/app/lib/types';
-import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import PreviousClimbButton from './previous-climb-button';
 import QueueList, { QueueListHandle } from './queue-list';
 import { TickButton } from '../logbook/tick-button';
@@ -137,34 +136,15 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
           climb.uuid,
           climb.name,
         );
-      } else if (params.board_name && isNumericId(params.layout_id)) {
-        try {
-          const resolvedDetails = getBoardDetailsForBoard({
-            board_name: params.board_name,
-            layout_id: Number(params.layout_id),
-            size_id: Number(params.size_id),
-            set_ids: decodeURIComponent(params.set_ids).split(',').map(Number),
-          });
-          if (resolvedDetails.layout_name && resolvedDetails.size_name && resolvedDetails.set_names) {
-            climbUrl = constructPlayUrlWithSlugs(
-              resolvedDetails.board_name,
-              resolvedDetails.layout_name,
-              resolvedDetails.size_name,
-              resolvedDetails.size_description,
-              resolvedDetails.set_names,
-              angle,
-              climb.uuid,
-              climb.name,
-            );
-          } else {
-            climbUrl = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${climb.uuid}`;
-          }
-        } catch {
-          climbUrl = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${climb.uuid}`;
-        }
       } else if (params.board_name) {
-        // Slug URL — use raw params to preserve the current URL format
-        climbUrl = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${climb.uuid}`;
+        const numericFallback = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${climb.uuid}`;
+        climbUrl = isNumericId(params.layout_id)
+          ? tryConstructSlugPlayUrl(
+              params.board_name, Number(params.layout_id), Number(params.size_id),
+              decodeURIComponent(params.set_ids).split(',').map(Number),
+              angle, climb.uuid, climb.name,
+            ) ?? numericFallback
+          : numericFallback;
       } else {
         climbUrl = null;
       }
@@ -264,34 +244,15 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
         currentClimb.uuid,
         currentClimb.name,
       );
-    } else if (params.board_name && isNumericId(params.layout_id)) {
-      try {
-        const resolvedDetails = getBoardDetailsForBoard({
-          board_name: params.board_name,
-          layout_id: Number(params.layout_id),
-          size_id: Number(params.size_id),
-          set_ids: decodeURIComponent(params.set_ids).split(',').map(Number),
-        });
-        if (resolvedDetails.layout_name && resolvedDetails.size_name && resolvedDetails.set_names) {
-          baseUrl = constructPlayUrlWithSlugs(
-            resolvedDetails.board_name,
-            resolvedDetails.layout_name,
-            resolvedDetails.size_name,
-            resolvedDetails.size_description,
-            resolvedDetails.set_names,
-            angle,
-            currentClimb.uuid,
-            currentClimb.name,
-          );
-        } else {
-          baseUrl = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${currentClimb.uuid}`;
-        }
-      } catch {
-        baseUrl = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${currentClimb.uuid}`;
-      }
     } else if (params.board_name) {
-      // Slug URL — use raw params to preserve the current URL format
-      baseUrl = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${currentClimb.uuid}`;
+      const numericFallback = `/${params.board_name}/${params.layout_id}/${params.size_id}/${params.set_ids}/${params.angle}/play/${currentClimb.uuid}`;
+      baseUrl = isNumericId(params.layout_id)
+        ? tryConstructSlugPlayUrl(
+            params.board_name, Number(params.layout_id), Number(params.size_id),
+            decodeURIComponent(params.set_ids).split(',').map(Number),
+            angle, currentClimb.uuid, currentClimb.name,
+          ) ?? numericFallback
+        : numericFallback;
     } else {
       return null;
     }

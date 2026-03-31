@@ -6,8 +6,7 @@
 
 import { BoardName } from '@/app/lib/types';
 import { SetIdList } from '@/app/lib/board-data';
-import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
-import { constructClimbViewUrlWithSlugs } from '@/app/lib/url-utils';
+import { tryConstructSlugViewUrl } from '@/app/lib/url-utils';
 
 export interface DefaultBoardConfig {
   sizeId: number;
@@ -67,30 +66,7 @@ export function getDefaultClimbViewPath(
   const config = getDefaultBoardConfig(boardName, layoutId);
   if (!config) return null;
 
-  try {
-    const details = getBoardDetailsForBoard({
-      board_name: boardName,
-      layout_id: layoutId,
-      size_id: config.sizeId,
-      set_ids: config.setIds,
-    });
-
-    if (details.layout_name && details.size_name && details.set_names) {
-      return constructClimbViewUrlWithSlugs(
-        boardName,
-        details.layout_name,
-        details.size_name,
-        details.size_description,
-        details.set_names,
-        angle,
-        climbUuid,
-        climbName,
-      );
-    }
-  } catch {
-    // Static data lookup failed — fall through to numeric URL
-  }
-
-  // Numeric URL fallback — will be redirected server-side
-  return `/${boardName}/${layoutId}/${config.sizeId}/${config.setIds.join(',')}/${angle}/view/${climbUuid}`;
+  return tryConstructSlugViewUrl(
+    boardName, layoutId, config.sizeId, config.setIds, angle, climbUuid, climbName,
+  ) ?? `/${boardName}/${layoutId}/${config.sizeId}/${config.setIds.join(',')}/${angle}/view/${climbUuid}`;
 }

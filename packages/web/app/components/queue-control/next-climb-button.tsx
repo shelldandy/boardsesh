@@ -39,7 +39,8 @@ export default function NextClimbButton({ navigate = false, boardDetails }: Next
   } else if (isNumericId(rawParams.layout_id)) {
     try {
       resolvedDetails = getBoardDetailsForBoard({ board_name, layout_id, size_id, set_ids });
-    } catch {
+    } catch (error) {
+      console.warn('[NextClimbButton] Failed to resolve board details from static data:', error);
       resolvedDetails = { board_name, layout_id, size_id, set_ids } as BoardDetails;
     }
   } else {

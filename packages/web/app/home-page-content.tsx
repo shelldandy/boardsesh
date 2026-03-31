@@ -22,11 +22,9 @@ import BoardScrollCard from '@/app/components/board-scroll/board-scroll-card';
 import FindNearbyCard, { type FindNearbyStatus } from '@/app/components/board-scroll/find-nearby-card';
 import { useDiscoverBoards } from '@/app/hooks/use-discover-boards';
 import { usePopularBoardConfigs } from '@/app/hooks/use-popular-board-configs';
-import { constructBoardSlugListUrl, constructClimbListWithSlugs } from '@/app/lib/url-utils';
+import { constructBoardSlugListUrl, constructClimbListWithSlugs, tryConstructSlugListUrl } from '@/app/lib/url-utils';
 import { getDefaultAngleForBoard } from '@/app/lib/board-config-for-playlist';
-import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import type { BoardConfigData } from '@/app/lib/server-board-configs';
-import type { BoardName } from '@/app/lib/types';
 import type { UserBoard, PopularBoardConfig } from '@boardsesh/shared-schema';
 
 function deriveFindNearbyStatus({
@@ -162,30 +160,12 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
         angle,
       ));
     } else {
-      try {
-        const details = getBoardDetailsForBoard({
-          board_name: config.boardType as BoardName,
-          layout_id: config.layoutId,
-          size_id: config.sizeId,
-          set_ids: config.setIds,
-        });
-        if (details.layout_name && details.size_name && details.set_names) {
-          router.push(constructClimbListWithSlugs(
-            details.board_name,
-            details.layout_name,
-            details.size_name,
-            details.size_description,
-            details.set_names,
-            angle,
-          ));
-          return;
-        }
-      } catch {
-        // Static data lookup failed — fall through to numeric URL
-      }
-      // Numeric URL fallback — will be redirected server-side
       const setIds = config.setIds.join(',');
-      router.push(`/${config.boardType}/${config.layoutId}/${config.sizeId}/${setIds}/${angle}/list`);
+      const numericFallback = `/${config.boardType}/${config.layoutId}/${config.sizeId}/${setIds}/${angle}/list`;
+      router.push(
+        tryConstructSlugListUrl(config.boardType, config.layoutId, config.sizeId, config.setIds, angle)
+          ?? numericFallback,
+      );
     }
   }, [router]);
 

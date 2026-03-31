@@ -476,6 +476,86 @@ export const constructCreateClimbUrl = (
 };
 
 /**
+ * Try to resolve board details from static data and construct a slug-based play URL.
+ * Returns null if resolution fails. Use this instead of duplicating
+ * the try/getBoardDetailsForBoard/check-names/constructPlayUrlWithSlugs pattern.
+ */
+export const tryConstructSlugPlayUrl = (
+  board_name: string,
+  layout_id: number,
+  size_id: number,
+  set_ids: number[],
+  angle: number,
+  climb_uuid: string,
+  climbName?: string,
+): string | null => {
+  try {
+    const details = getBoardDetailsForBoard({ board_name, layout_id, size_id, set_ids });
+    if (details.layout_name && details.size_name && details.set_names) {
+      return constructPlayUrlWithSlugs(
+        details.board_name, details.layout_name, details.size_name,
+        details.size_description, details.set_names, angle, climb_uuid, climbName,
+      );
+    }
+  } catch {
+    // Static data lookup failed
+  }
+  return null;
+};
+
+/**
+ * Try to resolve board details from static data and construct a slug-based view URL.
+ * Returns null if resolution fails.
+ */
+export const tryConstructSlugViewUrl = (
+  board_name: string,
+  layout_id: number,
+  size_id: number,
+  set_ids: number[],
+  angle: number,
+  climb_uuid: string,
+  climbName?: string,
+): string | null => {
+  try {
+    const details = getBoardDetailsForBoard({ board_name, layout_id, size_id, set_ids });
+    if (details.layout_name && details.size_name && details.set_names) {
+      return constructClimbViewUrlWithSlugs(
+        details.board_name, details.layout_name, details.size_name,
+        details.size_description, details.set_names, angle, climb_uuid, climbName,
+      );
+    }
+  } catch {
+    // Static data lookup failed
+  }
+  return null;
+};
+
+/**
+ * Try to resolve board details from static data and construct a slug-based list URL.
+ * Returns null if resolution fails.
+ */
+export const tryConstructSlugListUrl = (
+  board_name: string,
+  layout_id: number,
+  size_id: number,
+  set_ids: number[],
+  angle: number,
+): string | null => {
+  try {
+    const details = getBoardDetailsForBoard({ board_name, layout_id, size_id, set_ids });
+    if (details.layout_name && details.size_name && details.set_names) {
+      return constructClimbListWithSlugs(
+        details.board_name, details.layout_name, details.size_name,
+        details.size_description, details.set_names, angle,
+      );
+    }
+  } catch {
+    // Static data lookup failed
+  }
+  return null;
+};
+
+/**
  * Extracts the base board configuration path from a full pathname.
  * This removes dynamic segments that can change during a session:
  * - /play/[climb_uuid] - viewing different climbs
@@ -638,29 +718,12 @@ export const getContextAwareClimbViewUrl = (
   }
 
   // Try resolving names from static data
-  try {
-    const resolvedDetails = getBoardDetailsForBoard({
-      board_name: boardDetails.board_name,
-      layout_id: boardDetails.layout_id,
-      size_id: boardDetails.size_id,
-      set_ids: boardDetails.set_ids,
-    });
-    if (resolvedDetails.layout_name && resolvedDetails.size_name && resolvedDetails.set_names) {
-      return constructClimbViewUrlWithSlugs(
-        resolvedDetails.board_name,
-        resolvedDetails.layout_name,
-        resolvedDetails.size_name,
-        resolvedDetails.size_description,
-        resolvedDetails.set_names,
-        angle,
-        climbUuid,
-        climbName,
-      );
-    }
-  } catch (e) {
-    // Static data lookup failed for this board config — fall through to numeric URL
-    console.warn('[getContextAwareClimbViewUrl] Failed to resolve slug URL:', e);
-  }
+  const slugUrl = tryConstructSlugViewUrl(
+    boardDetails.board_name, boardDetails.layout_id,
+    boardDetails.size_id, boardDetails.set_ids,
+    angle, climbUuid, climbName,
+  );
+  if (slugUrl) return slugUrl;
 
   return constructClimbViewUrl(
     {
