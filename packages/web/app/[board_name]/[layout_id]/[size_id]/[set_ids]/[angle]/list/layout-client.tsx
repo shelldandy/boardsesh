@@ -111,7 +111,7 @@ const ListLayoutClient: React.FC<PropsWithChildren<ListLayoutClientProps>> = ({ 
       links.push(link);
     };
 
-    const idleHandle = requestIdleCallback(() => {
+    const prefetchImages = () => {
       // Prefetch Kilter/Tension board images
       Object.keys(boardDetails.images_to_holds).forEach((imageUrl) => {
         addPrefetchLink(getImageUrl(imageUrl, boardDetails.board_name));
@@ -124,10 +124,19 @@ const ListLayoutClient: React.FC<PropsWithChildren<ListLayoutClientProps>> = ({ 
           addPrefetchLink(`/images/moonboard/${boardDetails.layoutFolder}/${imageFile.replace(/\.png$/, '.avif')}`);
         });
       }
-    });
+    };
+
+    // Defer to idle time; fall back to setTimeout for Safari which lacks requestIdleCallback
+    const handle = typeof requestIdleCallback !== 'undefined'
+      ? requestIdleCallback(prefetchImages)
+      : setTimeout(prefetchImages, 1) as unknown as number;
 
     return () => {
-      cancelIdleCallback(idleHandle);
+      if (typeof cancelIdleCallback !== 'undefined') {
+        cancelIdleCallback(handle);
+      } else {
+        clearTimeout(handle);
+      }
       links.forEach((link) => link.remove());
     };
   }, [boardDetails]);
