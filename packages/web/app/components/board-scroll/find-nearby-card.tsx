@@ -45,7 +45,7 @@ export default function FindNearbyCard({ onClick, loading = false, error = false
 
   return (
     <div className={`${styles.cardScroll} ${isSmall ? styles.cardScrollSmall : ''}`} onClick={error ? undefined : onClick}>
-      <div className={styles.cardSquare}>
+      <div className={`${styles.cardSquare} ${error ? styles.cardSquareDisabled : ''}`}>
         <div className={styles.findNearbyBoard}>
           <BoardRenderer
             mirrored={false}

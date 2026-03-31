@@ -125,228 +125,129 @@ describe('useDiscoverBoards', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns loading=true initially', () => {
-    // Don't resolve the request so we stay in loading state
-    mockRequest.mockReturnValue(new Promise(() => {}));
-    removeGeolocation();
-
-    const { result } = renderHook(() => useDiscoverBoards());
-
-    expect(result.current.isLoading).toBe(true);
-    expect(result.current.boards).toEqual([]);
-    expect(result.current.error).toBeNull();
-    expect(result.current.hasLocation).toBe(false);
-  });
-
-  it('fetches popular boards when no geolocation available', async () => {
-    removeGeolocation();
-
-    const popular = [
-      makeBoard('a', 100),
-      makeBoard('b', 200),
-      makeBoard('c', 50),
-    ];
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
-
-    const { result } = renderHook(() => useDiscoverBoards());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    // Should sort by totalAscents descending
-    expect(result.current.boards.map((b) => b.uuid)).toEqual(['b', 'a', 'c']);
-    expect(result.current.hasLocation).toBe(false);
-    expect(result.current.error).toBeNull();
-  });
-
-  it('fetches both popular and nearby when geolocation available, merges correctly (nearby first)', async () => {
-    geoSuccess(40.7, -74.0);
-
-    const popular = [makeBoard('p1', 300), makeBoard('p2', 100)];
-    const nearby = [makeBoard('n1', 10), makeBoard('n2', 5)];
-
-    // First request: popular boards
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
-    // Second request: nearby boards
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby));
-
-    const { result } = renderHook(() => useDiscoverBoards());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    // Nearby first, then popular sorted by totalAscents
-    expect(result.current.boards.map((b) => b.uuid)).toEqual(['n1', 'n2', 'p1', 'p2']);
-    expect(result.current.hasLocation).toBe(true);
-  });
-
-  it('deduplicates boards that appear in both nearby and popular', async () => {
-    geoSuccess(40.7, -74.0);
-
-    const shared = makeBoard('shared', 500);
-    const popular = [shared, makeBoard('p1', 200)];
-    const nearby = [makeBoard('shared', 500, { name: 'Nearby Shared' }), makeBoard('n1', 10)];
-
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby));
-
-    const { result } = renderHook(() => useDiscoverBoards());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    const uuids = result.current.boards.map((b) => b.uuid);
-    // 'shared' should appear only once, from nearby
-    expect(uuids.filter((u) => u === 'shared')).toHaveLength(1);
-    // nearby version comes first
-    expect(result.current.boards[0].name).toBe('Nearby Shared');
-    // p1 is the only non-duplicate popular board
-    expect(uuids).toContain('p1');
-  });
-
-  it('caps results at limit', async () => {
-    geoSuccess(40.7, -74.0);
-
-    const nearby = Array.from({ length: 5 }, (_, i) => makeBoard(`n${i}`, i));
-    const popular = Array.from({ length: 10 }, (_, i) => makeBoard(`p${i}`, i * 10));
-
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby));
-
-    const { result } = renderHook(() => useDiscoverBoards({ limit: 8 }));
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.boards).toHaveLength(8);
-    // First 5 are nearby
-    expect(result.current.boards.slice(0, 5).map((b) => b.uuid)).toEqual(
-      nearby.map((b) => b.uuid),
+  it('does not fetch anything when enableLocation=false (default in home page)', async () => {
+    const { result } = renderHook(() =>
+      useDiscoverBoards({ enableLocation: false }),
     );
-  });
 
-  it('sorts popular boards by totalAscents descending', async () => {
-    removeGeolocation();
-
-    const popular = [
-      makeBoard('low', 10),
-      makeBoard('high', 1000),
-      makeBoard('mid', 500),
-    ];
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
-
-    const { result } = renderHook(() => useDiscoverBoards());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.boards.map((b) => b.uuid)).toEqual(['high', 'mid', 'low']);
-  });
-
-  it('sets error when both fetches fail', async () => {
-    removeGeolocation();
-
-    mockRequest.mockRejectedValueOnce(new Error('Network error'));
-
-    const { result } = renderHook(() => useDiscoverBoards());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.error).toBe('Failed to load boards');
+    // Should not be loading and should have no boards
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.boards).toEqual([]);
+    expect(result.current.hasLocation).toBe(false);
+    expect(result.current.error).toBeNull();
+
+    // No API calls or geolocation requests
+    expect(mockRequest).not.toHaveBeenCalled();
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it('sets hasLocation=true when nearby boards found', async () => {
-    geoSuccess(51.5, -0.1);
+  it('fetches nearby boards with coordinates when enableLocation=true and geo succeeds', async () => {
+    geoSuccess(40.7, -74.0);
 
-    const popular = [makeBoard('p1', 100)];
-    const nearby = [makeBoard('n1', 10)];
-
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
+    const nearby = [makeBoard('n1', 10), makeBoard('n2', 5)];
     mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby));
 
-    const { result } = renderHook(() => useDiscoverBoards());
+    const { result } = renderHook(() => useDiscoverBoards({ enableLocation: true }));
 
     await waitFor(() => {
-      expect(result.current.hasLocation).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.boards.map((b) => b.uuid)).toEqual(['n1', 'n2']);
+    expect(result.current.hasLocation).toBe(true);
+    expect(result.current.error).toBeNull();
+
+    // SEARCH_BOARDS called with coordinates
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+    expect(mockRequest).toHaveBeenCalledWith('SEARCH_BOARDS_QUERY', {
+      input: {
+        latitude: 40.7,
+        longitude: -74.0,
+        radiusKm: 1,
+        limit: 20,
+      },
     });
   });
 
-  it('geolocation denied falls back to popular only', async () => {
+  it('returns empty boards with no error when geolocation denied', async () => {
     geoDenied();
 
-    const popular = [makeBoard('p1', 100), makeBoard('p2', 50)];
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
-
-    const { result } = renderHook(() => useDiscoverBoards());
+    const { result } = renderHook(() => useDiscoverBoards({ enableLocation: true }));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.boards.map((b) => b.uuid)).toEqual(['p1', 'p2']);
+    expect(result.current.boards).toEqual([]);
     expect(result.current.hasLocation).toBe(false);
-    // Only one request (popular), no nearby request since geo failed
-    expect(mockRequest).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toBeNull();
+    // No SEARCH_BOARDS call since we have no coords
+    expect(mockRequest).not.toHaveBeenCalled();
+  });
+
+  it('returns empty boards when no geolocation API available', async () => {
+    removeGeolocation();
+
+    const { result } = renderHook(() => useDiscoverBoards({ enableLocation: true }));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.boards).toEqual([]);
+    expect(result.current.hasLocation).toBe(false);
+    expect(mockRequest).not.toHaveBeenCalled();
+  });
+
+  it('sets error when SEARCH_BOARDS request fails', async () => {
+    geoSuccess(40.7, -74.0);
+    mockRequest.mockRejectedValueOnce(new Error('Network error'));
+
+    const { result } = renderHook(() => useDiscoverBoards({ enableLocation: true }));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.error).toBe('Failed to load nearby boards');
+    expect(result.current.boards).toEqual([]);
+    expect(result.current.hasLocation).toBe(false);
+  });
+
+  it('respects limit parameter', async () => {
+    geoSuccess(40.7, -74.0);
+
+    const nearby = Array.from({ length: 10 }, (_, i) => makeBoard(`n${i}`, i));
+    mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby));
+
+    const { result } = renderHook(() => useDiscoverBoards({ limit: 5, enableLocation: true }));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(mockRequest).toHaveBeenCalledWith('SEARCH_BOARDS_QUERY', {
+      input: expect.objectContaining({ limit: 5 }),
+    });
   });
 
   it('caches geolocation across re-fetches (geoResolvedRef prevents re-prompt)', async () => {
     geoSuccess(40.7, -74.0);
 
-    const popular1 = [makeBoard('p1', 100)];
-    const nearby1 = [makeBoard('n1', 10)];
+    const nearby = [makeBoard('n1', 10)];
+    mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby));
 
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular1));
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby1));
-
-    const { result } = renderHook(() => useDiscoverBoards());
+    const { result } = renderHook(() => useDiscoverBoards({ enableLocation: true }));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Geolocation was called exactly once on the initial fetch
     expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
-
-    // After the first successful geo resolution, coordsRef.current is set.
-    // On any subsequent effect run (e.g. token change), resolveGeolocation()
-    // returns the cached coords immediately without calling getCurrentPosition again.
-    // We verify this by confirming the geo API was only called once above.
-    // The hook's internal coordsRef caching is the mechanism under test.
   });
 
-  it('enableLocation=false skips geolocation', async () => {
+  it('toggling enableLocation from false to true triggers geolocation and fetch', async () => {
     geoSuccess(40.7, -74.0);
-
-    const popular = [makeBoard('p1', 100)];
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
-
-    const { result } = renderHook(() =>
-      useDiscoverBoards({ enableLocation: false }),
-    );
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
-    expect(result.current.hasLocation).toBe(false);
-    // Only popular request, no nearby
-    expect(mockRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('geoResolvedRef is not set when enableLocation=false (so toggling to true later works)', async () => {
-    geoSuccess(40.7, -74.0);
-
-    const popular = [makeBoard('p1', 100)];
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular));
 
     // First render with enableLocation=false
     const { result, rerender } = renderHook(
@@ -355,17 +256,13 @@ describe('useDiscoverBoards', () => {
       { initialProps: { enableLocation: false } },
     );
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
+    // No fetching
+    expect(result.current.isLoading).toBe(false);
     expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+    expect(mockRequest).not.toHaveBeenCalled();
 
     // Now toggle enableLocation to true
-    const popular2 = [makeBoard('p2', 200)];
     const nearby = [makeBoard('n1', 10)];
-
-    mockRequest.mockResolvedValueOnce(makeSearchResponse(popular2));
     mockRequest.mockResolvedValueOnce(makeSearchResponse(nearby));
 
     rerender({ enableLocation: true });
@@ -374,8 +271,30 @@ describe('useDiscoverBoards', () => {
       expect(result.current.hasLocation).toBe(true);
     });
 
-    // Geolocation should now have been called
     expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
     expect(result.current.boards.some((b) => b.uuid === 'n1')).toBe(true);
+  });
+
+  it('never calls SEARCH_BOARDS without coordinates', async () => {
+    geoDenied();
+
+    const { result } = renderHook(() => useDiscoverBoards({ enableLocation: true }));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Verify SEARCH_BOARDS was never called (geo was denied, so no coords)
+    expect(mockRequest).not.toHaveBeenCalled();
+  });
+
+  it('shows loading state while resolving geolocation', () => {
+    // Make geo hang forever
+    mockGetCurrentPosition.mockImplementation(() => {});
+
+    const { result } = renderHook(() => useDiscoverBoards({ enableLocation: true }));
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.boards).toEqual([]);
   });
 });
