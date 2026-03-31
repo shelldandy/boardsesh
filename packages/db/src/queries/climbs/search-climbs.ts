@@ -35,6 +35,8 @@ export const searchClimbs = async (
 
   // For the popular sort, pre-aggregate total ascents across all angles via a joined subquery
   // instead of a correlated subquery that runs per candidate row.
+  // Scoped with an EXISTS to only aggregate stats for climbs matching the search filters,
+  // avoiding a full scan of board_climb_stats for the entire board_type.
   const popularCountsSubquery = sortBy === 'popular'
     ? db
         .select({
@@ -42,7 +44,18 @@ export const searchClimbs = async (
           totalAscensionistCount: sql<number>`COALESCE(SUM(${boardClimbStats.ascensionistCount}), 0)`.as('total_ascensionist_count'),
         })
         .from(boardClimbStats)
-        .where(eq(boardClimbStats.boardType, params.board_name))
+        .where(and(
+          eq(boardClimbStats.boardType, params.board_name),
+          sql`EXISTS (
+            SELECT 1 FROM ${boardClimbs}
+            WHERE ${boardClimbs.uuid} = ${boardClimbStats.climbUuid}
+            AND ${boardClimbs.boardType} = ${params.board_name}
+            AND ${boardClimbs.layoutId} = ${params.layout_id}
+            AND ${boardClimbs.isListed} = true
+            AND ${boardClimbs.isDraft} = false
+            AND ${boardClimbs.framesCount} = 1
+          )`,
+        ))
         .groupBy(boardClimbStats.climbUuid)
         .as('popular_counts')
     : null;
