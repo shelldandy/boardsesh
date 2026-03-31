@@ -17,6 +17,7 @@ export type Climb = {
   difficulty_error: string;
   mirrored?: boolean;
   benchmark_difficulty: string | null; // Benchmark difficulty, can be null
+  is_draft?: boolean;
   userAscents?: number;
   userAttempts?: number;
 };

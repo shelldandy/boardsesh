@@ -58,6 +58,7 @@ export const searchClimbs = async (
     name: boardClimbs.name,
     description: boardClimbs.description,
     frames: boardClimbs.frames,
+    is_draft: boardClimbs.isDraft,
     angle: boardClimbStats.angle,
     ascensionist_count: boardClimbStats.ascensionistCount,
     difficulty: boardDifficultyGrades.boulderName,
@@ -140,6 +141,7 @@ export const searchClimbs = async (
     stars: Math.round((Number(result.quality_average) || 0) * 5),
     difficulty_error: result.difficulty_error?.toString() || '0',
     benchmark_difficulty: result.benchmark_difficulty && result.benchmark_difficulty > 0 ? result.benchmark_difficulty.toString() : null,
+    is_draft: result.is_draft ?? false,
     userAscents: userId ? Number((result as Record<string, unknown>)?.userAscents || 0) : undefined,
     userAttempts: userId ? Number((result as Record<string, unknown>)?.userAttempts || 0) : undefined,
   }));

@@ -14,6 +14,7 @@ const CLIMB_SEARCH_FIELDS = `
   stars
   difficulty_error
   benchmark_difficulty
+  is_draft
   userAscents
   userAttempts
 `;
