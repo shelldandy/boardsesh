@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render } from '@testing-library/react';
 import React from 'react';
 import type { UserBoard } from '@boardsesh/shared-schema';
 
@@ -44,33 +44,6 @@ vi.mock('../board-scroll.module.css', () => ({
 
 import BoardScrollCard from '../board-scroll-card';
 
-// IntersectionObserver mock state
-let observerCallback: IntersectionObserverCallback;
-let mockObserve: ReturnType<typeof vi.fn>;
-let mockDisconnect: ReturnType<typeof vi.fn>;
-
-beforeEach(() => {
-  mockObserve = vi.fn();
-  mockDisconnect = vi.fn();
-
-  class MockIntersectionObserver {
-    constructor(callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {
-      observerCallback = callback;
-    }
-    observe = mockObserve;
-    disconnect = mockDisconnect;
-    unobserve = vi.fn();
-  }
-
-  globalThis.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
-});
-
-function triggerIntersection(isIntersecting: boolean) {
-  act(() => {
-    observerCallback([{ isIntersecting } as IntersectionObserverEntry], {} as IntersectionObserver);
-  });
-}
-
 function makeUserBoard(overrides?: Partial<UserBoard>): UserBoard {
   return {
     uuid: 'board-1',
@@ -105,43 +78,19 @@ describe('BoardScrollCard', () => {
     expect(getByText('Kilter · The Gym')).toBeDefined();
   });
 
-  it('shows fallback icon initially (before IntersectionObserver fires)', () => {
-    const onClick = vi.fn();
-    const { queryByTestId } = render(<BoardScrollCard userBoard={makeUserBoard()} onClick={onClick} />);
-
-    // BoardRenderer should NOT be present before intersection
-    expect(queryByTestId('board-renderer')).toBeNull();
-  });
-
-  it('renders BoardRenderer after IntersectionObserver reports intersection', () => {
+  it('renders BoardRenderer immediately when boardDetails available', () => {
     const onClick = vi.fn();
     const { getByTestId } = render(<BoardScrollCard userBoard={makeUserBoard()} onClick={onClick} />);
-
-    triggerIntersection(true);
 
     expect(getByTestId('board-renderer')).toBeDefined();
   });
 
-  it('observer disconnects after first intersection (one-shot)', () => {
+  it('shows fallback icon when no board data provided', () => {
     const onClick = vi.fn();
-    render(<BoardScrollCard userBoard={makeUserBoard()} onClick={onClick} />);
+    const { queryByTestId, container } = render(<BoardScrollCard onClick={onClick} />);
 
-    const disconnectCountBefore = mockDisconnect.mock.calls.length;
-
-    triggerIntersection(true);
-
-    // disconnect should have been called by the one-shot logic
-    expect(mockDisconnect.mock.calls.length).toBeGreaterThan(disconnectCountBefore);
-  });
-
-  it('observer disconnects on unmount (cleanup)', () => {
-    const onClick = vi.fn();
-    const { unmount } = render(<BoardScrollCard userBoard={makeUserBoard()} onClick={onClick} />);
-
-    mockDisconnect.mockClear();
-    unmount();
-
-    expect(mockDisconnect).toHaveBeenCalled();
+    expect(queryByTestId('board-renderer')).toBeNull();
+    expect(container.querySelector('.cardFallback')).not.toBeNull();
   });
 
   it('disabled card does not trigger onClick', () => {
@@ -183,23 +132,5 @@ describe('BoardScrollCard', () => {
     const nameEl = getByText('My Kilter');
     const cardRoot = nameEl.parentElement!;
     expect(cardRoot.className).toContain('cardScrollSmall');
-  });
-
-  it('does not render BoardRenderer when boardDetails is null', () => {
-    const onClick = vi.fn();
-    const { queryByTestId } = render(<BoardScrollCard onClick={onClick} />);
-
-    triggerIntersection(true);
-
-    expect(queryByTestId('board-renderer')).toBeNull();
-  });
-
-  it('does not render BoardRenderer when visible but not intersecting', () => {
-    const onClick = vi.fn();
-    const { queryByTestId } = render(<BoardScrollCard userBoard={makeUserBoard()} onClick={onClick} />);
-
-    triggerIntersection(false);
-
-    expect(queryByTestId('board-renderer')).toBeNull();
   });
 });

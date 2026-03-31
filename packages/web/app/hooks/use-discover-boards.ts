@@ -19,11 +19,10 @@ interface DiscoverBoardsResult {
 }
 
 /**
- * Discovers public boards for the home page.
- * Fetches popular boards immediately while geolocation resolves in parallel.
- * If location is available, nearby boards appear first (sorted by distance).
- * Remaining slots are filled with popular boards (sorted by totalAscents).
- * Deduplication ensures no board appears twice.
+ * Discovers nearby public boards for the home page.
+ * Only fetches when enableLocation is true — resolves geolocation first,
+ * then calls SEARCH_BOARDS with coordinates. Never calls SEARCH_BOARDS
+ * without coordinates.
  *
  * Re-fetches when the auth token changes (e.g. user logs in) so that
  * board results can reflect authenticated context (isFollowedByMe, etc.).
@@ -34,7 +33,7 @@ export function useDiscoverBoards({
 }: UseDiscoverBoardsOptions = {}): DiscoverBoardsResult {
   const { token, isAuthenticated } = useWsAuthToken();
   const [boards, setBoards] = useState<UserBoard[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [hasLocation, setHasLocation] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,65 +68,49 @@ export function useDiscoverBoards({
   }, [enableLocation]);
 
   useEffect(() => {
+    // Don't fetch anything until location is enabled
+    if (!enableLocation) return;
+
     let cancelled = false;
 
     const doFetch = async () => {
-      // Only show loading skeleton on initial load, not on auth-triggered refetches
-      if (boards.length === 0) {
-        setIsLoading(true);
-      }
+      setIsLoading(true);
       setError(null);
+
+      const coords = await resolveGeolocation();
+
+      if (cancelled) return;
+
+      if (!coords) {
+        // Geolocation denied/unavailable — nothing to show
+        setIsLoading(false);
+        return;
+      }
 
       const client = createGraphQLHttpClient(token ?? undefined);
 
-      // Fire popular boards request and geolocation resolution in parallel
-      const popularPromise = client
-        .request<SearchBoardsQueryResponse>(SEARCH_BOARDS, {
-          input: { limit: limit * 2 },
-        })
-        .catch(() => null);
-
-      const geoPromise = resolveGeolocation();
-
-      const [popularResult, coords] = await Promise.all([popularPromise, geoPromise]);
-
-      if (cancelled) return;
-
-      // If we have coords, fetch nearby boards
-      let nearbyBoards: UserBoard[] = [];
-      if (coords) {
-        try {
-          const nearbyResult = await client.request<SearchBoardsQueryResponse>(SEARCH_BOARDS, {
-            input: {
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              radiusKm: 1,
-              limit,
-            },
-          });
-          nearbyBoards = nearbyResult.searchBoards.boards;
+      try {
+        const result = await client.request<SearchBoardsQueryResponse>(SEARCH_BOARDS, {
+          input: {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            radiusKm: 1,
+            limit,
+          },
+        });
+        if (!cancelled) {
+          setBoards(result.searchBoards.boards);
           setHasLocation(true);
-        } catch {
-          // Location search failed, fall through to popular only
+        }
+      } catch {
+        if (!cancelled) {
+          setError('Failed to load nearby boards');
         }
       }
 
-      if (cancelled) return;
-
-      const nearbyUuids = new Set(nearbyBoards.map((b) => b.uuid));
-
-      if (popularResult) {
-        const popularBoards = popularResult.searchBoards.boards
-          .filter((b: UserBoard) => !nearbyUuids.has(b.uuid))
-          .sort((a: UserBoard, b: UserBoard) => b.totalAscents - a.totalAscents);
-        setBoards([...nearbyBoards, ...popularBoards].slice(0, limit));
-      } else if (nearbyBoards.length > 0) {
-        setBoards(nearbyBoards);
-      } else {
-        setError('Failed to load boards');
+      if (!cancelled) {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     };
 
     doFetch();

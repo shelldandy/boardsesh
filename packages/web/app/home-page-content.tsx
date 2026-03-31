@@ -19,12 +19,31 @@ import { themeTokens } from '@/app/theme/theme-config';
 import { usePersistentSession } from '@/app/components/persistent-session';
 import BoardScrollSection from '@/app/components/board-scroll/board-scroll-section';
 import BoardScrollCard from '@/app/components/board-scroll/board-scroll-card';
+import FindNearbyCard, { type FindNearbyStatus } from '@/app/components/board-scroll/find-nearby-card';
 import { useDiscoverBoards } from '@/app/hooks/use-discover-boards';
 import { usePopularBoardConfigs } from '@/app/hooks/use-popular-board-configs';
 import { constructBoardSlugListUrl } from '@/app/lib/url-utils';
 import { getDefaultAngleForBoard } from '@/app/lib/board-config-for-playlist';
 import type { BoardConfigData } from '@/app/lib/server-board-configs';
 import type { UserBoard, PopularBoardConfig } from '@boardsesh/shared-schema';
+
+function deriveFindNearbyStatus({
+  locationEnabled,
+  isLoading,
+  error,
+  hasLocation,
+}: {
+  locationEnabled: boolean;
+  isLoading: boolean;
+  error: string | null;
+  hasLocation: boolean;
+}): FindNearbyStatus {
+  if (!locationEnabled) return 'idle';
+  if (isLoading) return 'loading';
+  if (error) return 'error';
+  if (!hasLocation) return 'geo-denied';
+  return 'no-results';
+}
 
 const StartSeshDrawer = dynamic(
   () => import('@/app/components/session-creation/start-sesh-drawer'),
@@ -119,7 +138,8 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
 
   const isAuthenticated = status === 'authenticated';
 
-  const { boards: discoverBoards, isLoading: isBoardsLoading } = useDiscoverBoards({ limit: 20 });
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const { boards: discoverBoards, isLoading: isBoardsLoading, hasLocation, error: discoverError } = useDiscoverBoards({ limit: 20, enableLocation: locationEnabled });
   const { configs: popularConfigs, isLoading: isConfigsLoading, isLoadingMore, hasMore, loadMore } = usePopularBoardConfigs({ limit: 12, initialData: initialPopularConfigs });
 
   const handleBoardClick = useCallback((board: UserBoard) => {
@@ -216,6 +236,17 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
           >
+            {discoverBoards.length === 0 && (
+              <FindNearbyCard
+                onClick={() => setLocationEnabled(true)}
+                status={deriveFindNearbyStatus({
+                  locationEnabled,
+                  isLoading: isBoardsLoading,
+                  error: discoverError,
+                  hasLocation,
+                })}
+              />
+            )}
             {discoverBoards.map((board) => (
               <BoardScrollCard
                 key={board.uuid}

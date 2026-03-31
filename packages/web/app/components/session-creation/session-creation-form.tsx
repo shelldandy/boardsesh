@@ -47,7 +47,7 @@ export default function SessionCreationForm({
   const [goal, setGoal] = useState('');
   const [color, setColor] = useState<string | undefined>(undefined);
   const [isPermanent, setIsPermanent] = useState(false);
-  const [discoverable, setDiscoverable] = useState(!isAnonymous);
+  const [discoverable, setDiscoverable] = useState(false);
 
   const handleSubmit = async () => {
     try {
@@ -64,7 +64,7 @@ export default function SessionCreationForm({
       setGoal('');
       setColor(undefined);
       setIsPermanent(false);
-      setDiscoverable(true);
+      setDiscoverable(false);
     } catch {
       // Don't reset on error — preserve form data for retry
     }
