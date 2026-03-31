@@ -66,6 +66,23 @@ export const climbQueries = {
       showDrafts: input.showDrafts,
     };
 
+    if (DEBUG) {
+      console.log('[searchClimbs] showDrafts:', input.showDrafts, 'userId:', ctx.isAuthenticated ? ctx.userId : 'not authenticated');
+    }
+
+    // Drafts require authentication — return empty results if not signed in
+    if (input.showDrafts && !ctx.isAuthenticated) {
+      return {
+        params,
+        searchParams,
+        sizeEdges,
+        userId: undefined,
+        _cachedClimbs: [],
+        _cachedHasMore: false,
+        _cachedTotalCount: 0,
+      };
+    }
+
     // Return context for field resolvers - queries are executed lazily per field
     // Personal progress filters now use boardsesh_ticks table with NextAuth user ID
     return {
