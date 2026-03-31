@@ -51,7 +51,7 @@ export default function AboutContent() {
                 Our Vision
               </Typography>
               <Typography variant="body1" component="p">
-                Kilter, Tension, Moonboard, Decoy, Grasshopper. Every board has its own app
+                Kilter, Tension, MoonBoard, Decoy, Grasshopper. Every board has its own app
                 and its own walled garden. Your training shouldn&apos;t be locked inside one of them.
               </Typography>
               <Typography variant="body1" component="p">
@@ -73,7 +73,7 @@ export default function AboutContent() {
                   <Typography variant="body2" component="span" fontWeight={600}>Party Mode.</Typography> Share a session and climb together in real time
                 </li>
                 <li>
-                  <Typography variant="body2" component="span" fontWeight={600}>Multi-board.</Typography> Kilter, Tension, MoonBoard, and more under one roof
+                  <Typography variant="body2" component="span" fontWeight={600}>Multi-board.</Typography> Works with Kilter, Tension, MoonBoard, and more
                 </li>
                 <li>
                   <Typography variant="body2" component="span" fontWeight={600}>Community-driven.</Typography> Built and improved by people who actually climb
@@ -128,6 +128,13 @@ export default function AboutContent() {
               <Typography variant="body1" component="p">
                 Whether you write code, set problems, or just want to tell us what&apos;s broken,
                 we&apos;d like to hear from you.
+              </Typography>
+            </section>
+
+            {/* Legal */}
+            <section>
+              <Typography variant="body1" component="p">
+                <MuiLink href="/legal">Legal &amp; Intellectual Property Policy</MuiLink>
               </Typography>
             </section>
 
