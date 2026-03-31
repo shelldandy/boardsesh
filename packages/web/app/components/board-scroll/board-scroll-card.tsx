@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
 import { BoardDetails, BoardName } from '@/app/lib/types';
 import { getBoardDetails } from '@/app/lib/__generated__/product-sizes-data';
@@ -130,34 +130,13 @@ export default function BoardScrollCard({
   const handleClick = disabled ? undefined : onClick;
   const displayMeta = disabled && disabledText ? disabledText : meta;
 
-  // Defer SVG rendering until card is near the viewport
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '200px' },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <div ref={cardRef} className={`${styles.cardScroll} ${isSmall ? styles.cardScrollSmall : ''}`} onClick={handleClick}>
+    <div className={`${styles.cardScroll} ${isSmall ? styles.cardScrollSmall : ''}`} onClick={handleClick}>
       <div
         className={`${styles.cardSquare} ${selected ? styles.cardSquareSelected : ''} ${disabled ? styles.cardSquareDisabled : ''}`}
       >
-        {boardDetails && isVisible ? (
+        {boardDetails ? (
           <BoardRenderer
-            litUpHoldsMap={{}}
             mirrored={false}
             boardDetails={boardDetails}
             thumbnail

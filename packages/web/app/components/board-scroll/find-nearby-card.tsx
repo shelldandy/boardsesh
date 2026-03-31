@@ -33,13 +33,13 @@ export default function FindNearbyCard({ onClick, loading = false, error = false
   let icon: React.ReactNode;
   let label: string;
   if (error) {
-    icon = <LocationOffOutlined sx={{ fontSize: iconSize, color: 'var(--semantic-error)' }} />;
+    icon = <LocationOffOutlined className={styles.findNearbyIconError} />;
     label = 'Location unavailable';
   } else if (loading) {
-    icon = <CircularProgress size={iconSize} sx={{ color: 'var(--color-primary)' }} />;
+    icon = <CircularProgress size={iconSize} className={styles.findNearbyIconPrimary} />;
     label = 'Finding boards…';
   } else {
-    icon = <LocationOnOutlined sx={{ fontSize: iconSize, color: 'var(--color-primary)' }} />;
+    icon = <LocationOnOutlined className={styles.findNearbyIconPrimary} />;
     label = 'Find nearby';
   }
 
@@ -48,7 +48,6 @@ export default function FindNearbyCard({ onClick, loading = false, error = false
       <div className={styles.cardSquare}>
         <div className={styles.findNearbyBoard}>
           <BoardRenderer
-            litUpHoldsMap={{}}
             mirrored={false}
             boardDetails={boardDetails}
             thumbnail
