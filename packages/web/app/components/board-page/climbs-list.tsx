@@ -13,6 +13,7 @@ import { ClimbCardSkeleton, ClimbListItemSkeleton } from './board-page-skeleton'
 import { themeTokens } from '@/app/theme/theme-config';
 import { getPreference, setPreference } from '@/app/lib/user-preferences-db';
 import { useInfiniteScroll } from '@/app/hooks/use-infinite-scroll';
+import { useFeatureFlag } from '@/app/components/providers/feature-flags-provider';
 
 type ViewMode = 'grid' | 'list';
 
@@ -68,6 +69,8 @@ const ClimbsList = ({
   renderItemExtra,
   showBottomSpacer,
 }: ClimbsListProps) => {
+  const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
+
   // Progressive rendering for grid mode only (list mode uses the virtualizer).
   // Show first batch immediately, rest after a frame. Only batch when the list
   // is replaced (new search), not when items are appended (infinite scroll)
@@ -106,6 +109,7 @@ const ClimbsList = ({
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const useVirtualization = viewMode === 'list' && !isRustRendererEnabled;
 
   const onClimbSelectRef = useRef(onClimbSelect);
   onClimbSelectRef.current = onClimbSelect;
@@ -165,11 +169,9 @@ const ClimbsList = ({
     [boardDetails, boardDetailsMap],
   );
 
-  // --- Window virtualizer for list mode ---
-  // Items are cheap <img> tags (Rust renderer), so we use a large overscan
-  // buffer to prevent blank flashes during fast scrolling.
+  // --- Window virtualizer for list mode (disabled when Rust renderer is active) ---
   const virtualizer = useWindowVirtualizer({
-    count: climbs.length,
+    count: useVirtualization ? climbs.length : 0,
     estimateSize: () => ESTIMATED_LIST_ITEM_HEIGHT,
     overscan: 15,
     getItemKey: (index) => climbs[index].uuid,
@@ -278,8 +280,8 @@ const ClimbsList = ({
             <ClimbsListSkeleton aspectRatio={boardDetails.boardWidth / boardDetails.boardHeight} viewMode="grid" />
           ) : null}
         </Box>
-      ) : (
-        /* List (compact) mode — virtualized with window scroll */
+      ) : useVirtualization ? (
+        /* List mode — virtualized with window scroll */
         <div
           style={{
             height: virtualizer.getTotalSize(),
@@ -320,6 +322,30 @@ const ClimbsList = ({
                 </div>
               );
             })
+          )}
+        </div>
+      ) : (
+        /* List mode — non-virtualized (Rust renderer: items are cheap <img> tags) */
+        <div>
+          {isFetching && climbs.length === 0 ? (
+            <ClimbsListSkeleton aspectRatio={boardDetails.boardWidth / boardDetails.boardHeight} viewMode="list" />
+          ) : (
+            visibleClimbs.map((climb, index) => (
+              <div key={climb.uuid}>
+                <div {...(index === 0 ? { id: 'onboarding-climb-card' } : {})}>
+                  <ClimbListItem
+                    climb={climb}
+                    boardDetails={resolveBoardDetails(climb)}
+                    selected={selectedClimbUuid === climb.uuid}
+                    onSelect={climbHandlersMap.get(climb.uuid)}
+                    onThumbnailClick={climbHandlersMap.get(climb.uuid)}
+                    disableThumbnailNavigation
+                    unsupported={unsupportedClimbs?.has(climb.uuid)}
+                  />
+                </div>
+                {renderItemExtra?.(climb)}
+              </div>
+            ))
           )}
         </div>
       )}
