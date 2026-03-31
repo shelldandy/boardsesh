@@ -417,27 +417,51 @@ export async function importJsonExportData(
   try {
     const db = drizzle(client);
 
-    // Step 1: Import draft climbs FIRST so they're available for name resolution
+    // Step 1: Import climbs FIRST so they're available for name resolution.
+    // Draft climbs are always imported (upserted) against the user's account.
+    // Published (non-draft) climbs are only inserted if they don't already exist
+    // in our DB -- following the shared-sync pattern where existing published
+    // climbs are never overwritten.
     if (data.climbs.length > 0) {
-      // Prepare all climb rows in memory first
       type ClimbRow = typeof boardClimbs.$inferInsert;
-      const climbRows: ClimbRow[] = [];
 
-      for (const climb of data.climbs) {
-        const layoutId = resolveLayoutName(boardType, climb.layout);
-        if (layoutId == null) {
-          result.climbs.failed++;
-          continue;
+      // Split climbs into drafts and published
+      const draftClimbs = data.climbs.filter((c) => c.is_draft === true);
+      const publishedClimbs = data.climbs.filter((c) => c.is_draft !== true);
+
+      // For published climbs, check which names already exist so we skip them
+      const publishedNames = publishedClimbs.map((c) => c.name);
+      const existingPublishedNames = new Set<string>();
+      if (publishedNames.length > 0) {
+        const chunkSize = 500;
+        for (let i = 0; i < publishedNames.length; i += chunkSize) {
+          const chunk = publishedNames.slice(i, i + chunkSize);
+          const existing = await db
+            .select({ name: boardClimbs.name })
+            .from(boardClimbs)
+            .where(
+              and(
+                eq(boardClimbs.boardType, boardType),
+                inArray(boardClimbs.name, chunk),
+              ),
+            );
+          for (const row of existing) {
+            if (row.name) existingPublishedNames.add(row.name);
+          }
         }
+      }
+
+      // Build rows for draft climbs (always imported)
+      const draftRows: ClimbRow[] = [];
+      for (const climb of draftClimbs) {
+        const layoutId = resolveLayoutName(boardType, climb.layout);
+        if (layoutId == null) { result.climbs.failed++; continue; }
 
         const coordMap = buildCoordinateMap(boardType, layoutId);
         const frames = convertHoldsToFrames(climb.holds, coordMap, boardType);
-        if (!frames) {
-          result.climbs.failed++;
-          continue;
-        }
+        if (!frames) { result.climbs.failed++; continue; }
 
-        climbRows.push({
+        draftRows.push({
           uuid: generateClimbImportUuid(userId, boardType, layoutId, climb.name, climb.created_at),
           boardType,
           layoutId,
@@ -458,13 +482,50 @@ export async function importJsonExportData(
         });
       }
 
-      // Batch insert climbs
-      if (climbRows.length > 0) {
+      // Build rows for published climbs that don't already exist
+      const publishedRows: ClimbRow[] = [];
+      for (const climb of publishedClimbs) {
+        if (existingPublishedNames.has(climb.name)) {
+          result.climbs.skipped++;
+          continue;
+        }
+
+        const layoutId = resolveLayoutName(boardType, climb.layout);
+        if (layoutId == null) { result.climbs.failed++; continue; }
+
+        const coordMap = buildCoordinateMap(boardType, layoutId);
+        const frames = convertHoldsToFrames(climb.holds, coordMap, boardType);
+        if (!frames) { result.climbs.failed++; continue; }
+
+        publishedRows.push({
+          uuid: generateClimbImportUuid(userId, boardType, layoutId, climb.name, climb.created_at),
+          boardType,
+          layoutId,
+          userId,
+          setterId: null,
+          setterUsername: null,
+          name: climb.name,
+          description: climb.description ?? '',
+          frames,
+          framesCount: 1,
+          framesPace: 0,
+          isDraft: false,
+          isListed: true,
+          angle: null,
+          createdAt: climb.created_at ?? now,
+          synced: false,
+          syncError: null,
+        });
+      }
+
+      const totalRows = draftRows.length + publishedRows.length;
+
+      if (totalRows > 0) {
         await client.query('BEGIN');
         try {
-          for (let i = 0; i < climbRows.length; i += BATCH_SIZE) {
-            const batch = climbRows.slice(i, i + BATCH_SIZE);
-
+          // Insert draft climbs with upsert (re-import updates them)
+          for (let i = 0; i < draftRows.length; i += BATCH_SIZE) {
+            const batch = draftRows.slice(i, i + BATCH_SIZE);
             await db
               .insert(boardClimbs)
               .values(batch)
@@ -478,10 +539,19 @@ export async function importJsonExportData(
                   isListed: sql`excluded.is_listed`,
                 },
               });
-
             result.climbs.imported += batch.length;
-            onProgress?.({ type: 'progress', step: 'climbs', current: Math.min(i + BATCH_SIZE, climbRows.length), total: climbRows.length });
           }
+
+          // Insert published climbs — skip on conflict (already exist from a prior import)
+          for (let i = 0; i < publishedRows.length; i += BATCH_SIZE) {
+            const batch = publishedRows.slice(i, i + BATCH_SIZE);
+            await db
+              .insert(boardClimbs)
+              .values(batch)
+              .onConflictDoNothing();
+            result.climbs.imported += batch.length;
+          }
+
           await client.query('COMMIT');
         } catch (error) {
           await client.query('ROLLBACK');
