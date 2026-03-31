@@ -41,35 +41,34 @@ export const SAVE_TICK = gql`
   }
 `;
 
-// Type for the GetTicks query variables
+// Partial types matching the fields each query actually requests
+type TickFromGetTicks = Pick<Tick, 'uuid' | 'climbUuid' | 'angle' | 'isMirror' | 'status' | 'attemptCount' | 'quality' | 'difficulty' | 'isBenchmark' | 'comment' | 'climbedAt'>;
+type TickFromGetUserTicks = Pick<Tick, 'climbUuid' | 'angle' | 'status' | 'attemptCount' | 'difficulty' | 'climbedAt' | 'layoutId'>;
+type TickFromSaveTick = Pick<Tick, 'uuid'>;
+
 export interface GetTicksQueryVariables {
   input: GetTicksInput;
 }
 
-// Type for the GetTicks query response
 export interface GetTicksQueryResponse {
-  ticks: Tick[];
+  ticks: TickFromGetTicks[];
 }
 
-// Type for the GetUserTicks query variables
 export interface GetUserTicksQueryVariables {
   userId: string;
   boardType: string;
 }
 
-// Type for the GetUserTicks query response
 export interface GetUserTicksQueryResponse {
-  userTicks: Tick[];
+  userTicks: TickFromGetUserTicks[];
 }
 
-// Type for the SaveTick mutation variables
 export interface SaveTickMutationVariables {
   input: SaveTickInput;
 }
 
-// Type for the SaveTick mutation response
 export interface SaveTickMutationResponse {
-  saveTick: Tick;
+  saveTick: TickFromSaveTick;
 }
 
 // ============================================
