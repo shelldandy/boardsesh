@@ -22,6 +22,9 @@ export const rustSvgRendering = flag({
     { value: true, label: 'Enabled' },
     { value: false, label: 'Disabled' },
   ],
+  decide() {
+    return false;
+  },
 });
 
 // Add new flags above this line, then add them to allFlags below.
