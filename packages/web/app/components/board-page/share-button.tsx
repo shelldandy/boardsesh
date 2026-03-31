@@ -24,6 +24,7 @@ import SwipeableDrawer from '../swipeable-drawer/swipeable-drawer';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useQueueContext } from '../graphql-queue';
+import { usePersistentSession } from '../persistent-session';
 import { useBluetoothContext } from '../board-bluetooth-control/bluetooth-context';
 import './share-button.css';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
@@ -36,12 +37,15 @@ import { useCreateSession } from '@/app/hooks/use-create-session';
 import { getBaseBoardPath } from '@/app/lib/url-utils';
 import { deduplicateBy } from '@/app/utils/deduplicate';
 
-const getShareUrl = (pathname: string, sessionId: string | null) => {
+const getShareUrl = (pathname: string, sessionId: string | null, sessionBoardPath: string | undefined) => {
   try {
     if (!sessionId) return '';
     const params = new URLSearchParams();
     params.set('session', sessionId);
-    return `${window.location.origin}${pathname}?${params.toString()}`;
+    // Use the session's board path when available (e.g. when on the root page,
+    // the current pathname is "/" but the session needs the full board path)
+    const basePath = sessionBoardPath || pathname;
+    return `${window.location.origin}${basePath}?${params.toString()}`;
   } catch {
     return '';
   }
@@ -184,6 +188,7 @@ export const ShareBoardButton = () => {
   } = useQueueContext();
   const { isConnected: isBoardConnected } = useBluetoothContext();
   const { status: authStatus } = useSession();
+  const { activeSession } = usePersistentSession();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const controllerUrl = searchParams.get('controllerUrl');
@@ -211,7 +216,7 @@ export const ShareBoardButton = () => {
   const isConnecting = !!(sessionId && !hasConnected);
   const isConnected = !!(sessionId && hasConnected);
 
-  const shareUrl = getShareUrl(pathname, sessionId);
+  const shareUrl = getShareUrl(pathname, sessionId, activeSession?.boardPath);
   // Defensive dedup: during WebSocket reconnection race conditions the server
   // may briefly report the same user twice. Deduplicating by ID keeps the UI
   // stable until the next authoritative state sync arrives.
