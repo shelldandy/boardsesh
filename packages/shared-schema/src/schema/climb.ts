@@ -49,7 +49,7 @@ export const climbTypeDefs = /* GraphQL */ `
     uuid: ID!
     setter_username: String!
     name: String!
-    description: String!
+    description: String
     frames: String!
     angle: Int!
     ascensionist_count: Int!

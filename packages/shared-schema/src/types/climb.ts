@@ -29,7 +29,7 @@ export type ClimbInput = {
   uuid: string;
   setter_username: string;
   name: string;
-  description: string;
+  description?: string | null;
   frames: string;
   angle: number;
   ascensionist_count: number;

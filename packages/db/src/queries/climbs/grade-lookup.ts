@@ -32,11 +32,19 @@ const GRADE_MAP: Record<number, string> = {
   33: '8c+/V16',
 };
 
+// Track warned IDs to avoid log spam
+const warnedIds = new Set<number>();
+
 /**
  * Look up the boulder grade name for a rounded difficulty ID.
  * Returns empty string if the ID is not found (e.g., null display_difficulty).
  */
 export function getGradeLabel(difficultyId: number | null): string {
   if (difficultyId === null || difficultyId === undefined) return '';
-  return GRADE_MAP[difficultyId] ?? '';
+  const label = GRADE_MAP[difficultyId];
+  if (label === undefined && !warnedIds.has(difficultyId)) {
+    warnedIds.add(difficultyId);
+    console.warn(`[grade-lookup] Unknown difficulty ID: ${difficultyId} — not in grade map (range 10-33)`);
+  }
+  return label ?? '';
 }
