@@ -19,6 +19,7 @@ import { themeTokens } from '@/app/theme/theme-config';
 import { usePersistentSession } from '@/app/components/persistent-session';
 import BoardScrollSection from '@/app/components/board-scroll/board-scroll-section';
 import BoardScrollCard from '@/app/components/board-scroll/board-scroll-card';
+import FindNearbyCard from '@/app/components/board-scroll/find-nearby-card';
 import { useDiscoverBoards } from '@/app/hooks/use-discover-boards';
 import { usePopularBoardConfigs } from '@/app/hooks/use-popular-board-configs';
 import { constructBoardSlugListUrl } from '@/app/lib/url-utils';
@@ -119,7 +120,8 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
 
   const isAuthenticated = status === 'authenticated';
 
-  const { boards: discoverBoards, isLoading: isBoardsLoading } = useDiscoverBoards({ limit: 20 });
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const { boards: discoverBoards, isLoading: isBoardsLoading } = useDiscoverBoards({ limit: 20, enableLocation: locationEnabled });
   const { configs: popularConfigs, isLoading: isConfigsLoading, isLoadingMore, hasMore, loadMore } = usePopularBoardConfigs({ limit: 12, initialData: initialPopularConfigs });
 
   const handleBoardClick = useCallback((board: UserBoard) => {
@@ -216,6 +218,11 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
           >
+            {!locationEnabled && (
+              <FindNearbyCard
+                onClick={() => setLocationEnabled(true)}
+              />
+            )}
             {discoverBoards.map((board) => (
               <BoardScrollCard
                 key={board.uuid}

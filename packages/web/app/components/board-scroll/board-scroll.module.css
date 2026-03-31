@@ -112,6 +112,21 @@
   font-weight: 500;
 }
 
+/* Find Nearby Card */
+.findNearbyOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.findNearbyBoard {
+  filter: grayscale(100%);
+  opacity: 0.35;
+}
+
 /* Skeleton */
 .skeletonSquare {
   aspect-ratio: 1;
