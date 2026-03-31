@@ -57,6 +57,7 @@ export async function cachedSearchClimbs(
       hideCompleted: searchParams.hideCompleted,
       showOnlyAttempted: searchParams.showOnlyAttempted,
       showOnlyCompleted: searchParams.showOnlyCompleted,
+      showDrafts: searchParams.showDrafts,
     })),
     ...(userId ? [`user:${userId}`] : []),
   ];
@@ -94,6 +95,7 @@ export async function cachedSearchClimbs(
         hideCompleted: searchParams.hideCompleted || undefined,
         showOnlyAttempted: searchParams.showOnlyAttempted || undefined,
         showOnlyCompleted: searchParams.showOnlyCompleted || undefined,
+        showDrafts: searchParams.showDrafts || undefined,
       }, sizeEdges, userId);
 
       // Map ClimbRow to the web Climb type

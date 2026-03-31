@@ -116,6 +116,8 @@ export const climbTypeDefs = /* GraphQL */ `
     showOnlyAttempted: Boolean
     "Only show climbs the user has completed (requires auth)"
     showOnlyCompleted: Boolean
+    "Show only the user's draft climbs (requires auth)"
+    showDrafts: Boolean
   }
 
   """

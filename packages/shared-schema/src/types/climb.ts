@@ -71,6 +71,7 @@ export type ClimbSearchInput = {
   hideCompleted?: boolean;
   showOnlyAttempted?: boolean;
   showOnlyCompleted?: boolean;
+  showDrafts?: boolean;
 };
 
 export type ClimbSearchResult = {

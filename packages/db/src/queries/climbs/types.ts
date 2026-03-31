@@ -49,6 +49,7 @@ export interface ClimbSearchParams {
   hideCompleted?: boolean;
   showOnlyAttempted?: boolean;
   showOnlyCompleted?: boolean;
+  showDrafts?: boolean;
 }
 
 /**

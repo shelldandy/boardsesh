@@ -1,4 +1,4 @@
-import { eq, gte, sql, like, notLike, inArray, SQL } from 'drizzle-orm';
+import { eq, gte, sql, like, notLike, inArray, or, and, SQL } from 'drizzle-orm';
 import { ParsedBoardRouteParameters, SearchRequestPagination } from '@/app/lib/types';
 import { UNIFIED_TABLES } from '@/lib/db/queries/util/table-select';
 import { SizeEdges } from '@/app/lib/__generated__/product-sizes-data';
@@ -48,12 +48,53 @@ export const createClimbFilters = (
     .filter(([, value]) => ['STARTING', 'HAND', 'FOOT', 'FINISH'].includes(value as string))
     .map(([key, state]) => ({ holdId: Number(key), state: state as string }));
 
+  // When showDrafts is enabled, relax isDraft and isListed filters to include
+  // the user's own drafts. Draft climbs can be owned via userId (locally created
+  // or JSON-imported) or via setterId (Aurora-synced).
+  const isShowDrafts = searchParams.showDrafts && userId;
+
+  const isDraftCondition: SQL = isShowDrafts
+    ? or(
+        eq(tables.climbs.isDraft, false),
+        and(
+          eq(tables.climbs.isDraft, true),
+          or(
+            eq(tables.climbs.userId, userId),
+            sql`${tables.climbs.setterId} = (
+              SELECT ubm.board_user_id FROM user_board_mappings ubm
+              WHERE ubm.user_id = ${userId}
+              AND ubm.board_type = ${params.board_name}
+              LIMIT 1
+            )`,
+          ),
+        ),
+      )!
+    : eq(tables.climbs.isDraft, false);
+
+  const isListedCondition: SQL = isShowDrafts
+    ? or(
+        eq(tables.climbs.isListed, true),
+        and(
+          eq(tables.climbs.isListed, false),
+          or(
+            eq(tables.climbs.userId, userId),
+            sql`${tables.climbs.setterId} = (
+              SELECT ubm.board_user_id FROM user_board_mappings ubm
+              WHERE ubm.user_id = ${userId}
+              AND ubm.board_type = ${params.board_name}
+              LIMIT 1
+            )`,
+          ),
+        ),
+      )!
+    : eq(tables.climbs.isListed, true);
+
   // Base conditions for filtering climbs - includes board_type filter for unified tables
   const baseConditions: SQL[] = [
     eq(tables.climbs.boardType, params.board_name),
     eq(tables.climbs.layoutId, params.layout_id),
-    eq(tables.climbs.isListed, true),
-    eq(tables.climbs.isDraft, false),
+    isListedCondition,
+    isDraftCondition,
     eq(tables.climbs.framesCount, 1),
   ];
 
