@@ -144,9 +144,18 @@ async function statsDrivenSearch(
 
   // Stats-driven query didn't fill the page — supplement with no-stats climbs.
   // These have 0 ascents and sort after all stats-having climbs.
-  const statsCount = page * pageSize + results.length;
+  // We need the total stats count to calculate how many no-stats climbs were
+  // already shown on previous pages (for correct OFFSET).
   const remaining = pageSize + 1 - results.length;
-  const noStatsOffset = Math.max(0, page * pageSize - statsCount);
+
+  const [statsCountResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(boardClimbStats)
+    .innerJoin(boardClimbs, and(...climbJoinConditions))
+    .where(and(...statsWhereConditions));
+
+  const totalStatsCount = Number(statsCountResult?.count ?? 0);
+  const noStatsOffset = Math.max(0, page * pageSize - totalStatsCount);
 
   const noStatsResults = remaining > 0 ? await db
     .select({
