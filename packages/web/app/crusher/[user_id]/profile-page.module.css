@@ -213,6 +213,23 @@
   margin-top: 8px; /* spacing.2 */
 }
 
+.legendButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.legendButton:hover {
+  background-color: var(--neutral-100);
+}
+
 /* Board Charts */
 .boardChartsContainer {
   margin-top: 16px; /* spacing.4 */

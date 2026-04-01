@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import MuiAvatar from '@mui/material/Avatar';
 import MuiTooltip from '@mui/material/Tooltip';
 import MuiCard from '@mui/material/Card';
@@ -15,7 +15,7 @@ import FollowButton from '@/app/components/ui/follow-button';
 import FollowerCount from '@/app/components/social/follower-count';
 import { FOLLOW_USER, UNFOLLOW_USER } from '@/app/lib/graphql/operations';
 import { CssBarChart } from '@/app/components/charts/css-bar-chart';
-import type { CssBarChartBar } from '@/app/components/charts/css-bar-chart';
+import type { CssBarChartBar, BarSegment } from '@/app/components/charts/css-bar-chart';
 import { EmptyState } from '@/app/components/ui/empty-state';
 import type { UserProfile } from '../utils/profile-constants';
 import { type AggregatedTimeframeType, aggregatedTimeframeOptions } from '../utils/profile-constants';
@@ -53,6 +53,32 @@ export default function ProfileHeader({
   const displayName = profile.profile?.displayName || profile.name || 'Crusher';
   const avatarUrl = profile.profile?.avatarUrl || profile.image;
   const instagramUrl = profile.profile?.instagramUrl;
+
+  // Legend click-to-filter: track which layouts are hidden
+  const [hiddenLayouts, setHiddenLayouts] = useState<Set<string>>(new Set());
+
+  const toggleLayout = useCallback((label: string) => {
+    setHiddenLayouts((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  }, []);
+
+  // Filter bars by zeroing out hidden layout segments
+  const filteredBars = useMemo(() => {
+    if (!aggregatedStackedBars || hiddenLayouts.size === 0) return aggregatedStackedBars?.bars ?? null;
+    return aggregatedStackedBars.bars.map((bar) => ({
+      ...bar,
+      segments: bar.segments.map((seg: BarSegment) =>
+        seg.label && hiddenLayouts.has(seg.label) ? { ...seg, value: 0 } : seg,
+      ),
+    }));
+  }, [aggregatedStackedBars, hiddenLayouts]);
 
   return (
     <>
@@ -177,24 +203,47 @@ export default function ProfileHeader({
               <div className={styles.loadingStats}>
                 <CircularProgress size={24} />
               </div>
-            ) : aggregatedStackedBars ? (
+            ) : filteredBars ? (
               <>
                 <CssBarChart
-                  bars={aggregatedStackedBars.bars}
-                  height={56}
-                  mobileHeight={40}
+                  bars={filteredBars}
+                  height={160}
+                  mobileHeight={120}
                   ariaLabel="Grade distribution across boards"
                 />
-                {aggregatedStackedBars.legendEntries.length > 1 && (
+                {aggregatedStackedBars && aggregatedStackedBars.legendEntries.length > 1 && (
                   <div className={styles.stackedChartLegend}>
-                    {aggregatedStackedBars.legendEntries.map((entry) => (
-                      <div key={entry.label} className={styles.legendItem}>
-                        <div className={styles.legendColor} style={{ backgroundColor: entry.color }} />
-                        <Typography variant="body2" component="span" className={styles.legendText}>
-                          {entry.label}
-                        </Typography>
-                      </div>
-                    ))}
+                    {aggregatedStackedBars.legendEntries.map((entry) => {
+                      const isHidden = hiddenLayouts.has(entry.label);
+                      return (
+                        <button
+                          key={entry.label}
+                          type="button"
+                          className={styles.legendButton}
+                          onClick={() => toggleLayout(entry.label)}
+                          aria-pressed={!isHidden}
+                        >
+                          <div
+                            className={styles.legendColor}
+                            style={{
+                              backgroundColor: entry.color,
+                              opacity: isHidden ? 0.3 : 1,
+                            }}
+                          />
+                          <Typography
+                            variant="body2"
+                            component="span"
+                            className={styles.legendText}
+                            style={{
+                              opacity: isHidden ? 0.4 : 1,
+                              textDecoration: isHidden ? 'line-through' : 'none',
+                            }}
+                          >
+                            {entry.label}
+                          </Typography>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </>

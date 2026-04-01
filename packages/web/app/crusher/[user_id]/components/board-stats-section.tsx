@@ -122,7 +122,7 @@ export default function BoardStatsSection({
               <Typography variant="body2" component="span" fontWeight={600} className={styles.boardChartTitle}>
                 Weekly Attempts
               </Typography>
-              <CssBarChart bars={weeklyBars} height={64} mobileHeight={48} gap={3} ariaLabel="Weekly attempts by difficulty" />
+              <CssBarChart bars={weeklyBars} height={180} mobileHeight={120} gap={3} ariaLabel="Weekly attempts by difficulty" />
             </div>
           )}
 
@@ -132,7 +132,7 @@ export default function BoardStatsSection({
               <Typography variant="body2" component="span" fontWeight={600} className={styles.boardChartTitle}>
                 Flash vs Redpoint
               </Typography>
-              <GroupedBarChart bars={flashRedpointBars} height={48} mobileHeight={36} gap={2} ariaLabel="Flash vs redpoint by grade" />
+              <GroupedBarChart bars={flashRedpointBars} height={140} mobileHeight={100} gap={2} ariaLabel="Flash vs redpoint by grade" />
             </div>
           )}
         </div>
