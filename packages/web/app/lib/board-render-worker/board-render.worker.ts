@@ -87,7 +87,10 @@ async function renderBoard(request: RenderRequest): Promise<ImageBitmap> {
 
   // Create OffscreenCanvas at target resolution
   const canvas = new OffscreenCanvas(outputWidth, outputHeight);
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Failed to get 2d context from OffscreenCanvas');
+  }
 
   // Apply mirroring transform before drawing anything
   if (mirrored) {

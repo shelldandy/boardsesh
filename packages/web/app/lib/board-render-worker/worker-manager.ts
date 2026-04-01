@@ -120,8 +120,9 @@ async function ensureImagesPreloaded(urls: string[]): Promise<void> {
   const newUrls = urls.filter((u) => !preloadedUrls.has(u));
   if (newUrls.length === 0) return;
 
-  // Fetch & decode each new URL once on the main thread
-  const bitmaps = await Promise.all(
+  // Fetch & decode each new URL once on the main thread.
+  // Filter out failures — a missing background image shouldn't block rendering.
+  const results = await Promise.all(
     newUrls.map(async (url) => {
       let promise = preloadInflight.get(url);
       if (!promise) {
@@ -130,11 +131,18 @@ async function ensureImagesPreloaded(urls: string[]): Promise<void> {
           .then((blob) => createImageBitmap(blob));
         preloadInflight.set(url, promise);
       }
-      const bitmap = await promise;
-      preloadInflight.delete(url);
-      return { url, bitmap };
+      try {
+        const bitmap = await promise;
+        return { url, bitmap };
+      } catch (err) {
+        console.warn('Failed to preload background image:', url, err);
+        return null;
+      } finally {
+        preloadInflight.delete(url);
+      }
     }),
   );
+  const bitmaps = results.filter((r): r is { url: string; bitmap: ImageBitmap } => r !== null);
 
   // Send a copy to each worker (ImageBitmap must be transferred, so we create
   // one copy per worker via createImageBitmap on the original)
