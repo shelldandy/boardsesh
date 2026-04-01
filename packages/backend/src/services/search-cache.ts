@@ -5,6 +5,9 @@ import type { ClimbSearchParams, ParsedBoardRouteParameters } from '../db/querie
 /** Default TTL for cached search results: 24 hours. */
 export const DEFAULT_SEARCH_CACHE_TTL = 86400;
 
+/** Bump when the cached data shape changes to invalidate all stale entries. */
+const CACHE_VERSION = 'v1';
+
 /**
  * Recursively sorts the keys of an object so that JSON.stringify produces
  * a deterministic string regardless of insertion order.
@@ -61,6 +64,7 @@ export class SearchCacheService {
 
     return [
       'boardsesh:climb-search',
+      CACHE_VERSION,
       suffix,
       params.board_name,
       params.layout_id,

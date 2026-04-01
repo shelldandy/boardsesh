@@ -76,7 +76,7 @@ describe('SearchCacheService', () => {
       const key = service.buildCacheKey(makeRouteParams(), {}, 'results');
 
       expect(key).toBeTruthy();
-      expect(key.startsWith('boardsesh:climb-search:results:')).toBe(true);
+      expect(key.startsWith('boardsesh:climb-search:v1:results:')).toBe(true);
     });
 
     it('matches expected key format', () => {
@@ -84,19 +84,20 @@ describe('SearchCacheService', () => {
       const key = service.buildCacheKey(params, { page: 1 }, 'results');
       const segments = key.split(':');
 
-      // boardsesh:climb-search:suffix:board:layout:size:sets:angle:hash
+      // boardsesh:climb-search:version:suffix:board:layout:size:sets:angle:hash
       expect(segments[0]).toBe('boardsesh');
       expect(segments[1]).toBe('climb-search');
-      expect(segments[2]).toBe('results');
-      expect(segments[3]).toBe('kilter');
-      expect(segments[4]).toBe('1');
-      expect(segments[5]).toBe('10');
-      // segments[6] is the sorted set_ids joined by comma
-      expect(segments[6]).toBe('1,2,3');
-      expect(segments[7]).toBe('40');
-      // segments[8] is the 16-char hex hash
-      expect(segments[8]).toMatch(/^[0-9a-f]{16}$/);
-      expect(segments).toHaveLength(9);
+      expect(segments[2]).toBe('v1');
+      expect(segments[3]).toBe('results');
+      expect(segments[4]).toBe('kilter');
+      expect(segments[5]).toBe('1');
+      expect(segments[6]).toBe('10');
+      // segments[7] is the sorted set_ids joined by comma
+      expect(segments[7]).toBe('1,2,3');
+      expect(segments[8]).toBe('40');
+      // segments[9] is the 16-char hex hash
+      expect(segments[9]).toMatch(/^[0-9a-f]{16}$/);
+      expect(segments).toHaveLength(10);
     });
 
     it('sorts nested objects recursively for deterministic hashing', () => {
