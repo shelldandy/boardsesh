@@ -22,12 +22,14 @@ type ClimbThumbnailProps = {
 const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, onNavigate, maxHeight }: ClimbThumbnailProps) => {
   const pathname = usePathname();
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const canvasReady = useCanvasRendererReady(!!isRustRendererEnabled);
+  const isWasmRendererEnabled = useFeatureFlag('wasm-rendering');
+  const canvasReady = useCanvasRendererReady(!!isWasmRendererEnabled);
+  const useRustRenderer = !!isRustRendererEnabled || !!isWasmRendererEnabled;
   const litUpHoldsMap = useMemo(
-    () => currentClimb && !isRustRendererEnabled
+    () => currentClimb && !useRustRenderer
       ? convertLitUpHoldsStringToMap(currentClimb.frames, boardDetails.board_name)[0]
       : undefined,
-    [currentClimb?.frames, boardDetails.board_name, isRustRendererEnabled],
+    [currentClimb?.frames, boardDetails.board_name, useRustRenderer],
   );
 
   const rustStyle: React.CSSProperties = {
@@ -47,7 +49,7 @@ const ClimbThumbnail = ({ boardDetails, currentClimb, enableNavigation = false, 
           style={rustStyle}
         />
       );
-    } else if (isRustRendererEnabled) {
+    } else if (useRustRenderer) {
       renderContent = (
         <BoardImageLayers
           boardDetails={boardDetails}

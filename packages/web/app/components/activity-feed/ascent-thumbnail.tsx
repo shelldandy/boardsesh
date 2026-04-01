@@ -35,7 +35,9 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
   isMirror,
 }) => {
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const canvasReady = useCanvasRendererReady(!!isRustRendererEnabled);
+  const isWasmRendererEnabled = useFeatureFlag('wasm-rendering');
+  const canvasReady = useCanvasRendererReady(!!isWasmRendererEnabled);
+  const useRustRenderer = !!isRustRendererEnabled || !!isWasmRendererEnabled;
   // Memoize board details to avoid recomputing on every render
   const boardDetails = useMemo<BoardDetails | null>(() => {
     if (!layoutId) return null;
@@ -59,11 +61,11 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
 
   // Memoize lit up holds map (only needed for legacy SVG renderer)
   const litUpHoldsMap = useMemo(() => {
-    if (isRustRendererEnabled) return undefined;
+    if (useRustRenderer) return undefined;
     if (!frames || !boardType) return undefined;
     const framesData = convertLitUpHoldsStringToMap(frames, boardType as BoardName);
     return framesData[0];
-  }, [frames, boardType, isRustRendererEnabled]);
+  }, [frames, boardType, useRustRenderer]);
 
   // Reuse the already-memoized boardDetails to build the climb view URL
   const climbViewPath = useMemo(() => {
@@ -100,7 +102,7 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
   if (!boardDetails || !climbViewPath) {
     return null;
   }
-  if (!isRustRendererEnabled && !litUpHoldsMap) {
+  if (!useRustRenderer && !litUpHoldsMap) {
     return null;
   }
 
@@ -121,7 +123,7 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
         style={thumbnailStyle}
       />
     );
-  } else if (isRustRendererEnabled && frames) {
+  } else if (useRustRenderer && frames) {
     thumbnailContent = (
       <BoardImageLayers
         boardDetails={boardDetails}

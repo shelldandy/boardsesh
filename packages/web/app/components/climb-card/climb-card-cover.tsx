@@ -19,13 +19,15 @@ type ClimbCardCoverProps = {
 const ClimbCardCover = ({ climb, boardDetails, onClick, onDoubleClick }: ClimbCardCoverProps) => {
   const { ref, onDoubleClick: handleDoubleClick } = useDoubleTap(onDoubleClick);
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const canvasReady = useCanvasRendererReady(!!isRustRendererEnabled);
+  const isWasmRendererEnabled = useFeatureFlag('wasm-rendering');
+  const canvasReady = useCanvasRendererReady(!!isWasmRendererEnabled);
+  const useRustRenderer = !!isRustRendererEnabled || !!isWasmRendererEnabled;
 
   const litUpHoldsMap = useMemo(
-    () => climb && !isRustRendererEnabled
+    () => climb && !useRustRenderer
       ? convertLitUpHoldsStringToMap(climb.frames, boardDetails.board_name)[0]
       : undefined,
-    [climb?.frames, boardDetails.board_name, isRustRendererEnabled],
+    [climb?.frames, boardDetails.board_name, useRustRenderer],
   );
 
   const rustStyle: React.CSSProperties = {
@@ -43,7 +45,7 @@ const ClimbCardCover = ({ climb, boardDetails, onClick, onDoubleClick }: ClimbCa
         style={rustStyle}
       />
     );
-  } else if (isRustRendererEnabled && climb) {
+  } else if (useRustRenderer && climb) {
     renderContent = (
       <BoardImageLayers
         boardDetails={boardDetails}
