@@ -73,7 +73,7 @@ export const CssBarChart = React.memo(function CssBarChart({
                   const segPct = total > 0 ? (seg.value / total) * 100 : 0;
                   return (
                     <div
-                      key={seg.label ? `${seg.label}-${i}` : i}
+                      key={`${i}-${seg.label ?? ''}`}
                       className={styles.barSegment}
                       style={{
                         height: `${segPct}%`,

@@ -27,6 +27,7 @@ vi.mock('@/app/theme/theme-config', () => ({
 
 import {
   filterLogbookByTimeframe,
+  buildAggregatedStackedBars,
   buildWeeklyBars,
   buildFlashRedpointBars,
   buildStatisticsSummary,
@@ -120,6 +121,138 @@ describe('filterLogbookByTimeframe', () => {
     // Cast to any to test the default branch
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(filterLogbookByTimeframe(logbook, 'unknown' as any, '', '')).toHaveLength(1);
+  });
+});
+
+// ── buildAggregatedStackedBars ────────────────────────────────────────────────
+
+describe('buildAggregatedStackedBars', () => {
+  it('returns null when no boards have ticks', () => {
+    expect(buildAggregatedStackedBars({}, 'all')).toBeNull();
+  });
+
+  it('returns null when all entries are attempts (no sends)', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ difficulty: 22, status: 'attempt', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }),
+      ],
+    };
+    expect(buildAggregatedStackedBars(ticks, 'all')).toBeNull();
+  });
+
+  it('returns null when entries lack climbUuid', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: undefined, layoutId: 1, boardType: 'kilter' }),
+      ],
+    };
+    expect(buildAggregatedStackedBars(ticks, 'all')).toBeNull();
+  });
+
+  it('groups climbs by grade and layout', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }),
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c2', layoutId: 1, boardType: 'kilter' }),
+        makeEntry({ difficulty: 16, status: 'send', climbUuid: 'c3', layoutId: 1, boardType: 'kilter' }),
+      ],
+    };
+    const result = buildAggregatedStackedBars(ticks, 'all');
+    expect(result).not.toBeNull();
+    expect(result!.bars).toHaveLength(2); // 6a and 7a
+
+    const bar7a = result!.bars.find((b) => b.label === '7a');
+    expect(bar7a).toBeDefined();
+    expect(bar7a!.segments[0].value).toBe(2); // 2 distinct climbs at 7a
+
+    const bar6a = result!.bars.find((b) => b.label === '6a');
+    expect(bar6a).toBeDefined();
+    expect(bar6a!.segments[0].value).toBe(1);
+  });
+
+  it('deduplicates climbs by climbUuid within the same grade+layout', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }),
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }), // duplicate
+      ],
+    };
+    const result = buildAggregatedStackedBars(ticks, 'all');
+    expect(result).not.toBeNull();
+    const bar7a = result!.bars.find((b) => b.label === '7a');
+    expect(bar7a!.segments[0].value).toBe(1); // deduplicated to 1
+  });
+
+  it('creates separate segments for different layouts', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }),
+      ],
+      tension: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c2', layoutId: 9, boardType: 'tension' }),
+      ],
+    };
+    const result = buildAggregatedStackedBars(ticks, 'all');
+    expect(result).not.toBeNull();
+    expect(result!.legendEntries).toHaveLength(2);
+    expect(result!.bars[0].segments).toHaveLength(2); // kilter + tension segments
+  });
+
+  it('returns legend entries sorted by layout order', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      tension: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c1', layoutId: 9, boardType: 'tension' }),
+      ],
+      kilter: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c2', layoutId: 1, boardType: 'kilter' }),
+      ],
+    };
+    const result = buildAggregatedStackedBars(ticks, 'all');
+    expect(result).not.toBeNull();
+    // Kilter comes before Tension in the layout order
+    expect(result!.legendEntries[0].label).toContain('Kilter');
+    expect(result!.legendEntries[1].label).toContain('Tension');
+  });
+
+  it('returns bars sorted by grade order', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }), // 7a
+        makeEntry({ difficulty: 16, status: 'send', climbUuid: 'c2', layoutId: 1, boardType: 'kilter' }), // 6a
+        makeEntry({ difficulty: 28, status: 'send', climbUuid: 'c3', layoutId: 1, boardType: 'kilter' }), // 8a
+      ],
+    };
+    const result = buildAggregatedStackedBars(ticks, 'all');
+    expect(result).not.toBeNull();
+    const labels = result!.bars.map((b) => b.label);
+    expect(labels).toEqual(['6a', '7a', '8a']);
+  });
+
+  it('filters by timeframe', () => {
+    const recentDate = dayjs().subtract(3, 'day').toISOString();
+    const oldDate = dayjs().subtract(2, 'month').toISOString();
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ climbed_at: recentDate, difficulty: 22, status: 'send', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }),
+        makeEntry({ climbed_at: oldDate, difficulty: 16, status: 'send', climbUuid: 'c2', layoutId: 1, boardType: 'kilter' }),
+      ],
+    };
+    const resultWeek = buildAggregatedStackedBars(ticks, 'lastWeek');
+    expect(resultWeek).not.toBeNull();
+    expect(resultWeek!.bars).toHaveLength(1); // only the recent 7a
+    expect(resultWeek!.bars[0].label).toBe('7a');
+  });
+
+  it('ignores entries with null difficulty', () => {
+    const ticks: Record<string, LogbookEntry[]> = {
+      kilter: [
+        makeEntry({ difficulty: null, status: 'send', climbUuid: 'c1', layoutId: 1, boardType: 'kilter' }),
+        makeEntry({ difficulty: 22, status: 'send', climbUuid: 'c2', layoutId: 1, boardType: 'kilter' }),
+      ],
+    };
+    const result = buildAggregatedStackedBars(ticks, 'all');
+    expect(result).not.toBeNull();
+    expect(result!.bars).toHaveLength(1); // only 7a, null is ignored
   });
 });
 
