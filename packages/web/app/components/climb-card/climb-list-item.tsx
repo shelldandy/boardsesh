@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import IconButton from '@mui/material/IconButton';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import { usePathname } from 'next/navigation';
 import SwipeableDrawer from '../swipeable-drawer/swipeable-drawer';
 import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined';
@@ -24,16 +23,14 @@ import { themeTokens } from '@/app/theme/theme-config';
 import { getGradeTintColor } from '@/app/lib/grade-colors';
 import { useIsDarkMode } from '@/app/hooks/use-is-dark-mode';
 import { getExcludedClimbActions } from '@/app/lib/climb-action-utils';
+import styles from './climb-list-item.module.css';
 
 // Keep swipe visuals aligned with gesture max distance
 const MAX_GESTURE_SWIPE = 180;
 const SHORT_ACTION_WIDTH = 120;
 const LONG_SWIPE_ACTION_WIDTH = MAX_GESTURE_SWIPE;
-const SHORT_RIGHT_SWIPE_THRESHOLD = 90;
-const LONG_RIGHT_SWIPE_THRESHOLD = 150;
-
-const SHORT_LEFT_SWIPE_THRESHOLD = 90;
-const LONG_LEFT_SWIPE_THRESHOLD = 150;
+const SHORT_SWIPE_THRESHOLD = 90;
+const LONG_SWIPE_THRESHOLD = 150;
 
 // Simple swipe constants for override mode (no long-swipe)
 const SIMPLE_MAX_SWIPE = 120;
@@ -141,7 +138,6 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
   const [isPlaylistSelectorOpen, setIsPlaylistSelectorOpen] = useState(false);
   // Single signed offset: positive = right swipe, negative = left swipe
   const [swipeOffset, setSwipeOffset] = useState(0);
-  const isDesktop = useMediaQuery('(min-width:768px)', { noSsr: true });
   const queueContext = useOptionalQueueContext();
   const addToQueue = queueContext?.addToQueue;
   const { isFavorited, toggleFavorite } = useFavorite({ climbUuid: climb.uuid });
@@ -191,9 +187,9 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
     onSwipeRight: hasSwipeOverrides ? handleOverrideSwipeRight : handleDefaultSwipeRight,
     onSwipeRightLong: hasSwipeOverrides ? undefined : handleDefaultSwipeRightLong,
     onSwipeOffsetChange: hasSwipeOverrides ? undefined : setSwipeOffset,
-    swipeThreshold: hasSwipeOverrides ? SIMPLE_SWIPE_THRESHOLD : SHORT_RIGHT_SWIPE_THRESHOLD,
-    longSwipeLeftThreshold: hasSwipeOverrides ? undefined : LONG_LEFT_SWIPE_THRESHOLD,
-    longSwipeRightThreshold: hasSwipeOverrides ? undefined : LONG_RIGHT_SWIPE_THRESHOLD,
+    swipeThreshold: hasSwipeOverrides ? SIMPLE_SWIPE_THRESHOLD : SHORT_SWIPE_THRESHOLD,
+    longSwipeLeftThreshold: hasSwipeOverrides ? undefined : LONG_SWIPE_THRESHOLD,
+    longSwipeRightThreshold: hasSwipeOverrides ? undefined : LONG_SWIPE_THRESHOLD,
     maxSwipe: hasSwipeOverrides ? SIMPLE_MAX_SWIPE : MAX_GESTURE_SWIPE,
     disabled: disableSwipe,
   });
@@ -215,14 +211,14 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
   const leftSwipeOffset = swipeOffset < 0 ? -swipeOffset : 0;
 
   const rightSwipeBaseOpacity = useMemo(
-    () => Math.min(1, rightSwipeOffset / SHORT_RIGHT_SWIPE_THRESHOLD),
+    () => Math.min(1, rightSwipeOffset / SHORT_SWIPE_THRESHOLD),
     [rightSwipeOffset],
   );
 
   const longSwipeBlend = useMemo(() => {
-    const transitionRange = LONG_RIGHT_SWIPE_THRESHOLD - SHORT_RIGHT_SWIPE_THRESHOLD;
+    const transitionRange = LONG_SWIPE_THRESHOLD - SHORT_SWIPE_THRESHOLD;
     if (transitionRange <= 0) return 1;
-    return Math.max(0, Math.min(1, (rightSwipeOffset - SHORT_RIGHT_SWIPE_THRESHOLD) / transitionRange));
+    return Math.max(0, Math.min(1, (rightSwipeOffset - SHORT_SWIPE_THRESHOLD) / transitionRange));
   }, [rightSwipeOffset]);
 
   const shortSwipeLayerOpacity = useMemo(
@@ -237,14 +233,14 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
 
   // Left-swipe blend computations (for right action panel)
   const leftSwipeBaseOpacity = useMemo(
-    () => Math.min(1, leftSwipeOffset / SHORT_LEFT_SWIPE_THRESHOLD),
+    () => Math.min(1, leftSwipeOffset / SHORT_SWIPE_THRESHOLD),
     [leftSwipeOffset],
   );
 
   const leftLongSwipeBlend = useMemo(() => {
-    const transitionRange = LONG_LEFT_SWIPE_THRESHOLD - SHORT_LEFT_SWIPE_THRESHOLD;
+    const transitionRange = LONG_SWIPE_THRESHOLD - SHORT_SWIPE_THRESHOLD;
     if (transitionRange <= 0) return 1;
-    return Math.max(0, Math.min(1, (leftSwipeOffset - SHORT_LEFT_SWIPE_THRESHOLD) / transitionRange));
+    return Math.max(0, Math.min(1, (leftSwipeOffset - SHORT_SWIPE_THRESHOLD) / transitionRange));
   }, [leftSwipeOffset]);
 
   const leftShortSwipeLayerOpacity = useMemo(
@@ -474,23 +470,22 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(({
 
           {/* Menu: custom slot or default ellipsis button (hidden on mobile — replaced by far left swipe) */}
           {menuSlot !== undefined ? menuSlot : (
-            isDesktop ? (
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onOpenActions) {
-                    onOpenActions(climb);
-                  } else {
-                    setIsPlaylistSelectorOpen(false);
-                    setIsActionsOpen(true);
-                  }
-                }}
-                style={iconButtonStyle}
-              >
-                <MoreHorizOutlined />
-              </IconButton>
-            ) : null
+            <IconButton
+              className={styles.menuButton}
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenActions) {
+                  onOpenActions(climb);
+                } else {
+                  setIsPlaylistSelectorOpen(false);
+                  setIsActionsOpen(true);
+                }
+              }}
+              style={iconButtonStyle}
+            >
+              <MoreHorizOutlined />
+            </IconButton>
           )}
         </div>
       </div>
