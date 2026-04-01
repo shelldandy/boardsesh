@@ -62,13 +62,13 @@ export interface ClimbSearchResult {
 
 /**
  * A single row from the climb search query.
- * Lightweight - no description (unbounded text), no litUpHoldsMap or other derived fields.
- * Features that need description should fetch it separately via the climb detail query.
+ * Lightweight - no litUpHoldsMap or other derived fields.
  */
 export interface ClimbRow {
   uuid: string;
   setter_username: string;
   name: string;
+  description: string;
   frames: string;
   angle: number;
   ascensionist_count: number;
@@ -78,4 +78,6 @@ export interface ClimbRow {
   difficulty_error: string;
   benchmark_difficulty: string | null;
   is_draft: boolean;
+  userAscents?: number;
+  userAttempts?: number;
 }

@@ -9,7 +9,7 @@ export type Climb = {
   layoutId?: number | null; // GraphQL nullable Int - layout the climb belongs to
   setter_username: string;
   name: string;
-  description?: string | null;
+  description: string;
   frames: string;
   angle: number;
   ascensionist_count: number;
@@ -29,7 +29,7 @@ export type ClimbInput = {
   uuid: string;
   setter_username: string;
   name: string;
-  description?: string | null;
+  description: string;
   frames: string;
   angle: number;
   ascensionist_count: number;

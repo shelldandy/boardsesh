@@ -6,6 +6,7 @@ const CLIMB_FIELDS = `
   uuid
   setter_username
   name
+  description
   frames
   angle
   ascensionist_count
@@ -15,6 +16,8 @@ const CLIMB_FIELDS = `
   difficulty_error
   mirrored
   benchmark_difficulty
+  userAscents
+  userAttempts
 `;
 
 const QUEUE_ITEM_USER_FIELDS = `
