@@ -101,13 +101,19 @@ const ClimbsList = ({
       prevClimbs.length > 0 &&
       climbs[0]?.uuid === prevClimbs[0]?.uuid;
 
+    // Detect same data with new reference (e.g. SSR → client handoff)
+    const isSameData = climbs.length === prevClimbs.length &&
+      climbs.length > 0 &&
+      climbs[0]?.uuid === prevClimbs[0]?.uuid &&
+      climbs[climbs.length - 1]?.uuid === prevClimbs[prevClimbs.length - 1]?.uuid;
+
     // Record batch start for any data change that adds items
     if (climbs.length > prevClimbs.length) {
       batchStartRef.current = { time: performance.now(), prevLength: prevClimbs.length, isInitial: prevClimbs.length === 0 };
     }
 
-    if (isAppend) {
-      // Show all items immediately — no batching for appended pages
+    if (isAppend || isSameData) {
+      // Show all items immediately — no batching for appended pages or unchanged data
       setVisibleCount(climbs.length);
     } else if (climbs.length > INITIAL_BATCH) {
       setVisibleCount(INITIAL_BATCH);
