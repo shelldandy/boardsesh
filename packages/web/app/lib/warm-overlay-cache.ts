@@ -22,7 +22,7 @@ export function scheduleOverlayWarming(options: {
         const isEnabled = await rustSvgRendering();
         if (!isEnabled) return;
 
-        const { boardDetails, climbs, variant, maxImages = 12 } = options;
+        const { boardDetails, climbs, variant, maxImages = 20 } = options;
         const isThumbnail = variant === 'thumbnail';
         const toWarm = climbs.slice(0, maxImages);
 
