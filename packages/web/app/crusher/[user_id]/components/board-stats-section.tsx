@@ -36,6 +36,10 @@ interface BoardStatsSectionProps {
   weeklyBars: CssBarChartBar[] | null;
   flashRedpointBars: GroupedBar[] | null;
   isOwnProfile: boolean;
+  weeklyFromDate: string;
+  onWeeklyFromDateChange: (date: string) => void;
+  weeklyToDate: string;
+  onWeeklyToDateChange: (date: string) => void;
 }
 
 export default function BoardStatsSection({
@@ -52,6 +56,10 @@ export default function BoardStatsSection({
   weeklyBars,
   flashRedpointBars,
   isOwnProfile,
+  weeklyFromDate,
+  onWeeklyFromDateChange,
+  weeklyToDate,
+  onWeeklyToDateChange,
 }: BoardStatsSectionProps) {
   return (
     <MuiCard className={styles.statsCard}><CardContent>
@@ -119,9 +127,25 @@ export default function BoardStatsSection({
           {/* Weekly Attempts */}
           {weeklyBars && (
             <div className={styles.boardChartSection}>
-              <Typography variant="body2" component="span" fontWeight={600} className={styles.boardChartTitle}>
-                Weekly Attempts
-              </Typography>
+              <div className={styles.boardChartHeader}>
+                <Typography variant="body2" component="span" fontWeight={600} className={styles.boardChartTitle}>
+                  Weekly Attempts
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" className={styles.weeklyDateRange}>
+                  <MuiDatePicker
+                    value={weeklyFromDate ? dayjs(weeklyFromDate) : null}
+                    onChange={(val) => onWeeklyFromDateChange(val ? val.format('YYYY-MM-DD') : '')}
+                    slotProps={{ textField: { size: 'small', placeholder: 'From' } }}
+                    label="From"
+                  />
+                  <MuiDatePicker
+                    value={weeklyToDate ? dayjs(weeklyToDate) : null}
+                    onChange={(val) => onWeeklyToDateChange(val ? val.format('YYYY-MM-DD') : '')}
+                    slotProps={{ textField: { size: 'small', placeholder: 'To' } }}
+                    label="To"
+                  />
+                </Stack>
+              </div>
               <CssBarChart bars={weeklyBars} height={180} mobileHeight={120} gap={3} ariaLabel="Weekly attempts by difficulty" />
             </div>
           )}

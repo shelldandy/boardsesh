@@ -46,6 +46,8 @@ export function useProfileData(userId: string) {
   const [profileStats, setProfileStats] = useState<GetUserProfileStatsQueryResponse['userProfileStats'] | null>(null);
   const [loadingProfileStats, setLoadingProfileStats] = useState(false);
   const [activeTab, setActiveTab] = useState<'activity' | 'createdClimbs'>('activity');
+  const [weeklyFromDate, setWeeklyFromDate] = useState<string>('');
+  const [weeklyToDate, setWeeklyToDate] = useState<string>('');
 
   const isOwnProfile = session?.user?.id === userId;
   const hasCredentials = (profile?.credentials?.length ?? 0) > 0;
@@ -164,8 +166,8 @@ export function useProfileData(userId: string) {
   );
 
   const weeklyBars = useMemo(
-    () => buildWeeklyBars(filteredLogbook),
-    [filteredLogbook],
+    () => buildWeeklyBars(filteredLogbook, weeklyFromDate || undefined, weeklyToDate || undefined),
+    [filteredLogbook, weeklyFromDate, weeklyToDate],
   );
 
   const flashRedpointBars = useMemo(
@@ -203,6 +205,10 @@ export function useProfileData(userId: string) {
     setToDate,
     weeklyBars,
     flashRedpointBars,
+    weeklyFromDate,
+    setWeeklyFromDate,
+    weeklyToDate,
+    setWeeklyToDate,
 
     // Aggregated stats
     aggregatedTimeframe,

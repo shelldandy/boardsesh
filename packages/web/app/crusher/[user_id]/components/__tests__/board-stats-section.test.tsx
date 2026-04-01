@@ -44,6 +44,10 @@ const defaultProps = {
   weeklyBars: null,
   flashRedpointBars: null,
   isOwnProfile: false,
+  weeklyFromDate: '',
+  onWeeklyFromDateChange: vi.fn(),
+  weeklyToDate: '',
+  onWeeklyToDateChange: vi.fn(),
 };
 
 describe('BoardStatsSection empty state conditional rendering', () => {

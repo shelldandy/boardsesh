@@ -152,23 +152,39 @@ export function buildAggregatedStackedBars(
 
 // ── Weekly stacked bars ─────────────────────────────────────────────
 
-export function buildWeeklyBars(filteredLogbook: LogbookEntry[]): CssBarChartBar[] | null {
+export function buildWeeklyBars(
+  filteredLogbook: LogbookEntry[],
+  weeklyFromDate?: string,
+  weeklyToDate?: string,
+): CssBarChartBar[] | null {
   if (filteredLogbook.length === 0) return null;
 
-  const MAX_WEEKS = 26;
+  // Apply weekly date filter if provided
+  const entries = (weeklyFromDate || weeklyToDate)
+    ? filteredLogbook.filter((entry) => {
+        const d = dayjs(entry.climbed_at);
+        if (weeklyFromDate && d.isBefore(dayjs(weeklyFromDate), 'day')) return false;
+        if (weeklyToDate && d.isAfter(dayjs(weeklyToDate), 'day')) return false;
+        return true;
+      })
+    : filteredLogbook;
+
+  if (entries.length === 0) return null;
+
+  const DEFAULT_MAX_WEEKS = 52;
   const allWeeks: string[] = [];
-  const first = dayjs(filteredLogbook[filteredLogbook.length - 1]?.climbed_at).startOf('isoWeek');
-  const last = dayjs(filteredLogbook[0]?.climbed_at).endOf('isoWeek');
+  const first = dayjs(entries[entries.length - 1]?.climbed_at).startOf('isoWeek');
+  const last = dayjs(entries[0]?.climbed_at).endOf('isoWeek');
   let current = first;
   while (current.isBefore(last) || current.isSame(last)) {
     allWeeks.push(`W${current.isoWeek()}`);
     current = current.add(1, 'week');
   }
-  // Limit to most recent weeks to keep the chart readable
-  const weeks = allWeeks.length > MAX_WEEKS ? allWeeks.slice(-MAX_WEEKS) : allWeeks;
+  // Cap at default max to keep the chart readable when no date range is set
+  const weeks = allWeeks.length > DEFAULT_MAX_WEEKS ? allWeeks.slice(-DEFAULT_MAX_WEEKS) : allWeeks;
 
   const weeklyData: Record<string, Record<string, number>> = {};
-  filteredLogbook.forEach((entry) => {
+  entries.forEach((entry) => {
     if (entry.difficulty === null) return;
     const week = `W${dayjs(entry.climbed_at).isoWeek()}`;
     const difficulty = difficultyMapping[entry.difficulty];
