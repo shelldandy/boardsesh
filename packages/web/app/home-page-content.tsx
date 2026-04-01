@@ -27,6 +27,7 @@ import { constructBoardSlugListUrl, constructClimbListWithSlugs, tryConstructSlu
 import { getDefaultAngleForBoard } from '@/app/lib/board-config-for-playlist';
 import type { BoardConfigData } from '@/app/lib/server-board-configs';
 import type { UserBoard, PopularBoardConfig } from '@boardsesh/shared-schema';
+import { setSessionCookie } from '@/app/lib/session-cookie';
 
 function deriveFindNearbyStatus({
   locationEnabled,
@@ -230,8 +231,8 @@ export default function HomePageContent({ boardConfigs, initialPopularConfigs }:
                   // Legacy/custom path — navigate directly
                   url = activeSession.boardPath;
                 }
-                const separator = url.includes('?') ? '&' : '?';
-                router.push(`${url}${separator}session=${activeSession.sessionId}`);
+                setSessionCookie(activeSession.sessionId);
+                router.push(url);
               } else {
                 setSeshDrawerOpen(true);
               }
