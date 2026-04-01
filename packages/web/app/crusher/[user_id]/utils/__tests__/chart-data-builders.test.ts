@@ -475,8 +475,8 @@ describe('buildFlashRedpointBars', () => {
 
   it('returns grades in GRADE_ORDER (ascending difficulty)', () => {
     const logbook = [
-      makeEntry({ difficulty: 24, tries: 1 }), // 7b — added last in logbook
-      makeEntry({ difficulty: 22, tries: 1 }), // 7a — added first in logbook
+      makeEntry({ difficulty: 24, tries: 1 }), // V8 — added last in logbook
+      makeEntry({ difficulty: 22, tries: 1 }), // V6 — added first in logbook
     ];
     const result = buildFlashRedpointBars(logbook);
     expect(result).not.toBeNull();
@@ -552,11 +552,11 @@ describe('buildAggregatedFlashRedpointBars', () => {
   it('combines flash/redpoint counts from multiple boards', () => {
     const ticks: Record<string, LogbookEntry[]> = {
       kilter: [
-        makeEntry({ difficulty: 22, tries: 1 }), // flash 7a
-        makeEntry({ difficulty: 22, tries: 3 }), // redpoint 7a (3 tries)
+        makeEntry({ difficulty: 22, tries: 1 }), // flash V6
+        makeEntry({ difficulty: 22, tries: 3 }), // redpoint V6 (3 tries)
       ],
       tension: [
-        makeEntry({ difficulty: 22, tries: 1 }), // flash 7a
+        makeEntry({ difficulty: 22, tries: 1 }), // flash V6
       ],
     };
     const result = buildAggregatedFlashRedpointBars(ticks, 'all');
@@ -595,8 +595,8 @@ describe('buildAggregatedFlashRedpointBars', () => {
 
   it('returns grades in correct order across boards', () => {
     const ticks: Record<string, LogbookEntry[]> = {
-      kilter: [makeEntry({ difficulty: 28, tries: 1 })],  // 8a
-      tension: [makeEntry({ difficulty: 16, tries: 1 })], // 6a
+      kilter: [makeEntry({ difficulty: 28, tries: 1 })],  // V11
+      tension: [makeEntry({ difficulty: 16, tries: 1 })], // V3
     };
     const result = buildAggregatedFlashRedpointBars(ticks, 'all');
     expect(result).not.toBeNull();
