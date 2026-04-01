@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Climb, ParsedBoardRouteParameters, BoardDetails } from '@/app/lib/types';
 import { useQueueContext } from '../graphql-queue';
 import ClimbsList from './climbs-list';
+import { stabilizeClimbArrayRef } from './climb-list-utils';
 import BoardCreationBanner from '../board-entity/board-creation-banner';
 import RecentSearchPills from '../search-drawer/recent-search-pills';
 import AngleSelector from './angle-selector';
@@ -56,15 +57,8 @@ const BoardPageClimbsList = ({
 
     // Return the previous reference when content hasn't changed to avoid
     // triggering downstream progressive rendering during SSR→client handoff.
-    const prev = prevClimbsRef.current;
-    if (
-      deduped.length === prev.length &&
-      deduped.length > 0 &&
-      deduped[0]?.uuid === prev[0]?.uuid &&
-      deduped[deduped.length - 1]?.uuid === prev[prev.length - 1]?.uuid
-    ) {
-      return prev;
-    }
+    const stable = stabilizeClimbArrayRef(deduped, prevClimbsRef.current);
+    if (stable !== deduped) return stable;
 
     prevClimbsRef.current = deduped;
     return deduped;
