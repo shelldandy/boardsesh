@@ -10,7 +10,7 @@ describe('formatAscents', () => {
   });
 
   it('formats 1000–9999 with 1 decimal + k', () => {
-    expect(formatAscents(1000)).toBe('1.0k');
+    expect(formatAscents(1000)).toBe('1k');
     expect(formatAscents(1900)).toBe('1.9k');
     expect(formatAscents(2500)).toBe('2.5k');
     expect(formatAscents(9499)).toBe('9.5k');

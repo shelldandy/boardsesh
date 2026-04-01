@@ -4,8 +4,8 @@ export function formatAscents(count: number): string {
   const thousands = count / 1000;
   if (thousands < 10) {
     const fixed = thousands.toFixed(1);
-    // Avoid "10.0k" at boundary — drop decimal when it rounds to 10+
-    return fixed.startsWith('10') ? '10k' : `${fixed}k`;
+    // Drop trailing ".0" (e.g. 9960 → "10.0" → "10k")
+    return `${fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed}k`;
   }
   return `${Math.round(thousands)}k`;
 }
