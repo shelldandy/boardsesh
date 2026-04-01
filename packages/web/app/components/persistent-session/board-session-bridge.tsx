@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { usePersistentSession } from './persistent-session-context';
 import { BoardDetails, ParsedBoardRouteParameters } from '@/app/lib/types';
 import { getBaseBoardPath } from '@/app/lib/url-utils';
-import { getSessionCookie } from '@/app/lib/session-cookie';
+import { getClimbSessionCookie } from '@/app/lib/climb-session-cookie';
 
 interface BoardSessionBridgeProps {
   boardDetails: BoardDetails;
@@ -23,7 +23,7 @@ const BoardSessionBridge: React.FC<BoardSessionBridgeProps> = ({
   children,
 }) => {
   const pathname = usePathname();
-  const sessionIdFromCookie = getSessionCookie();
+  const sessionIdFromCookie = getClimbSessionCookie();
 
   const { activeSession, activateSession } = usePersistentSession();
 

@@ -3,7 +3,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { getBaseBoardPath } from '@/app/lib/url-utils';
 import { saveSessionToHistory } from '@/app/lib/session-history-db';
-import { getSessionCookie, setSessionCookie, clearSessionCookie } from '@/app/lib/session-cookie';
+import { getClimbSessionCookie, setClimbSessionCookie, clearClimbSessionCookie } from '@/app/lib/climb-session-cookie';
 import { usePersistentSession } from '../../persistent-session';
 import { useConnectionSettings } from '../../connection-manager/connection-settings-context';
 import { useWsAuthToken } from '@/app/hooks/use-ws-auth-token';
@@ -38,7 +38,7 @@ export function useSessionIdManagement({
   // Session ID source differs by mode:
   // - Board mode: read from cookie (previously URL ?session= param)
   // - Off-board mode: read from persistent IndexedDB storage
-  const sessionIdFromCookie = getSessionCookie();
+  const sessionIdFromCookie = getClimbSessionCookie();
   const persistentSessionId = persistentSession.activeSession?.sessionId ?? null;
   const [activeSessionId, setActiveSessionId] = useState<string | null>(
     isOffBoardMode ? persistentSessionId : sessionIdFromCookie,
@@ -49,7 +49,7 @@ export function useSessionIdManagement({
     if (isOffBoardMode) return;
     const sessionFromUrl = searchParams.get('session');
     if (sessionFromUrl) {
-      setSessionCookie(sessionFromUrl);
+      setClimbSessionCookie(sessionFromUrl);
       setActiveSessionId(sessionFromUrl);
       const params = new URLSearchParams(searchParams.toString());
       params.delete('session');
@@ -96,7 +96,7 @@ export function useSessionIdManagement({
         );
       }
 
-      setSessionCookie(newSessionId);
+      setClimbSessionCookie(newSessionId);
       setActiveSessionId(newSessionId);
 
       await saveSessionToHistory({
@@ -117,7 +117,7 @@ export function useSessionIdManagement({
       if (isOffBoardMode) throw new Error('Cannot join a session outside of a board route');
       if (!backendUrl) throw new Error('Backend URL not configured');
 
-      setSessionCookie(sessionIdToJoin);
+      setClimbSessionCookie(sessionIdToJoin);
       setActiveSessionId(sessionIdToJoin);
 
       await saveSessionToHistory({
@@ -134,7 +134,7 @@ export function useSessionIdManagement({
   const endSession = useCallback(() => {
     const endingSessionId = activeSessionId;
     persistentSession.deactivateSession();
-    clearSessionCookie();
+    clearClimbSessionCookie();
     setActiveSessionId(null);
 
     if (endingSessionId && wsAuthToken) {

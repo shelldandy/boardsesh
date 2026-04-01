@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { SUPPORTED_BOARDS } from './app/lib/board-data';
 import { getListPageCacheTTL } from './app/lib/list-page-cache';
-import { BOARDSESH_SESSION_COOKIE } from './app/lib/session-cookie';
+import { CLIMB_SESSION_COOKIE } from './app/lib/climb-session-cookie';
 
 const SPECIAL_ROUTES = ['angles', 'grades']; // routes that don't need board validation
 
@@ -47,7 +47,7 @@ export function middleware(request: NextRequest) {
     const cleanUrl = request.nextUrl.clone();
     cleanUrl.searchParams.delete('session');
     const response = NextResponse.redirect(cleanUrl, 307);
-    response.cookies.set(BOARDSESH_SESSION_COOKIE, sessionParam, {
+    response.cookies.set(CLIMB_SESSION_COOKIE, sessionParam, {
       path: '/',
       sameSite: 'lax',
       maxAge: 86400,

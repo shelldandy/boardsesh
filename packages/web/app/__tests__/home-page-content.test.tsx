@@ -6,15 +6,15 @@ import type { ActiveSessionInfo } from '@/app/components/persistent-session/type
 // --- Mocks ---
 
 const mockPush = vi.fn();
-const mockSetSessionCookie = vi.fn();
+const mockSetClimbSessionCookie = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(),
 }));
 
-vi.mock('@/app/lib/session-cookie', () => ({
-  setSessionCookie: (...args: unknown[]) => mockSetSessionCookie(...args),
+vi.mock('@/app/lib/climb-session-cookie', () => ({
+  setClimbSessionCookie: (...args: unknown[]) => mockSetClimbSessionCookie(...args),
 }));
 
 vi.mock('next-auth/react', () => ({
@@ -137,7 +137,7 @@ describe('HomePageContent', () => {
       });
       render(<HomePageContent {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /continue climbing/i }));
-      expect(mockSetSessionCookie).toHaveBeenCalledWith('session-123');
+      expect(mockSetClimbSessionCookie).toHaveBeenCalledWith('session-123');
       expect(mockPush).toHaveBeenCalledWith('/b/kilter-original-12x12/40/list');
     });
 
@@ -154,7 +154,7 @@ describe('HomePageContent', () => {
       });
       render(<HomePageContent {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /continue climbing/i }));
-      expect(mockSetSessionCookie).toHaveBeenCalledWith('session-123');
+      expect(mockSetClimbSessionCookie).toHaveBeenCalledWith('session-123');
       expect(mockPush).toHaveBeenCalledWith('/b/tension-tb2-original/25/list');
     });
 
@@ -164,7 +164,7 @@ describe('HomePageContent', () => {
       });
       render(<HomePageContent {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /continue climbing/i }));
-      expect(mockSetSessionCookie).toHaveBeenCalledWith('session-123');
+      expect(mockSetClimbSessionCookie).toHaveBeenCalledWith('session-123');
       expect(mockPush).toHaveBeenCalledWith('/kilter/1/10/1,2/40');
     });
 
@@ -189,7 +189,7 @@ describe('HomePageContent', () => {
       render(<HomePageContent {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /continue climbing/i }));
       // Should use parsedParams.angle (45), not the 40 from boardPath
-      expect(mockSetSessionCookie).toHaveBeenCalledWith('session-123');
+      expect(mockSetClimbSessionCookie).toHaveBeenCalledWith('session-123');
       expect(mockPush).toHaveBeenCalledWith('/b/my-board/45/list');
     });
 
@@ -206,7 +206,7 @@ describe('HomePageContent', () => {
       });
       render(<HomePageContent {...defaultProps} />);
       fireEvent.click(screen.getByRole('button', { name: /continue climbing/i }));
-      expect(mockSetSessionCookie).toHaveBeenCalledWith('session-123');
+      expect(mockSetClimbSessionCookie).toHaveBeenCalledWith('session-123');
       expect(mockPush).toHaveBeenCalledWith('/b/tension-board/-20/list');
     });
   });

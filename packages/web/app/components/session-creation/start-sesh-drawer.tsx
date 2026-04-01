@@ -18,7 +18,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { constructBoardSlugListUrl } from '@/app/lib/url-utils';
 import AuthModal from '../auth/auth-modal';
-import { setSessionCookie } from '@/app/lib/session-cookie';
+import { setClimbSessionCookie } from '@/app/lib/climb-session-cookie';
 import { useMyBoards } from '@/app/hooks/use-my-boards';
 import { BoardConfigData } from '@/app/lib/server-board-configs';
 import type { StoredBoardConfig } from '@/app/lib/saved-boards-db';
@@ -87,7 +87,7 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
       }
 
       const sessionId = await createSession(formData, boardPath);
-      setSessionCookie(sessionId);
+      setClimbSessionCookie(sessionId);
       router.push(navigateUrl);
 
       handleClose();

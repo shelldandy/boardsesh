@@ -4,7 +4,7 @@ import { dbz } from '@/app/lib/db/db';
 import { boardSessions } from '@/app/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { SessionIdSchema } from '@/app/lib/validation/session';
-import { BOARDSESH_SESSION_COOKIE } from '@/app/lib/session-cookie';
+import { CLIMB_SESSION_COOKIE } from '@/app/lib/climb-session-cookie';
 import InvalidSessionError from './invalid-session-error';
 
 interface JoinPageProps {
@@ -80,7 +80,7 @@ export default async function JoinPage({ params }: JoinPageProps) {
   const redirectPath = ensureViewSegment(cleanPath);
 
   const cookieStore = await cookies();
-  cookieStore.set(BOARDSESH_SESSION_COOKIE, validatedSessionId, {
+  cookieStore.set(CLIMB_SESSION_COOKIE, validatedSessionId, {
     path: '/',
     sameSite: 'lax',
     maxAge: 86400,
