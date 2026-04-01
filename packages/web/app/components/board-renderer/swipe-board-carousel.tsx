@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import BoardRenderer from './board-renderer';
+import BoardImageLayers from './board-image-layers';
 import BoardCanvasRenderer from './board-canvas-renderer';
 import {
   useCardSwipeNavigation,
@@ -11,7 +12,7 @@ import {
 } from '@/app/hooks/use-card-swipe-navigation';
 import type { BoardDetails } from '@/app/lib/types';
 import { useFeatureFlag } from '@/app/components/providers/feature-flags-provider';
-import { isWorkerRenderingSupported } from '@/app/lib/board-render-worker/worker-manager';
+import { useCanvasRendererReady } from '@/app/lib/board-render-worker/worker-manager';
 import { convertLitUpHoldsStringToMap } from './util';
 import styles from './swipe-board-carousel.module.css';
 
@@ -97,21 +98,36 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
 
   const transition = getSwipeTransition();
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const useCanvasRenderer = isRustRendererEnabled && isWorkerRenderingSupported();
+  const canvasReady = useCanvasRendererReady(isRustRendererEnabled);
 
   const currentLitUpHoldsMap = useMemo(
-    () => useCanvasRenderer ? undefined : convertLitUpHoldsStringToMap(currentClimb.frames, boardDetails.board_name)[0],
-    [currentClimb.frames, boardDetails.board_name, useCanvasRenderer],
+    () => isRustRendererEnabled
+      ? undefined
+      : convertLitUpHoldsStringToMap(currentClimb.frames, boardDetails.board_name)[0],
+    [currentClimb.frames, boardDetails.board_name, isRustRendererEnabled],
   );
   const peekLitUpHoldsMap = useMemo(
-    () => useCanvasRenderer || !peekClimb ? undefined : convertLitUpHoldsStringToMap(peekClimb.frames, boardDetails.board_name)[0],
-    [peekClimb, boardDetails.board_name, useCanvasRenderer],
+    () => isRustRendererEnabled || !peekClimb
+      ? undefined
+      : convertLitUpHoldsStringToMap(peekClimb.frames, boardDetails.board_name)[0],
+    [peekClimb, boardDetails.board_name, isRustRendererEnabled],
   );
 
   const renderBoard = (climb: ClimbBoardData, litUpHoldsMap: ReturnType<typeof convertLitUpHoldsStringToMap>[0] | undefined) => {
-    if (useCanvasRenderer) {
+    if (canvasReady) {
       return (
         <BoardCanvasRenderer
+          boardDetails={boardDetails}
+          frames={climb.frames}
+          mirrored={!!climb.mirrored}
+          contain
+          style={{ width: '100%', height: '100%' }}
+        />
+      );
+    }
+    if (isRustRendererEnabled) {
+      return (
+        <BoardImageLayers
           boardDetails={boardDetails}
           frames={climb.frames}
           mirrored={!!climb.mirrored}

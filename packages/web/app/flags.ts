@@ -14,7 +14,7 @@ async function identify() {
 
 export const rustSvgRendering = flag({
   key: 'rust-svg-rendering',
-  defaultValue: false,
+  defaultValue: true,
   description: 'Use Rust WASM renderer for board overlays instead of SVG',
   identify,
   options: [
@@ -25,7 +25,7 @@ export const rustSvgRendering = flag({
   // When no adapter (local dev), use decide() which falls back to defaultValue.
   ...(adapter
     ? { adapter }
-    : { decide: () => false as boolean }),
+    : { decide: () => true as boolean }),
 });
 
 // Add new flags above this line, then add them to allFlags below.

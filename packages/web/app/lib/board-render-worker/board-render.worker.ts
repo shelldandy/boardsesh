@@ -7,6 +7,7 @@
 
 // Message types shared with worker-manager.ts
 export type RenderRequest = {
+  type?: 'render';
   id: number;
   boardWidth: number;
   boardHeight: number;
@@ -17,7 +18,17 @@ export type RenderRequest = {
   holds: Array<{ id: number; mirrored_hold_id?: number | null; cx: number; cy: number; r: number }>;
   holdStateMap: Record<number, { color: string }>;
   backgroundUrls: string[];
+  /** Origin URL for resolving WASM assets (sent from main thread) */
+  origin?: string;
 };
+
+/** Pre-decoded background images sent from main thread to avoid per-worker fetching */
+export type PreloadImagesMessage = {
+  type: 'preload-images';
+  images: Array<{ url: string; bitmap: ImageBitmap }>;
+};
+
+export type WorkerMessage = RenderRequest | PreloadImagesMessage;
 
 export type RenderResponse =
   | { id: number; bitmap: ImageBitmap }
@@ -27,15 +38,21 @@ export type RenderResponse =
 let wasmRenderOverlay: ((configJson: string) => Uint8Array) | null = null;
 let wasmInitPromise: Promise<void> | null = null;
 
+// The origin is sent from the main thread on first message, or we try self.location
+let baseOrigin: string | null = null;
+
 async function ensureWasmInitialized(): Promise<void> {
   if (wasmRenderOverlay) return;
   if (!wasmInitPromise) {
     wasmInitPromise = (async () => {
+      // Resolve absolute URLs for WASM assets — relative paths don't work in Workers
+      // because the worker's base URL may be a blob: URL from the bundler.
+      const origin = baseOrigin || self.location.origin;
+      const glueUrl = `${origin}/wasm/board_renderer_wasm.js`;
+      const wasmUrl = `${origin}/wasm/board_renderer_wasm_bg.wasm`;
       // Dynamic import of the wasm-pack glue code
-      // The glue's default export accepts a URL to the .wasm file
-      // @ts-expect-error Runtime-resolved public asset, no TS declarations
-      const wasmModule = await import(/* webpackIgnore: true */ '/wasm/board_renderer_wasm.js');
-      await wasmModule.default('/wasm/board_renderer_wasm_bg.wasm');
+      const wasmModule = await import(/* webpackIgnore: true */ glueUrl);
+      await wasmModule.default(wasmUrl);
       wasmRenderOverlay = wasmModule.render_overlay;
     })();
   }
@@ -116,8 +133,22 @@ async function renderBoard(request: RenderRequest): Promise<ImageBitmap> {
 }
 
 // --- Worker message handler ---
-self.onmessage = async (event: MessageEvent<RenderRequest>) => {
-  const request = event.data;
+self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+  const msg = event.data;
+
+  // Handle pre-loaded background images from main thread
+  if (msg.type === 'preload-images') {
+    for (const { url, bitmap } of msg.images) {
+      bgImageCache.set(url, bitmap);
+    }
+    return;
+  }
+
+  // Render request
+  const request = msg as RenderRequest;
+  if (request.origin && !baseOrigin) {
+    baseOrigin = request.origin;
+  }
   try {
     const bitmap = await renderBoard(request);
     const response: RenderResponse = { id: request.id, bitmap };

@@ -1,15 +1,18 @@
 /**
- * Singleton manager for the board render Web Worker.
+ * Pool manager for board render Web Workers.
  *
- * Provides a Promise-based API to request board renders from the worker,
- * multiplexing multiple concurrent requests over a single worker instance.
+ * Distributes render requests across a small pool of workers (2 by default,
+ * tuned for mobile) using round-robin scheduling. Deduplicates in-flight
+ * requests so the same board+frames combo is only rendered once.
  */
 
-import type { RenderRequest, RenderResponse } from './board-render.worker';
+import React from 'react';
+import type { RenderRequest, RenderResponse, PreloadImagesMessage } from './board-render.worker';
 import type { BoardDetails } from '@/app/lib/types';
 import type { HoldRenderData } from '@/app/components/board-renderer/types';
 import { getImageUrl } from '@/app/components/board-renderer/util';
 import { HOLD_STATE_MAP } from '@/app/components/board-renderer/types';
+import { isCapacitor } from '@/app/lib/ble/capacitor-utils';
 
 // Thumbnail width matches server-side constant
 const THUMBNAIL_WIDTH = 300;
@@ -35,40 +38,115 @@ function cachePut(key: string, bitmap: ImageBitmap): void {
   bitmapCache.set(key, bitmap);
 }
 
-// Pending request tracking
+// --- Worker pool ---
+// Capacitor WebView is a dedicated app context — can afford more workers.
+// Browser tabs share resources, so keep it lighter.
+function getPoolSize(): number {
+  if (typeof window === 'undefined') return 1;
+  return isCapacitor() ? 5 : 3;
+}
+
 type PendingRequest = {
   resolve: (bitmap: ImageBitmap) => void;
   reject: (error: Error) => void;
 };
 
-let worker: Worker | null = null;
+let workers: Worker[] | null = null;
+let nextWorkerIndex = 0;
 let nextRequestId = 0;
 const pendingRequests = new Map<number, PendingRequest>();
 
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL('./board-render.worker.ts', import.meta.url));
-    worker.onmessage = (event: MessageEvent<RenderResponse>) => {
-      const response = event.data;
-      const pending = pendingRequests.get(response.id);
-      if (!pending) return;
-      pendingRequests.delete(response.id);
+// Deduplication: in-flight requests by cache key
+const inflightRequests = new Map<string, Promise<ImageBitmap>>();
 
-      if ('error' in response) {
-        pending.reject(new Error(response.error));
-      } else {
-        pending.resolve(response.bitmap);
-      }
-    };
-    worker.onerror = (event) => {
-      // Reject all pending requests on worker error
-      for (const [id, pending] of pendingRequests) {
-        pending.reject(new Error(`Worker error: ${event.message}`));
-        pendingRequests.delete(id);
-      }
-    };
+function getWorkerPool(): Worker[] {
+  if (!workers) {
+    workers = Array.from({ length: getPoolSize() }, () => {
+      const w = new Worker(new URL('./board-render.worker.ts', import.meta.url));
+      w.onmessage = (event: MessageEvent<RenderResponse>) => {
+        const response = event.data;
+        const pending = pendingRequests.get(response.id);
+        if (!pending) return;
+        pendingRequests.delete(response.id);
+
+        if ('error' in response) {
+          pending.reject(new Error(response.error));
+        } else {
+          pending.resolve(response.bitmap);
+        }
+      };
+      w.onerror = (event) => {
+        // Reject all pending requests on worker error
+        for (const [id, pending] of pendingRequests) {
+          pending.reject(new Error(`Worker error: ${event.message}`));
+          pendingRequests.delete(id);
+        }
+      };
+      return w;
+    });
   }
-  return worker;
+  return workers;
+}
+
+function getNextWorker(): Worker {
+  const pool = getWorkerPool();
+  const w = pool[nextWorkerIndex % pool.length];
+  nextWorkerIndex++;
+  return w;
+}
+
+// --- Background image pre-fetch & distribution ---
+// Tracks which URLs have already been pre-loaded into the worker pool
+const preloadedUrls = new Set<string>();
+// In-flight pre-load fetches so we don't double-fetch
+const preloadInflight = new Map<string, Promise<ImageBitmap>>();
+
+/**
+ * Fetch a background image on the main thread (leverages browser cache from SSR),
+ * then send copies to every worker so they never need to fetch it themselves.
+ */
+async function ensureImagesPreloaded(urls: string[]): Promise<void> {
+  const newUrls = urls.filter((u) => !preloadedUrls.has(u));
+  if (newUrls.length === 0) return;
+
+  // Fetch & decode each new URL once on the main thread
+  const bitmaps = await Promise.all(
+    newUrls.map(async (url) => {
+      let promise = preloadInflight.get(url);
+      if (!promise) {
+        promise = fetch(url)
+          .then((r) => r.blob())
+          .then((blob) => createImageBitmap(blob));
+        preloadInflight.set(url, promise);
+      }
+      const bitmap = await promise;
+      preloadInflight.delete(url);
+      return { url, bitmap };
+    }),
+  );
+
+  // Send a copy to each worker (ImageBitmap must be transferred, so we create
+  // one copy per worker via createImageBitmap on the original)
+  const pool = getWorkerPool();
+  for (let i = 0; i < pool.length; i++) {
+    const copies = await Promise.all(
+      bitmaps.map(async ({ url, bitmap }) => ({
+        url,
+        bitmap: await createImageBitmap(bitmap),
+      })),
+    );
+    const msg: PreloadImagesMessage = { type: 'preload-images', images: copies };
+    pool[i].postMessage(msg, { transfer: copies.map((c) => c.bitmap) });
+  }
+
+  // Close the original bitmaps we used for cloning
+  for (const { bitmap } of bitmaps) {
+    bitmap.close();
+  }
+
+  for (const url of newUrls) {
+    preloadedUrls.add(url);
+  }
 }
 
 export interface RenderBoardOptions {
@@ -84,6 +162,21 @@ export interface RenderBoardOptions {
 export function isWorkerRenderingSupported(): boolean {
   if (typeof window === 'undefined') return false;
   return typeof OffscreenCanvas !== 'undefined' && typeof Worker !== 'undefined';
+}
+
+/**
+ * Hook that returns true once the Web Worker canvas renderer is ready (client-side only).
+ * Returns false during SSR and initial hydration so the server-rendered BoardImageLayers
+ * HTML matches the client. After mount, flips to true and the canvas renderer takes over.
+ */
+export function useCanvasRendererReady(featureFlagEnabled: unknown): boolean {
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => {
+    if (featureFlagEnabled && isWorkerRenderingSupported()) {
+      setReady(true);
+    }
+  }, [featureFlagEnabled]);
+  return ready;
 }
 
 /**
@@ -126,10 +219,12 @@ export function renderBoard(options: RenderBoardOptions): Promise<ImageBitmap> {
     holdStateMap[Number(code)] = { color: info.color };
   }
 
-  // Build background image URLs
-  const backgroundUrls = Object.keys(boardDetails.images_to_holds).map((img) =>
-    getImageUrl(img, boardDetails.board_name, thumbnail),
-  );
+  // Build background image URLs — resolve to absolute so the Worker can fetch them
+  const origin = window.location.origin;
+  const backgroundUrls = Object.keys(boardDetails.images_to_holds).map((img) => {
+    const url = getImageUrl(img, boardDetails.board_name, thumbnail);
+    return url.startsWith('/') ? `${origin}${url}` : url;
+  });
 
   const request: RenderRequest = {
     id,
@@ -141,17 +236,36 @@ export function renderBoard(options: RenderBoardOptions): Promise<ImageBitmap> {
     thumbnail,
     holds,
     holdStateMap,
+    origin: window.location.origin,
     backgroundUrls,
   };
 
-  return new Promise<ImageBitmap>((resolve, reject) => {
-    pendingRequests.set(id, {
-      resolve: (bitmap) => {
-        cachePut(key, bitmap);
-        resolve(bitmap);
-      },
-      reject,
-    });
-    getWorker().postMessage(request);
-  });
+  // Deduplicate: if the same render is already in flight, reuse its promise
+  const inflight = inflightRequests.get(key);
+  if (inflight) {
+    return inflight;
+  }
+
+  // Pre-load background images into all workers before dispatching the render.
+  // This is fast for images already in the browser cache (from SSR).
+  const promise = ensureImagesPreloaded(backgroundUrls).then(
+    () =>
+      new Promise<ImageBitmap>((resolve, reject) => {
+        pendingRequests.set(id, {
+          resolve: (bitmap) => {
+            cachePut(key, bitmap);
+            inflightRequests.delete(key);
+            resolve(bitmap);
+          },
+          reject: (err) => {
+            inflightRequests.delete(key);
+            reject(err);
+          },
+        });
+        getNextWorker().postMessage(request);
+      }),
+  );
+
+  inflightRequests.set(key, promise);
+  return promise;
 }

@@ -4,9 +4,10 @@ import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { BoardDetails, BoardName } from '@/app/lib/types';
 import BoardRenderer from '@/app/components/board-renderer/board-renderer';
+import BoardImageLayers from '@/app/components/board-renderer/board-image-layers';
 import BoardCanvasRenderer from '@/app/components/board-renderer/board-canvas-renderer';
 import { useFeatureFlag } from '@/app/components/providers/feature-flags-provider';
-import { isWorkerRenderingSupported } from '@/app/lib/board-render-worker/worker-manager';
+import { useCanvasRendererReady } from '@/app/lib/board-render-worker/worker-manager';
 import { convertLitUpHoldsStringToMap } from '@/app/components/board-renderer/util';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { getDefaultBoardConfig } from '@/app/lib/default-board-configs';
@@ -34,7 +35,7 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
   isMirror,
 }) => {
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const useCanvasRenderer = isRustRendererEnabled && isWorkerRenderingSupported();
+  const canvasReady = useCanvasRendererReady(isRustRendererEnabled);
   // Memoize board details to avoid recomputing on every render
   const boardDetails = useMemo<BoardDetails | null>(() => {
     if (!layoutId) return null;
@@ -58,11 +59,11 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
 
   // Memoize lit up holds map (only needed for legacy SVG renderer)
   const litUpHoldsMap = useMemo(() => {
-    if (useCanvasRenderer) return undefined;
+    if (isRustRendererEnabled) return undefined;
     if (!frames || !boardType) return undefined;
     const framesData = convertLitUpHoldsStringToMap(frames, boardType as BoardName);
     return framesData[0];
-  }, [frames, boardType, useCanvasRenderer]);
+  }, [frames, boardType, isRustRendererEnabled]);
 
   // Reuse the already-memoized boardDetails to build the climb view URL
   const climbViewPath = useMemo(() => {
@@ -99,30 +100,47 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
   if (!boardDetails || !climbViewPath) {
     return null;
   }
-  if (!useCanvasRenderer && !litUpHoldsMap) {
+  if (!isRustRendererEnabled && !litUpHoldsMap) {
     return null;
   }
 
-  const thumbnailContent = useCanvasRenderer && frames ? (
-    <BoardCanvasRenderer
-      boardDetails={boardDetails}
-      frames={frames}
-      mirrored={isMirror}
-      thumbnail
-      style={{
-        aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}`,
-        width: '100%',
-        height: '100%',
-      }}
-    />
-  ) : (
-    <BoardRenderer
-      boardDetails={boardDetails}
-      litUpHoldsMap={litUpHoldsMap}
-      mirrored={isMirror}
-      thumbnail
-    />
-  );
+  const thumbnailStyle: React.CSSProperties = {
+    aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}`,
+    width: '100%',
+    height: '100%',
+  };
+
+  let thumbnailContent: React.ReactNode;
+  if (canvasReady && frames) {
+    thumbnailContent = (
+      <BoardCanvasRenderer
+        boardDetails={boardDetails}
+        frames={frames}
+        mirrored={isMirror}
+        thumbnail
+        style={thumbnailStyle}
+      />
+    );
+  } else if (isRustRendererEnabled && frames) {
+    thumbnailContent = (
+      <BoardImageLayers
+        boardDetails={boardDetails}
+        frames={frames}
+        mirrored={isMirror}
+        thumbnail
+        style={thumbnailStyle}
+      />
+    );
+  } else {
+    thumbnailContent = (
+      <BoardRenderer
+        boardDetails={boardDetails}
+        litUpHoldsMap={litUpHoldsMap}
+        mirrored={isMirror}
+        thumbnail
+      />
+    );
+  }
 
   return (
     <Link
