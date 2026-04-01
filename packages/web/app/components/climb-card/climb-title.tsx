@@ -190,6 +190,9 @@ const ClimbTitle: React.FC<ClimbTitleProps> = ({
     if (climb.is_draft) {
       subtitleParts.push('Draft');
     }
+    if (!climb.is_draft && climb.ascensionist_count !== undefined) {
+      subtitleParts.push(`${climb.ascensionist_count} ascents`);
+    }
     if (hasGrade) {
       subtitleParts.push(`${climb.quality_average}\u2605`);
     }

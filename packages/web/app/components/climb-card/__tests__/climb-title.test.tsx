@@ -184,9 +184,9 @@ describe('ClimbTitle', () => {
       expect(screen.queryByText(/@ 40°/)).toBeNull();
     });
 
-    it('does not render ascent count', () => {
+    it('renders ascent count', () => {
       render(<ClimbTitle climb={makeClimb({ ascensionist_count: 72 })} gradePosition="right" showSetterInfo />);
-      expect(screen.queryByText(/72 ascents/)).toBeNull();
+      expect(screen.getByText(/72 ascents/)).toBeTruthy();
     });
 
     it('renders "project" when no grade quality', () => {
