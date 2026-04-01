@@ -98,7 +98,7 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
 
   const transition = getSwipeTransition();
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const canvasReady = useCanvasRendererReady(isRustRendererEnabled);
+  const canvasReady = useCanvasRendererReady(!!isRustRendererEnabled);
 
   const currentLitUpHoldsMap = useMemo(
     () => isRustRendererEnabled

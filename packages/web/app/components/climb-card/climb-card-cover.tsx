@@ -19,7 +19,7 @@ type ClimbCardCoverProps = {
 const ClimbCardCover = ({ climb, boardDetails, onClick, onDoubleClick }: ClimbCardCoverProps) => {
   const { ref, onDoubleClick: handleDoubleClick } = useDoubleTap(onDoubleClick);
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const canvasReady = useCanvasRendererReady(isRustRendererEnabled);
+  const canvasReady = useCanvasRendererReady(!!isRustRendererEnabled);
 
   const litUpHoldsMap = useMemo(
     () => climb && !isRustRendererEnabled

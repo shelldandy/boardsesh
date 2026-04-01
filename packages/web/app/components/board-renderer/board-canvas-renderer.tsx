@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { BoardDetails } from '@/app/lib/types';
 import { renderBoard } from '@/app/lib/board-render-worker/worker-manager';
 import { trackRenderComplete, trackRenderError, type RenderContext } from '@/app/lib/rendering-metrics';
+import BoardImageLayers from './board-image-layers';
 
 export interface BoardCanvasRendererProps {
   boardDetails: BoardDetails;
@@ -20,6 +21,7 @@ export interface BoardCanvasRendererProps {
  * Renders a board as a single <canvas> element using a Web Worker + WASM.
  * The worker composites background images + hold overlay off the main thread,
  * returning an ImageBitmap that is drawn directly onto the canvas.
+ * Falls back to BoardImageLayers if the worker render fails.
  */
 const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
   boardDetails,
@@ -32,6 +34,7 @@ const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mountTime = useRef(performance.now());
   const hasFired = useRef(false);
+  const [failed, setFailed] = useState(false);
   const renderContext: RenderContext = thumbnail ? 'thumbnail' : contain ? 'full-board' : 'card';
 
   // Stable reference to track metrics only once
@@ -68,6 +71,7 @@ const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
       .catch((err) => {
         if (!cancelled) {
           console.error('Board canvas render failed:', err);
+          setFailed(true);
           trackError();
         }
       });
@@ -76,6 +80,20 @@ const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
       cancelled = true;
     };
   }, [boardDetails, frames, mirrored, thumbnail, trackSuccess, trackError]);
+
+  // Fall back to server-rendered image layers if the worker render fails
+  if (failed) {
+    return (
+      <BoardImageLayers
+        boardDetails={boardDetails}
+        frames={frames}
+        mirrored={mirrored}
+        thumbnail={thumbnail}
+        contain={contain}
+        style={style}
+      />
+    );
+  }
 
   return (
     <canvas

@@ -35,7 +35,7 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
   isMirror,
 }) => {
   const isRustRendererEnabled = useFeatureFlag('rust-svg-rendering');
-  const canvasReady = useCanvasRendererReady(isRustRendererEnabled);
+  const canvasReady = useCanvasRendererReady(!!isRustRendererEnabled);
   // Memoize board details to avoid recomputing on every render
   const boardDetails = useMemo<BoardDetails | null>(() => {
     if (!layoutId) return null;

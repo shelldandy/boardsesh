@@ -55,19 +55,23 @@ let workers: Worker[] | null = null;
 let nextWorkerIndex = 0;
 let nextRequestId = 0;
 const pendingRequests = new Map<number, PendingRequest>();
+// Track which request IDs are assigned to which worker index
+const workerRequestIds = new Map<number, Set<number>>();
 
 // Deduplication: in-flight requests by cache key
 const inflightRequests = new Map<string, Promise<ImageBitmap>>();
 
 function getWorkerPool(): Worker[] {
   if (!workers) {
-    workers = Array.from({ length: getPoolSize() }, () => {
+    workers = Array.from({ length: getPoolSize() }, (_, workerIdx) => {
+      workerRequestIds.set(workerIdx, new Set());
       const w = new Worker(new URL('./board-render.worker.ts', import.meta.url));
       w.onmessage = (event: MessageEvent<RenderResponse>) => {
         const response = event.data;
         const pending = pendingRequests.get(response.id);
         if (!pending) return;
         pendingRequests.delete(response.id);
+        workerRequestIds.get(workerIdx)?.delete(response.id);
 
         if ('error' in response) {
           pending.reject(new Error(response.error));
@@ -76,11 +80,17 @@ function getWorkerPool(): Worker[] {
         }
       };
       w.onerror = (event) => {
-        // Collect pending IDs first, then reject and clean up
-        const toReject = Array.from(pendingRequests.entries());
-        for (const [id, pending] of toReject) {
-          pendingRequests.delete(id);
-          pending.reject(new Error(`Worker error: ${event.message}`));
+        // Only reject requests assigned to this worker, not the entire pool
+        const ids = workerRequestIds.get(workerIdx);
+        if (!ids) return;
+        const toReject = Array.from(ids);
+        ids.clear();
+        for (const id of toReject) {
+          const pending = pendingRequests.get(id);
+          if (pending) {
+            pendingRequests.delete(id);
+            pending.reject(new Error(`Worker error: ${event.message}`));
+          }
         }
       };
       return w;
@@ -89,11 +99,11 @@ function getWorkerPool(): Worker[] {
   return workers;
 }
 
-function getNextWorker(): Worker {
+function getNextWorker(): { worker: Worker; workerIdx: number } {
   const pool = getWorkerPool();
-  const w = pool[nextWorkerIndex % pool.length];
+  const workerIdx = nextWorkerIndex % pool.length;
   nextWorkerIndex++;
-  return w;
+  return { worker: pool[workerIdx], workerIdx };
 }
 
 // --- Background image pre-fetch & distribution ---
@@ -170,7 +180,7 @@ export function isWorkerRenderingSupported(): boolean {
  * Returns false during SSR and initial hydration so the server-rendered BoardImageLayers
  * HTML matches the client. After mount, flips to true and the canvas renderer takes over.
  */
-export function useCanvasRendererReady(featureFlagEnabled: unknown): boolean {
+export function useCanvasRendererReady(featureFlagEnabled: boolean): boolean {
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
     if (featureFlagEnabled && isWorkerRenderingSupported()) {
@@ -263,7 +273,9 @@ export function renderBoard(options: RenderBoardOptions): Promise<ImageBitmap> {
             reject(err);
           },
         });
-        getNextWorker().postMessage(request);
+        const { worker, workerIdx } = getNextWorker();
+        workerRequestIds.get(workerIdx)?.add(id);
+        worker.postMessage(request);
       }),
   );
 
