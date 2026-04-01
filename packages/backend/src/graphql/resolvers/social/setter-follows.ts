@@ -3,6 +3,7 @@ import type { ConnectionContext, Climb, BoardName } from '@boardsesh/shared-sche
 import { SUPPORTED_BOARDS } from '@boardsesh/shared-schema';
 import { db } from '../../../db/client';
 import * as dbSchema from '@boardsesh/db/schema';
+import { getGradeLabel } from '@boardsesh/db/queries';
 import { requireAuthenticated, applyRateLimit, validateInput } from '../shared/helpers';
 import {
   FollowSetterInputSchema,
@@ -138,7 +139,7 @@ export const setterFollowQueries = {
         statsAngle: dbSchema.boardClimbStats.angle,
         qualityAverage: dbSchema.boardClimbStats.qualityAverage,
         ascensionistCount: dbSchema.boardClimbStats.ascensionistCount,
-        difficultyName: dbSchema.boardDifficultyGrades.boulderName,
+        difficultyId: sql<number | null>`ROUND(${dbSchema.boardClimbStats.displayDifficulty}::numeric, 0)`,
       })
       .from(dbSchema.boardClimbs)
       .leftJoin(
@@ -153,13 +154,6 @@ export const setterFollowQueries = {
             ORDER BY s.ascensionist_count DESC NULLS LAST
             LIMIT 1
           )`),
-        )
-      )
-      .leftJoin(
-        dbSchema.boardDifficultyGrades,
-        and(
-          eq(dbSchema.boardDifficultyGrades.boardType, dbSchema.boardClimbs.boardType),
-          eq(dbSchema.boardDifficultyGrades.difficulty, sql`CAST(${dbSchema.boardClimbStats.displayDifficulty} AS INTEGER)`),
         )
       )
       .where(and(...conditions))
@@ -178,7 +172,7 @@ export const setterFollowQueries = {
         boardType: c.boardType,
         layoutId: c.layoutId,
         angle: c.statsAngle ?? null,
-        difficultyName: c.difficultyName ?? null,
+        difficultyName: getGradeLabel(c.difficultyId),
         qualityAverage: c.qualityAverage ?? null,
         ascensionistCount: c.ascensionistCount ?? null,
         createdAt: c.createdAt ?? null,
@@ -263,7 +257,7 @@ export const setterFollowQueries = {
           description: tables.climbs.description,
           frames: tables.climbs.frames,
           ascensionist_count: tables.climbStats.ascensionistCount,
-          difficulty: tables.difficultyGrades.boulderName,
+          difficulty_id: sql<number | null>`ROUND(${tables.climbStats.displayDifficulty}::numeric, 0)`,
           quality_average: sql<number>`ROUND(${tables.climbStats.qualityAverage}::numeric, 2)`,
           difficulty_error: sql<number>`ROUND(${tables.climbStats.difficultyAverage}::numeric - ${tables.climbStats.displayDifficulty}::numeric, 2)`,
           benchmark_difficulty: tables.climbStats.benchmarkDifficulty,
@@ -275,13 +269,6 @@ export const setterFollowQueries = {
             eq(tables.climbStats.climbUuid, tables.climbs.uuid),
             eq(tables.climbStats.boardType, boardName),
             eq(tables.climbStats.angle, angle)
-          )
-        )
-        .leftJoin(
-          tables.difficultyGrades,
-          and(
-            eq(tables.difficultyGrades.difficulty, sql`ROUND(${tables.climbStats.displayDifficulty}::numeric)`),
-            eq(tables.difficultyGrades.boardType, boardName)
           )
         )
         .where(and(...filterConditions))
@@ -305,7 +292,7 @@ export const setterFollowQueries = {
         frames: result.frames || '',
         angle,
         ascensionist_count: Number(result.ascensionist_count || 0),
-        difficulty: result.difficulty || '',
+        difficulty: getGradeLabel(result.difficulty_id),
         quality_average: result.quality_average?.toString() || '0',
         stars: Math.round((Number(result.quality_average) || 0) * 5),
         difficulty_error: result.difficulty_error?.toString() || '0',
@@ -354,7 +341,7 @@ export const setterFollowQueries = {
           frames: tables.climbs.frames,
           statsAngle: tables.climbStats.angle,
           ascensionist_count: tables.climbStats.ascensionistCount,
-          difficulty: tables.difficultyGrades.boulderName,
+          difficulty_id: sql<number | null>`ROUND(${tables.climbStats.displayDifficulty}::numeric, 0)`,
           quality_average: sql<number>`ROUND(${tables.climbStats.qualityAverage}::numeric, 2)`,
           difficulty_error: sql<number>`ROUND(${tables.climbStats.difficultyAverage}::numeric - ${tables.climbStats.displayDifficulty}::numeric, 2)`,
           benchmark_difficulty: tables.climbStats.benchmarkDifficulty,
@@ -372,13 +359,6 @@ export const setterFollowQueries = {
               ORDER BY s.ascensionist_count DESC NULLS LAST
               LIMIT 1
             )`),
-          )
-        )
-        .leftJoin(
-          tables.difficultyGrades,
-          and(
-            eq(tables.difficultyGrades.boardType, tables.climbs.boardType),
-            eq(tables.difficultyGrades.difficulty, sql`CAST(${tables.climbStats.displayDifficulty} AS INTEGER)`),
           )
         )
         .where(eq(tables.climbs.setterUsername, username))
@@ -404,7 +384,7 @@ export const setterFollowQueries = {
           frames: result.frames || '',
           angle: result.statsAngle ?? DEFAULT_ANGLE,
           ascensionist_count: Number(result.ascensionist_count || 0),
-          difficulty: result.difficulty || '',
+          difficulty: getGradeLabel(result.difficulty_id),
           quality_average: result.quality_average?.toString() || '0',
           stars: Math.round((Number(result.quality_average) || 0) * 5),
           difficulty_error: result.difficulty_error?.toString() || '0',

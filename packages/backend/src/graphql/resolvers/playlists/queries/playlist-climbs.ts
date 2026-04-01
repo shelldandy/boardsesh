@@ -3,6 +3,7 @@ import type { ConnectionContext, Climb, BoardName } from '@boardsesh/shared-sche
 import { SUPPORTED_BOARDS } from '@boardsesh/shared-schema';
 import { db } from '../../../../db/client';
 import * as dbSchema from '@boardsesh/db/schema';
+import { getGradeLabel } from '@boardsesh/db/queries';
 import { validateInput } from '../../shared/helpers';
 import { GetPlaylistClimbsInputSchema } from '../../../../validation/schemas';
 import { getBoardTables, isValidBoardName } from '../../../../db/queries/util/table-select';
@@ -77,7 +78,7 @@ async function fetchSpecificBoardClimbs(
       description: tables.climbs.description,
       frames: tables.climbs.frames,
       ascensionist_count: tables.climbStats.ascensionistCount,
-      difficulty: tables.difficultyGrades.boulderName,
+      difficulty_id: sql<number | null>`ROUND(${tables.climbStats.displayDifficulty}::numeric, 0)`,
       quality_average: sql<number>`ROUND(${tables.climbStats.qualityAverage}::numeric, 2)`,
       difficulty_error: sql<number>`ROUND(${tables.climbStats.difficultyAverage}::numeric - ${tables.climbStats.displayDifficulty}::numeric, 2)`,
       benchmark_difficulty: tables.climbStats.benchmarkDifficulty,
@@ -90,13 +91,6 @@ async function fetchSpecificBoardClimbs(
         eq(tables.climbStats.climbUuid, dbSchema.playlistClimbs.climbUuid),
         eq(tables.climbStats.boardType, boardName),
         eq(tables.climbStats.angle, inputAngle),
-      ),
-    )
-    .leftJoin(
-      tables.difficultyGrades,
-      and(
-        eq(tables.difficultyGrades.difficulty, sql`ROUND(${tables.climbStats.displayDifficulty}::numeric)`),
-        eq(tables.difficultyGrades.boardType, boardName),
       ),
     )
     .where(eq(dbSchema.playlistClimbs.playlistId, playlistId))
@@ -115,7 +109,7 @@ async function fetchSpecificBoardClimbs(
     frames: result.frames || '',
     angle: inputAngle,
     ascensionist_count: Number(result.ascensionist_count || 0),
-    difficulty: result.difficulty || '',
+    difficulty: getGradeLabel(result.difficulty_id),
     quality_average: result.quality_average?.toString() || '0',
     stars: Math.round((Number(result.quality_average) || 0) * 5),
     difficulty_error: result.difficulty_error?.toString() || '0',
@@ -151,7 +145,7 @@ async function fetchAllBoardsClimbs(
       frames: tables.climbs.frames,
       statsAngle: tables.climbStats.angle,
       ascensionist_count: tables.climbStats.ascensionistCount,
-      difficulty: tables.difficultyGrades.boulderName,
+      difficulty_id: sql<number | null>`ROUND(${tables.climbStats.displayDifficulty}::numeric, 0)`,
       quality_average: sql<number>`ROUND(${tables.climbStats.qualityAverage}::numeric, 2)`,
       difficulty_error: sql<number>`ROUND(${tables.climbStats.difficultyAverage}::numeric - ${tables.climbStats.displayDifficulty}::numeric, 2)`,
       benchmark_difficulty: tables.climbStats.benchmarkDifficulty,
@@ -175,13 +169,6 @@ async function fetchAllBoardsClimbs(
         )`),
       ),
     )
-    .leftJoin(
-      tables.difficultyGrades,
-      and(
-        eq(tables.difficultyGrades.boardType, tables.climbs.boardType),
-        eq(tables.difficultyGrades.difficulty, sql`CAST(${tables.climbStats.displayDifficulty} AS INTEGER)`),
-      ),
-    )
     .where(eq(dbSchema.playlistClimbs.playlistId, playlistId))
     .orderBy(asc(dbSchema.playlistClimbs.position), asc(dbSchema.playlistClimbs.addedAt))
     .limit(pageSize + 1)
@@ -200,7 +187,7 @@ async function fetchAllBoardsClimbs(
       frames: result.frames || '',
       angle: result.playlistAngle ?? result.statsAngle ?? DEFAULT_ANGLE,
       ascensionist_count: Number(result.ascensionist_count || 0),
-      difficulty: result.difficulty || '',
+      difficulty: getGradeLabel(result.difficulty_id),
       quality_average: result.quality_average?.toString() || '0',
       stars: Math.round((Number(result.quality_average) || 0) * 5),
       difficulty_error: result.difficulty_error?.toString() || '0',

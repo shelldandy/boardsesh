@@ -2,6 +2,7 @@ import { eq, and, sql, isNull } from 'drizzle-orm';
 import type { ConnectionContext, ProposalStatus } from '@boardsesh/shared-schema';
 import { db } from '../../../../db/client';
 import * as dbSchema from '@boardsesh/db/schema';
+import { getGradeLabel } from '@boardsesh/db/queries';
 import { requireAuthenticated, applyRateLimit, validateInput } from '../../shared/helpers';
 import {
   CreateProposalInputSchema,
@@ -65,21 +66,17 @@ export const socialProposalMutations = {
         currentValue = communityStatus.communityGrade;
       } else {
         try {
-          // Use unified board_climb_stats table with board_type filter
-          // Join board_difficulty_grades for accurate grade name
+          // Look up display_difficulty from stats, then resolve grade name in-memory
           const result = await db.execute(sql`
-            SELECT dg.boulder_name as grade_name
+            SELECT ROUND(cs.display_difficulty::numeric, 0) as difficulty_id
             FROM board_climb_stats cs
-            LEFT JOIN board_difficulty_grades dg
-              ON dg.difficulty = ROUND(cs.display_difficulty::numeric)
-              AND dg.board_type = cs.board_type
             WHERE cs.climb_uuid = ${climbUuid}
               AND cs.angle = ${angle}
               AND cs.board_type = ${boardType}
             LIMIT 1
           `);
-          const rows = (result as unknown as { rows: Array<{ grade_name: string | null }> }).rows;
-          currentValue = rows[0]?.grade_name || 'Unknown';
+          const rows = (result as unknown as { rows: Array<{ difficulty_id: number | null }> }).rows;
+          currentValue = getGradeLabel(rows[0]?.difficulty_id ?? null) || 'Unknown';
         } catch {
           currentValue = 'Unknown';
         }

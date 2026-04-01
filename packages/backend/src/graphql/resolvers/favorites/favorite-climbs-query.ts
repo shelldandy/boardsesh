@@ -3,6 +3,7 @@ import type { ConnectionContext, Climb, BoardName } from '@boardsesh/shared-sche
 import { SUPPORTED_BOARDS } from '@boardsesh/shared-schema';
 import { db } from '../../../db/client';
 import * as dbSchema from '@boardsesh/db/schema';
+import { getGradeLabel } from '@boardsesh/db/queries';
 import { requireAuthenticated, validateInput } from '../shared/helpers';
 import { GetUserFavoriteClimbsInputSchema } from '../../../validation/schemas';
 import { getBoardTables, isValidBoardName } from '../../../db/queries/util/table-select';
@@ -68,7 +69,7 @@ export const favoriteClimbsQuery = {
         frames: tables.climbs.frames,
         // Stats data
         ascensionist_count: tables.climbStats.ascensionistCount,
-        difficulty: tables.difficultyGrades.boulderName,
+        difficulty_id: sql<number | null>`ROUND(${tables.climbStats.displayDifficulty}::numeric, 0)`,
         quality_average: sql<number>`ROUND(${tables.climbStats.qualityAverage}::numeric, 2)`,
         difficulty_error: sql<number>`ROUND(${tables.climbStats.difficultyAverage}::numeric - ${tables.climbStats.displayDifficulty}::numeric, 2)`,
         benchmark_difficulty: tables.climbStats.benchmarkDifficulty,
@@ -87,13 +88,6 @@ export const favoriteClimbsQuery = {
           eq(tables.climbStats.climbUuid, dbSchema.userFavorites.climbUuid),
           eq(tables.climbStats.boardType, boardName),
           eq(tables.climbStats.angle, input.angle)
-        )
-      )
-      .leftJoin(
-        tables.difficultyGrades,
-        and(
-          eq(tables.difficultyGrades.difficulty, sql`ROUND(${tables.climbStats.displayDifficulty}::numeric)`),
-          eq(tables.difficultyGrades.boardType, boardName)
         )
       )
       .where(
@@ -118,7 +112,7 @@ export const favoriteClimbsQuery = {
       frames: result.frames || '',
       angle: input.angle,
       ascensionist_count: Number(result.ascensionist_count || 0),
-      difficulty: result.difficulty || '',
+      difficulty: getGradeLabel(result.difficulty_id),
       quality_average: result.quality_average?.toString() || '0',
       stars: Math.round((Number(result.quality_average) || 0) * 5),
       difficulty_error: result.difficulty_error?.toString() || '0',

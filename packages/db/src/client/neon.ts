@@ -2,11 +2,25 @@ import { neon, neonConfig, Pool } from '@neondatabase/serverless';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import { drizzle as drizzleServerless } from 'drizzle-orm/neon-serverless';
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
+import type { Logger } from 'drizzle-orm';
 import postgres from 'postgres';
 import ws from 'ws';
 import { getConnectionConfig, configureNeonForEnvironment, isTestEnvironment } from './config';
 import * as schema from '../schema/index';
 import * as relations from '../relations/index';
+
+// Query logger enabled via DEBUG_SQL=true — logs all queries with execution time
+class QueryLogger implements Logger {
+  logQuery(query: string, params: unknown[]): void {
+    const timestamp = new Date().toISOString();
+    console.log(`[SQL ${timestamp}] ${query}`);
+    if (params.length > 0) {
+      console.log(`[SQL params] ${JSON.stringify(params)}`);
+    }
+  }
+}
+
+const sqlLogger = process.env.DEBUG_SQL === 'true' ? new QueryLogger() : undefined;
 
 // Configure WebSocket constructor
 neonConfig.webSocketConstructor = ws;
@@ -40,11 +54,11 @@ export function createDb() {
     if (isTest) {
       // Use postgres-js directly for tests (no Neon proxy needed)
       postgresClient = postgres(connectionString);
-      db = drizzlePostgres(postgresClient, { schema: fullSchema });
+      db = drizzlePostgres(postgresClient, { schema: fullSchema, logger: sqlLogger });
     } else {
       // Use Neon serverless for production/development
       const poolInstance = createPool();
-      db = drizzleServerless(poolInstance, { schema: fullSchema });
+      db = drizzleServerless(poolInstance, { schema: fullSchema, logger: sqlLogger });
     }
   }
   return db;
@@ -54,7 +68,7 @@ export function createNeonHttp() {
   configureNeonForEnvironment();
   const { connectionString } = getConnectionConfig();
   const sql = neon(connectionString);
-  return drizzleHttp({ client: sql, schema: fullSchema });
+  return drizzleHttp({ client: sql, schema: fullSchema, logger: sqlLogger });
 }
 
 export type DbInstance = ReturnType<typeof createDb>;

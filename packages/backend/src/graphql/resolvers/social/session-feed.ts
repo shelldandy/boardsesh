@@ -1,6 +1,7 @@
 import { eq, and, desc, sql, count as drizzleCount, isNull, inArray } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import * as dbSchema from '@boardsesh/db/schema';
+import { getGradeLabel } from '@boardsesh/db/queries';
 import { validateInput } from '../shared/helpers';
 import { ActivityFeedInputSchema } from '../../../validation/schemas';
 import { encodeOffsetCursor, decodeOffsetCursor } from '../../../utils/feed-cursor';
@@ -631,8 +632,7 @@ async function fetchGradeDistributionBatch(
   const result = await db.execute(sql`
     SELECT
       COALESCE(t.session_id, t.inferred_session_id) AS effective_session_id,
-      dg.boulder_name AS grade,
-      dg.difficulty AS diff_num,
+      t.difficulty AS diff_num,
       COUNT(*) FILTER (WHERE t.status = 'flash')::int AS flash,
       COUNT(*) FILTER (WHERE t.status = 'send')::int AS send,
       (
@@ -640,17 +640,14 @@ async function fetchGradeDistributionBatch(
         + COALESCE(SUM(t.attempt_count) FILTER (WHERE t.status = 'attempt'), 0)
       )::int AS attempt
     FROM boardsesh_ticks t
-    LEFT JOIN board_difficulty_grades dg
-      ON dg.difficulty = t.difficulty AND dg.board_type = t.board_type
     WHERE COALESCE(t.session_id, t.inferred_session_id) IN ${sql`(${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})`}
       AND t.difficulty IS NOT NULL
-    GROUP BY effective_session_id, dg.boulder_name, dg.difficulty
-    ORDER BY dg.difficulty DESC
+    GROUP BY effective_session_id, t.difficulty
+    ORDER BY t.difficulty DESC
   `);
 
   const rows = (result as unknown as { rows: Array<{
     effective_session_id: string;
-    grade: string | null;
     diff_num: number;
     flash: number;
     send: number;
@@ -659,9 +656,10 @@ async function fetchGradeDistributionBatch(
 
   const map = new Map<string, SessionGradeDistributionItem[]>();
   for (const r of rows) {
-    if (r.grade == null) continue;
+    const grade = getGradeLabel(r.diff_num);
+    if (!grade) continue;
     const distribution = map.get(r.effective_session_id) ?? [];
-    distribution.push({ grade: r.grade, flash: r.flash, send: r.send, attempt: r.attempt });
+    distribution.push({ grade, flash: r.flash, send: r.send, attempt: r.attempt });
     map.set(r.effective_session_id, distribution);
   }
   return map;
