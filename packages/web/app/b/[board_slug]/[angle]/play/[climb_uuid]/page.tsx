@@ -5,6 +5,7 @@ import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { getClimb } from '@/app/lib/data/queries';
 
 import PlayViewClient from '@/app/[board_name]/[layout_id]/[size_id]/[set_ids]/[angle]/play/[climb_uuid]/play-view-client';
+import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
 
 interface BoardSlugPlayPageProps {
   params: Promise<{ board_slug: string; angle: string; climb_uuid: string }>;
@@ -33,6 +34,10 @@ export default async function BoardSlugPlayPage(props: BoardSlugPlayPageProps) {
     }
   } catch {
     // Climb will be loaded from queue context on client
+  }
+
+  if (initialClimb) {
+    scheduleOverlayWarming({ boardDetails, climbs: [initialClimb], variant: 'full' });
   }
 
   return (

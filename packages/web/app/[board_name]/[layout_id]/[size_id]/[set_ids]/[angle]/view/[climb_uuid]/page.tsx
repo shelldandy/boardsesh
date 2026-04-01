@@ -14,6 +14,7 @@ import { parseRouteParams } from '@/app/lib/url-utils.server';
 import { Metadata } from 'next';
 import { fetchClimbDetailData } from '@/app/lib/data/climb-detail-data.server';
 import ClimbDetailPageServer from '@/app/components/climb-detail/climb-detail-page.server';
+import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
 
 export async function generateMetadata(props: { params: Promise<BoardRouteParametersWithUuid> }): Promise<Metadata> {
   const params = await props.params;
@@ -119,6 +120,8 @@ export default async function DynamicResultsPage(props: { params: Promise<BoardR
     if (!currentClimb) {
       notFound();
     }
+
+    scheduleOverlayWarming({ boardDetails, climbs: [currentClimb], variant: 'full' });
 
     const climbWithProcessedData = {
       ...currentClimb,

@@ -6,6 +6,7 @@ import { getClimb } from '@/app/lib/data/queries';
 
 import ClimbDetailPageServer from '@/app/components/climb-detail/climb-detail-page.server';
 import { fetchClimbDetailData } from '@/app/lib/data/climb-detail-data.server';
+import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
 
 interface BoardSlugViewPageProps {
   params: Promise<{ board_slug: string; angle: string; climb_uuid: string }>;
@@ -38,6 +39,8 @@ export default async function BoardSlugViewPage(props: BoardSlugViewPageProps) {
     if (!currentClimb) {
       notFound();
     }
+
+    scheduleOverlayWarming({ boardDetails, climbs: [currentClimb], variant: 'full' });
 
     const climbWithProcessedData = {
       ...currentClimb,
