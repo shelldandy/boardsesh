@@ -167,7 +167,7 @@ const ClimbTitle: React.FC<ClimbTitleProps> = ({
 
   const setterText = climb.is_draft
     ? `Draft by ${climb.setter_username}`
-    : `By ${climb.setter_username} - ${climb.ascensionist_count ?? 0} ascents`;
+    : `By ${climb.setter_username}${climb.ascensionist_count ? ` - ${climb.ascensionist_count} ascent${climb.ascensionist_count === 1 ? '' : 's'}` : ''}`;
 
   const setterElement = showSetterInfo && climb.setter_username && (
     <Typography
@@ -190,8 +190,8 @@ const ClimbTitle: React.FC<ClimbTitleProps> = ({
     if (climb.is_draft) {
       subtitleParts.push('Draft');
     }
-    if (!climb.is_draft && climb.ascensionist_count !== undefined) {
-      subtitleParts.push(`${climb.ascensionist_count} ascents`);
+    if (!climb.is_draft && climb.ascensionist_count) {
+      subtitleParts.push(`${climb.ascensionist_count} ascent${climb.ascensionist_count === 1 ? '' : 's'}`);
     }
     if (hasGrade) {
       subtitleParts.push(`${climb.quality_average}\u2605`);
@@ -261,8 +261,8 @@ const ClimbTitle: React.FC<ClimbTitleProps> = ({
     if (showSetterInfo && climb.setter_username) {
       secondLineContent.push(`${climb.setter_username}`);
     }
-    if (!climb.is_draft && climb.ascensionist_count !== undefined) {
-      secondLineContent.push(`${climb.ascensionist_count} ascents`);
+    if (!climb.is_draft && climb.ascensionist_count) {
+      secondLineContent.push(`${climb.ascensionist_count} ascent${climb.ascensionist_count === 1 ? '' : 's'}`);
     }
 
     return (

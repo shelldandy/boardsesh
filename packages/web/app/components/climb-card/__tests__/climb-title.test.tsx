@@ -204,9 +204,14 @@ describe('ClimbTitle', () => {
       expect(screen.getByText('project')).toBeTruthy();
     });
 
-    it('renders "0 ascents" when ascensionist_count is 0', () => {
+    it('renders "project" when ascensionist_count is 0 and no grade', () => {
       render(<ClimbTitle climb={makeClimb({ quality_average: '0', ascensionist_count: 0 })} gradePosition="right" />);
-      expect(screen.getByText('0 ascents')).toBeTruthy();
+      expect(screen.getByText('project')).toBeTruthy();
+    });
+
+    it('renders singular "ascent" when ascensionist_count is 1', () => {
+      render(<ClimbTitle climb={makeClimb({ ascensionist_count: 1 })} gradePosition="right" />);
+      expect(screen.getByText(/1 ascent(?!s)/)).toBeTruthy();
     });
 
     it('renders benchmark icon after climb name', () => {
