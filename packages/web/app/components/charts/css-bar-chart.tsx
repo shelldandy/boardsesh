@@ -73,7 +73,7 @@ export const CssBarChart = React.memo(function CssBarChart({
                   const segPct = total > 0 ? (seg.value / total) * 100 : 0;
                   return (
                     <div
-                      key={i}
+                      key={seg.label ? `${seg.label}-${i}` : i}
                       className={styles.barSegment}
                       style={{
                         height: `${segPct}%`,
@@ -155,11 +155,11 @@ export const GroupedBarChart = React.memo(function GroupedBarChart({
       >
         {bars.map((bar) => (
           <div key={bar.key} className={styles.groupedBarColumn} aria-label={bar.label}>
-            {bar.values.map((v, i) => {
+            {bar.values.map((v) => {
               const heightPct = Math.max((v.value / maxValue) * 100, v.value > 0 ? 8 : 0);
               const tooltipText = `${bar.label} — ${v.label}: ${v.value}`;
               return (
-                <MuiTooltip key={i} title={tooltipText} placement="top" arrow>
+                <MuiTooltip key={v.label} title={tooltipText} placement="top" arrow>
                   <div
                     className={styles.groupedBarSingle}
                     style={{

@@ -5,6 +5,7 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import type { GetUserProfileStatsQueryResponse } from '@/app/lib/graphql/operations';
 import type { CssBarChartBar } from '@/app/components/charts/css-bar-chart';
 import type { GroupedBar } from '@/app/components/charts/css-bar-chart';
+import { themeTokens } from '@/app/theme/theme-config';
 import {
   type LogbookEntry,
   type TimeframeType,
@@ -16,6 +17,10 @@ import {
   getLayoutColor,
   BOARD_TYPES,
 } from './profile-constants';
+
+// Derive flash/redpoint colors from design tokens
+const FLASH_COLOR = `${themeTokens.colors.success}99`; // 60% opacity hex
+const REDPOINT_COLOR = `${themeTokens.colors.error}99`;
 
 dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
@@ -220,8 +225,8 @@ export function buildFlashRedpointBars(filteredLogbook: LogbookEntry[]): Grouped
     key: grade,
     label: grade,
     values: [
-      { value: flash[grade] || 0, color: 'rgba(107, 144, 128, 0.6)', label: 'Flash' }, /* success #6B9080 */
-      { value: redpoint[grade] || 0, color: 'rgba(184, 82, 76, 0.6)', label: 'Redpoint' }, /* error #B8524C */
+      { value: flash[grade] || 0, color: FLASH_COLOR, label: 'Flash' },
+      { value: redpoint[grade] || 0, color: REDPOINT_COLOR, label: 'Redpoint' },
     ],
   }));
 }
