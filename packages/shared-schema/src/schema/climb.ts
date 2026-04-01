@@ -12,8 +12,8 @@ export const climbTypeDefs = /* GraphQL */ `
     setter_username: String!
     "Name/title of the climb"
     name: String!
-    "Description or notes about the climb"
-    description: String!
+    "Description or notes about the climb (nullable - omitted from search results, fetch separately via climb detail query)"
+    description: String
     "Encoded hold positions and colors for lighting up the board"
     frames: String!
     "Board angle in degrees when this climb was set"
@@ -49,7 +49,7 @@ export const climbTypeDefs = /* GraphQL */ `
     uuid: ID!
     setter_username: String!
     name: String!
-    description: String!
+    description: String
     frames: String!
     angle: Int!
     ascensionist_count: Int!

@@ -22,10 +22,13 @@ export const countClimbs = async (
 ): Promise<number> => {
   const filters = createClimbFilters(params, searchParams, sizeEdges, userId);
 
+  const isDraftsQuery = !!searchParams.onlyDrafts;
+
   const whereConditions = [
     ...filters.getClimbWhereConditions(),
     ...filters.getSizeConditions(),
-    ...filters.getClimbStatsConditions(),
+    // Draft climbs never have stats rows — skip stats filters to avoid rejecting all drafts
+    ...(isDraftsQuery ? [] : filters.getClimbStatsConditions()),
   ];
 
   try {

@@ -7,6 +7,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { sql } from '@/app/lib/db/db';
+import { getGradeLabel } from '@boardsesh/db/queries';
 
 import { Climb, ParsedBoardRouteParametersWithUuid, BoardName, LayoutId, Size } from '../types';
 import {
@@ -26,7 +27,7 @@ export const getClimb = cache(async (params: ParsedBoardRouteParametersWithUuid)
   const result = await sql`
         SELECT climbs.uuid, climbs.setter_username, climbs.name, climbs.description,
         climbs.frames, COALESCE(climb_stats.angle, ${params.angle}) as angle, COALESCE(climb_stats.ascensionist_count, 0) as ascensionist_count,
-        dg.boulder_name as difficulty,
+        ROUND(climb_stats.display_difficulty::numeric, 0) as difficulty_id,
         ROUND(climb_stats.quality_average::numeric, 2) as quality_average,
         ROUND(climb_stats.difficulty_average::numeric - climb_stats.display_difficulty::numeric, 2) AS difficulty_error,
         CASE WHEN climb_stats.benchmark_difficulty > 0 THEN climb_stats.benchmark_difficulty::text ELSE NULL END as benchmark_difficulty
@@ -35,16 +36,14 @@ export const getClimb = cache(async (params: ParsedBoardRouteParametersWithUuid)
           ON climb_stats.climb_uuid = climbs.uuid
           AND climb_stats.angle = ${params.angle}
           AND climb_stats.board_type = ${params.board_name}
-        LEFT JOIN board_difficulty_grades dg
-          ON dg.difficulty = ROUND(climb_stats.display_difficulty::numeric)
-          AND dg.board_type = ${params.board_name}
         WHERE climbs.board_type = ${params.board_name}
         AND climbs.layout_id = ${params.layout_id}
         AND climbs.uuid = ${params.climb_uuid}
         AND climbs.frames_count = 1
         limit 1
       `;
-  return result[0] as Climb;
+  const row = result[0] as Climb & { difficulty_id: number | null };
+  return { ...row, difficulty: getGradeLabel(row.difficulty_id) } as Climb;
 });
 
 export interface ClimbStatsForAngle {
@@ -70,16 +69,16 @@ export const getClimbStatsForAllAngles = async (
       climb_stats.display_difficulty,
       climb_stats.fa_username,
       climb_stats.fa_at,
-      dg.boulder_name as difficulty
+      ROUND(climb_stats.display_difficulty::numeric, 0) as difficulty_id
     FROM board_climb_stats climb_stats
-    LEFT JOIN board_difficulty_grades dg
-      ON dg.difficulty = ROUND(climb_stats.display_difficulty::numeric)
-      AND dg.board_type = ${params.board_name}
     WHERE climb_stats.board_type = ${params.board_name}
     AND climb_stats.climb_uuid = ${params.climb_uuid}
     ORDER BY climb_stats.angle ASC
   `;
-  return result as ClimbStatsForAngle[];
+  return (result as Array<ClimbStatsForAngle & { difficulty_id: number | null }>).map((row) => ({
+    ...row,
+    difficulty: getGradeLabel(row.difficulty_id),
+  })) as ClimbStatsForAngle[];
 };
 
 export type LayoutRow = {
