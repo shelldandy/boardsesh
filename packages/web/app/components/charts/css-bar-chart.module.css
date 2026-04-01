@@ -13,7 +13,6 @@
 .barColumn {
   flex: 1;
   min-width: 4px;
-  max-width: 24px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -44,7 +43,6 @@
 .legendLabel {
   flex: 1;
   min-width: 4px;
-  max-width: 24px;
   text-align: center;
   font-size: 9px;
   color: var(--neutral-500);
@@ -90,7 +88,6 @@
 .groupedBarColumn {
   flex: 1;
   min-width: 8px;
-  max-width: 48px;
   height: 100%;
   display: flex;
   gap: 1px;
