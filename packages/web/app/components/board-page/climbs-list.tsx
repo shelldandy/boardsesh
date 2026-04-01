@@ -375,7 +375,7 @@ const ClimbsList = ({
                   climb={climb}
                   boardDetails={resolveBoardDetails(climb)}
                   selected={selectedClimbUuid === climb.uuid}
-                  onCoverDoubleClick={climbHandlersMap.get(climb.uuid)}
+                  onCoverClick={climbHandlersMap.get(climb.uuid)}
                   unsupported={unsupportedClimbs?.has(climb.uuid)}
                 />
               </div>

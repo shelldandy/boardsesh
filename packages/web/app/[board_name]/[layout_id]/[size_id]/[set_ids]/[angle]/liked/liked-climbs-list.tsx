@@ -279,7 +279,7 @@ export default function LikedClimbsList({
                 climb={climb}
                 boardDetails={boardDetails}
                 selected={selectedClimbUuid === climb.uuid}
-                onCoverDoubleClick={climbHandlersMap.get(climb.uuid)}
+                onCoverClick={climbHandlersMap.get(climb.uuid)}
               />
             </Box>
           ))}
