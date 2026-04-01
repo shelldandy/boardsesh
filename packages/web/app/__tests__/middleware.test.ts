@@ -4,7 +4,7 @@ vi.mock('@/app/lib/board-data', () => ({
   SUPPORTED_BOARDS: ['kilter', 'tension'],
 }));
 
-const { getListPageCacheTTL } = await import('@/app/lib/list-page-cache');
+const { getListPageCacheTTL, hasUserSpecificFilters } = await import('@/app/lib/list-page-cache');
 
 function sp(params: Record<string, string> = {}): URLSearchParams {
   return new URLSearchParams(params);
@@ -15,101 +15,194 @@ const LEGACY_LIST = '/kilter/original/12x12-square/screw_bolt/40/list';
 const SLUG_LIST = '/b/kilter-original-12x12/40/list';
 
 describe('getListPageCacheTTL', () => {
-  // Legacy format: /[board]/[layout]/[size]/[sets]/[angle]/list
-  it('returns TTL for default list page (legacy format)', () => {
-    expect(getListPageCacheTTL(LEGACY_LIST, sp(), false)).toBe(TTL_24H);
+  describe('route matching', () => {
+    // Legacy format: /[board]/[layout]/[size]/[sets]/[angle]/list
+    it('matches legacy format list page', () => {
+      expect(getListPageCacheTTL(LEGACY_LIST, sp())).toBe(TTL_24H);
+    });
+
+    it('matches tension board (legacy format)', () => {
+      expect(getListPageCacheTTL('/tension/original/12x12-square/screw_bolt/40/list', sp())).toBe(TTL_24H);
+    });
+
+    it('rejects unsupported board (legacy format)', () => {
+      expect(getListPageCacheTTL('/fakeboard/original/12x12-square/screw_bolt/40/list', sp())).toBeNull();
+    });
+
+    it('rejects legacy path with too few segments', () => {
+      expect(getListPageCacheTTL('/kilter/list', sp())).toBeNull();
+    });
+
+    it('rejects legacy path with 5 segments (needs 6)', () => {
+      expect(getListPageCacheTTL('/kilter/original/12x12-square/screw_bolt/list', sp())).toBeNull();
+    });
+
+    // Slug format: /b/[board_slug]/[angle]/list
+    it('matches slug format list page', () => {
+      expect(getListPageCacheTTL(SLUG_LIST, sp())).toBe(TTL_24H);
+    });
+
+    it('matches slug format with different slug', () => {
+      expect(getListPageCacheTTL('/b/tension-two-wall-12x12/30/list', sp())).toBe(TTL_24H);
+    });
+
+    it('rejects slug path with too few segments (/b/list)', () => {
+      expect(getListPageCacheTTL('/b/list', sp())).toBeNull();
+    });
+
+    it('rejects slug path with only 3 segments', () => {
+      expect(getListPageCacheTTL('/b/kilter-original/list', sp())).toBeNull();
+    });
+
+    // Non-list pages
+    it('rejects non-list page (legacy format)', () => {
+      expect(getListPageCacheTTL('/kilter/original/12x12-square/screw_bolt/40/climb/abc', sp())).toBeNull();
+    });
+
+    it('rejects non-list page (slug format)', () => {
+      expect(getListPageCacheTTL('/b/kilter-original-12x12/40/climb/abc', sp())).toBeNull();
+    });
+
+    it('rejects path not ending in /list', () => {
+      expect(getListPageCacheTTL('/kilter/original/12x12-square/screw_bolt/40/queue', sp())).toBeNull();
+    });
+
+    it('rejects root path', () => {
+      expect(getListPageCacheTTL('/', sp())).toBeNull();
+    });
   });
 
-  it('returns TTL with non-user-specific filters', () => {
-    expect(
-      getListPageCacheTTL(LEGACY_LIST, sp({ minGrade: '10', sortBy: 'difficulty' }), false),
-    ).toBe(TTL_24H);
+  describe('non-user-specific filters are always cacheable', () => {
+    it('caches with grade filters', () => {
+      expect(getListPageCacheTTL(LEGACY_LIST, sp({ minGrade: '10', maxGrade: '20' }))).toBe(TTL_24H);
+    });
+
+    it('caches with sort params', () => {
+      expect(getListPageCacheTTL(LEGACY_LIST, sp({ sortBy: 'difficulty', sortOrder: 'asc' }))).toBe(TTL_24H);
+    });
+
+    it('caches with name search', () => {
+      expect(getListPageCacheTTL(SLUG_LIST, sp({ name: 'benchmark' }))).toBe(TTL_24H);
+    });
+
+    it('caches with minAscents', () => {
+      expect(getListPageCacheTTL(SLUG_LIST, sp({ minAscents: '5' }))).toBe(TTL_24H);
+    });
   });
 
-  // User-specific params + authenticated session → skip cache
-  it('returns null when authenticated user has hideAttempted=true', () => {
-    expect(
-      getListPageCacheTTL(LEGACY_LIST, sp({ hideAttempted: 'true' }), true),
-    ).toBeNull();
+  describe('user-specific params skip cache', () => {
+    it.each([
+      ['hideAttempted', 'true'],
+      ['hideAttempted', '1'],
+      ['hideCompleted', 'true'],
+      ['hideCompleted', '1'],
+      ['showOnlyAttempted', 'true'],
+      ['showOnlyAttempted', '1'],
+      ['showOnlyCompleted', 'true'],
+      ['showOnlyCompleted', '1'],
+      ['onlyDrafts', 'true'],
+      ['onlyDrafts', '1'],
+    ])('skips cache for %s=%s (legacy format)', (param, value) => {
+      expect(getListPageCacheTTL(LEGACY_LIST, sp({ [param]: value }))).toBeNull();
+    });
+
+    it.each([
+      ['hideAttempted', 'true'],
+      ['hideCompleted', '1'],
+      ['showOnlyAttempted', 'true'],
+      ['showOnlyCompleted', '1'],
+      ['onlyDrafts', 'true'],
+    ])('skips cache for %s=%s (slug format)', (param, value) => {
+      expect(getListPageCacheTTL(SLUG_LIST, sp({ [param]: value }))).toBeNull();
+    });
   });
 
-  it('returns null when authenticated user has onlyDrafts=1', () => {
-    expect(
-      getListPageCacheTTL('/tension/original/12x12-square/screw_bolt/40/list', sp({ onlyDrafts: '1' }), true),
-    ).toBeNull();
+  describe('falsy values for user-specific params are cacheable', () => {
+    it.each([
+      ['hideAttempted', 'false'],
+      ['hideAttempted', '0'],
+      ['hideAttempted', 'undefined'],
+      ['hideAttempted', ''],
+      ['hideCompleted', 'false'],
+      ['hideCompleted', '0'],
+      ['showOnlyAttempted', 'false'],
+      ['showOnlyCompleted', '0'],
+      ['onlyDrafts', 'false'],
+      ['onlyDrafts', '0'],
+    ])('caches for %s=%s', (param, value) => {
+      expect(getListPageCacheTTL(LEGACY_LIST, sp({ [param]: value }))).toBe(TTL_24H);
+    });
   });
 
-  // User-specific params + anonymous → still cacheable (params have no effect without userId)
-  it('returns TTL when anonymous user has hideAttempted=true', () => {
-    expect(
-      getListPageCacheTTL(LEGACY_LIST, sp({ hideAttempted: 'true' }), false),
-    ).toBe(TTL_24H);
+  describe('mixed params', () => {
+    it('skips cache when one user-specific param is true among non-specific ones', () => {
+      expect(
+        getListPageCacheTTL(LEGACY_LIST, sp({ minGrade: '10', hideAttempted: 'true', sortBy: 'difficulty' })),
+      ).toBeNull();
+    });
+
+    it('caches when user-specific params are all falsy', () => {
+      expect(
+        getListPageCacheTTL(LEGACY_LIST, sp({ minGrade: '10', hideAttempted: 'false', onlyDrafts: '0' })),
+      ).toBe(TTL_24H);
+    });
+  });
+});
+
+describe('hasUserSpecificFilters', () => {
+  const baseParams = {
+    gradeAccuracy: 0,
+    maxGrade: 0,
+    minAscents: 0,
+    minGrade: 0,
+    minRating: 0,
+    sortBy: 'ascents' as const,
+    sortOrder: 'desc' as const,
+    name: '',
+    onlyClassics: false,
+    onlyTallClimbs: false,
+    settername: [] as string[],
+    setternameSuggestion: '',
+    holdsFilter: {},
+    hideAttempted: false,
+    hideCompleted: false,
+    showOnlyAttempted: false,
+    showOnlyCompleted: false,
+    onlyDrafts: false,
+    page: 0,
+    pageSize: 20,
+  };
+
+  it('returns false when no user-specific filters are set', () => {
+    expect(hasUserSpecificFilters(baseParams)).toBe(false);
   });
 
-  it('returns TTL when anonymous user has onlyDrafts=1', () => {
-    expect(
-      getListPageCacheTTL(LEGACY_LIST, sp({ onlyDrafts: '1' }), false),
-    ).toBe(TTL_24H);
+  it.each([
+    'hideAttempted',
+    'hideCompleted',
+    'showOnlyAttempted',
+    'showOnlyCompleted',
+    'onlyDrafts',
+  ] as const)('returns true when %s is true', (param) => {
+    expect(hasUserSpecificFilters({ ...baseParams, [param]: true })).toBe(true);
   });
 
-  // Authenticated user without user-specific params → cacheable
-  it('returns TTL for authenticated user without user-specific params', () => {
-    expect(getListPageCacheTTL(LEGACY_LIST, sp(), true)).toBe(TTL_24H);
+  it('returns false when all user-specific filters are explicitly false', () => {
+    expect(hasUserSpecificFilters({
+      ...baseParams,
+      hideAttempted: false,
+      hideCompleted: false,
+      showOnlyAttempted: false,
+      showOnlyCompleted: false,
+      onlyDrafts: false,
+    })).toBe(false);
   });
 
-  it('treats hideAttempted=false as cacheable even with session', () => {
-    expect(
-      getListPageCacheTTL(LEGACY_LIST, sp({ hideAttempted: 'false' }), true),
-    ).toBe(TTL_24H);
-  });
-
-  it('treats hideAttempted=0 as cacheable even with session', () => {
-    expect(
-      getListPageCacheTTL(LEGACY_LIST, sp({ hideAttempted: '0' }), true),
-    ).toBe(TTL_24H);
-  });
-
-  it('treats hideAttempted=undefined (string) as cacheable', () => {
-    expect(
-      getListPageCacheTTL(LEGACY_LIST, sp({ hideAttempted: 'undefined' }), false),
-    ).toBe(TTL_24H);
-  });
-
-  // Non-list pages
-  it('returns null for non-list pages', () => {
-    expect(
-      getListPageCacheTTL('/kilter/original/12x12-square/screw_bolt/40/climb/abc', sp(), false),
-    ).toBeNull();
-  });
-
-  it('returns null for unsupported board (legacy format)', () => {
-    expect(
-      getListPageCacheTTL('/fakeboard/original/12x12-square/screw_bolt/40/list', sp(), false),
-    ).toBeNull();
-  });
-
-  it('returns null for paths with too few segments', () => {
-    expect(getListPageCacheTTL('/kilter/list', sp(), false)).toBeNull();
-  });
-
-  // Slug format: /b/[board_slug]/[angle]/list
-  it('returns TTL for slug format list page', () => {
-    expect(getListPageCacheTTL(SLUG_LIST, sp(), false)).toBe(TTL_24H);
-  });
-
-  it('returns null for slug format with user-specific params and session', () => {
-    expect(
-      getListPageCacheTTL(SLUG_LIST, sp({ hideCompleted: 'true' }), true),
-    ).toBeNull();
-  });
-
-  it('returns TTL for slug format with user-specific params but no session', () => {
-    expect(
-      getListPageCacheTTL(SLUG_LIST, sp({ hideCompleted: 'true' }), false),
-    ).toBe(TTL_24H);
-  });
-
-  it('returns null for /b/ paths with too few segments', () => {
-    expect(getListPageCacheTTL('/b/list', sp(), false)).toBeNull();
+  it('returns true when multiple user-specific filters are set', () => {
+    expect(hasUserSpecificFilters({
+      ...baseParams,
+      hideAttempted: true,
+      showOnlyCompleted: true,
+    })).toBe(true);
   });
 });

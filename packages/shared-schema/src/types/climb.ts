@@ -74,6 +74,22 @@ export type ClimbSearchInput = {
   onlyDrafts?: boolean;
 };
 
+/**
+ * Search params that require a userId to have any effect on query results.
+ * Used by caching layers (Redis, CDN, SSR) to decide whether results are
+ * user-specific or can be shared across all users.
+ *
+ * Type-checked against ClimbSearchInput so adding/removing a field here
+ * causes a compile error if the type doesn't match.
+ */
+export const USER_SPECIFIC_SEARCH_PARAMS = [
+  'hideAttempted',
+  'hideCompleted',
+  'showOnlyAttempted',
+  'showOnlyCompleted',
+  'onlyDrafts',
+] as const satisfies ReadonlyArray<keyof ClimbSearchInput>;
+
 export type ClimbSearchResult = {
   climbs: Climb[];
   totalCount: number;

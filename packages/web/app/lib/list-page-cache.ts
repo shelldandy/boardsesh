@@ -1,33 +1,30 @@
 import { SUPPORTED_BOARDS } from '@/app/lib/board-data';
+import { USER_SPECIFIC_SEARCH_PARAMS } from '@boardsesh/shared-schema';
+import type { SearchRequestPagination } from '@/app/lib/types';
 
-/** Search params that indicate user-specific queries — must not be CDN-cached. */
-const USER_SPECIFIC_PARAMS = ['hideAttempted', 'hideCompleted', 'showOnlyAttempted', 'showOnlyCompleted', 'onlyDrafts'];
+/**
+ * Checks whether search params contain any user-specific filters.
+ * Used by SSR pages to decide whether to resolve a user session.
+ */
+export function hasUserSpecificFilters(searchParams: SearchRequestPagination): boolean {
+  return USER_SPECIFIC_SEARCH_PARAMS.some((param) => !!searchParams[param]);
+}
 
 /**
  * Checks whether a request is a cacheable list page and returns the CDN cache
  * duration in seconds, or null if the request should not be CDN-cached.
  *
- * User-specific params (hideAttempted, etc.) only prevent caching when the
- * request has an authenticated session — matching the GraphQL resolver logic
- * where userId is only resolved when user-specific filters are active.
- * Without a session these params have no effect on query results.
- *
  * Matches both URL formats:
  *   - /[board]/[layout]/[size]/[sets]/[angle]/list  (legacy numeric)
  *   - /b/[board_slug]/[angle]/list                  (new slug format)
  */
-export function getListPageCacheTTL(pathname: string, searchParams: URLSearchParams, hasSession: boolean): number | null {
+export function getListPageCacheTTL(pathname: string, searchParams: URLSearchParams): number | null {
   // Fast-path: skip parsing for routes that clearly aren't list pages
   if (!pathname.endsWith('/list')) {
     return null;
   }
 
   const pathParts = pathname.split('/').filter(Boolean);
-  const lastPart = pathParts[pathParts.length - 1];
-
-  if (lastPart !== 'list') {
-    return null;
-  }
 
   const isLegacyFormat =
     pathParts.length >= 6 &&
@@ -41,18 +38,13 @@ export function getListPageCacheTTL(pathname: string, searchParams: URLSearchPar
     return null;
   }
 
-  // User-specific params only matter when there's an authenticated session.
-  // Without a session, these params have no effect on query results (the DB
-  // query ignores them without a userId), so the response is still cacheable.
-  if (hasSession) {
-    const hasUserSpecificParams = USER_SPECIFIC_PARAMS.some((param) => {
-      const value = searchParams.get(param);
-      return value === 'true' || value === '1';
-    });
+  const hasUserParams = USER_SPECIFIC_SEARCH_PARAMS.some((param) => {
+    const value = searchParams.get(param);
+    return value === 'true' || value === '1';
+  });
 
-    if (hasUserSpecificParams) {
-      return null;
-    }
+  if (hasUserParams) {
+    return null;
   }
 
   return 86400; // 24 hours

@@ -5,6 +5,7 @@ import { parsedRouteSearchParamsToSearchParams } from '@/app/lib/url-utils';
 import { resolveBoardBySlug, boardToRouteParams } from '@/app/lib/board-slug-utils';
 import BoardPageClimbsList from '@/app/components/board-page/board-page-climbs-list';
 import { cachedSearchClimbs } from '@/app/lib/db/queries/climbs/search-climbs';
+import { hasUserSpecificFilters } from '@/app/lib/list-page-cache';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { MAX_PAGE_SIZE } from '@/app/components/board-page/constants';
 import { getServerSession } from 'next-auth/next';
@@ -31,13 +32,7 @@ export default async function BoardSlugListPage(props: BoardSlugListPageProps) {
   searchParamsObject.pageSize = Math.min(requestedPageSize, MAX_PAGE_SIZE);
   searchParamsObject.page = 0;
 
-  const hasProgressFilters = !!(
-    searchParamsObject.hideAttempted ||
-    searchParamsObject.hideCompleted ||
-    searchParamsObject.showOnlyAttempted ||
-    searchParamsObject.showOnlyCompleted ||
-    searchParamsObject.onlyDrafts
-  );
+  const hasProgressFilters = hasUserSpecificFilters(searchParamsObject);
 
   const isDefaultSearch =
     !searchParamsObject.gradeAccuracy &&

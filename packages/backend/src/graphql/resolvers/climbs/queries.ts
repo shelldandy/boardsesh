@@ -1,6 +1,6 @@
 import { eq, and, gte, desc } from 'drizzle-orm';
 import type { ClimbSearchInput, ConnectionContext, BoardName } from '@boardsesh/shared-schema';
-import { SUPPORTED_BOARDS } from '@boardsesh/shared-schema';
+import { SUPPORTED_BOARDS, USER_SPECIFIC_SEARCH_PARAMS } from '@boardsesh/shared-schema';
 import type { ClimbSearchParams, ParsedBoardRouteParameters } from '../../../db/queries/climbs/index';
 import { getClimbByUuid } from '../../../db/queries/climbs/index';
 import { getSizeEdges } from '../../../db/queries/util/product-sizes-data';
@@ -84,13 +84,9 @@ export const climbQueries = {
     }
 
     // Results are cacheable when there are no user-specific filters.
-    // This mirrors the middleware CDN caching logic which also skips cache for these params.
-    const hasUserSpecificFilters = !!(
-      searchParams.hideAttempted ||
-      searchParams.hideCompleted ||
-      searchParams.showOnlyAttempted ||
-      searchParams.showOnlyCompleted ||
-      searchParams.onlyDrafts
+    // Uses the shared constant to stay in sync with CDN/SSR caching layers.
+    const hasUserSpecificFilters = USER_SPECIFIC_SEARCH_PARAMS.some(
+      (param) => !!searchParams[param as keyof typeof searchParams],
     );
 
     // Only resolve userId when user-specific filters are active — otherwise the query
