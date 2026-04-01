@@ -15,6 +15,7 @@ import { getPreference, setPreference } from '@/app/lib/user-preferences-db';
 import { useInfiniteScroll } from '@/app/hooks/use-infinite-scroll';
 import { useFeatureFlag } from '@/app/components/providers/feature-flags-provider';
 import { trackListBatchRender } from '@/app/lib/rendering-metrics';
+import { classifyClimbListChange } from './climb-list-utils';
 
 type ViewMode = 'grid' | 'list';
 
@@ -96,18 +97,15 @@ const ClimbsList = ({
     const prevClimbs = prevClimbsRef.current;
     prevClimbsRef.current = climbs;
 
-    // Detect append (infinite scroll): new list starts with all previous items
-    const isAppend = climbs.length > prevClimbs.length &&
-      prevClimbs.length > 0 &&
-      climbs[0]?.uuid === prevClimbs[0]?.uuid;
+    const changeType = classifyClimbListChange(climbs, prevClimbs);
 
     // Record batch start for any data change that adds items
     if (climbs.length > prevClimbs.length) {
       batchStartRef.current = { time: performance.now(), prevLength: prevClimbs.length, isInitial: prevClimbs.length === 0 };
     }
 
-    if (isAppend) {
-      // Show all items immediately — no batching for appended pages
+    if (changeType === 'append' || changeType === 'same') {
+      // Show all items immediately — no batching for appended pages or unchanged data
       setVisibleCount(climbs.length);
     } else if (climbs.length > INITIAL_BATCH) {
       setVisibleCount(INITIAL_BATCH);
