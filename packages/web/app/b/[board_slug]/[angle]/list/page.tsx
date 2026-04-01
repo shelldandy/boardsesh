@@ -9,6 +9,7 @@ import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { MAX_PAGE_SIZE } from '@/app/components/board-page/constants';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/lib/auth/auth-options';
+import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
 
 interface BoardSlugListPageProps {
   params: Promise<{ board_slug: string; angle: string }>;
@@ -79,6 +80,8 @@ export default async function BoardSlugListPage(props: BoardSlugListPageProps) {
     console.error('Error fetching climb search results:', error);
     searchResponse = { climbs: [], hasMore: false };
   }
+
+  scheduleOverlayWarming({ boardDetails, climbs: searchResponse.climbs, variant: 'thumbnail' });
 
   return <BoardPageClimbsList {...parsedParams} boardDetails={boardDetails} initialClimbs={searchResponse.climbs} />;
 }

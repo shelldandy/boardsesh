@@ -7,6 +7,7 @@ import { getClimb } from '@/app/lib/data/queries';
 
 import PlayViewClient from './play-view-client';
 import { Metadata } from 'next';
+import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
 
 
 export async function generateMetadata(props: { params: Promise<BoardRouteParametersWithUuid> }): Promise<Metadata> {
@@ -95,6 +96,10 @@ export default async function PlayPage(props: {
     }
   } catch {
     // Climb will be loaded from queue context on client
+  }
+
+  if (initialClimb) {
+    scheduleOverlayWarming({ boardDetails, climbs: [initialClimb], variant: 'full' });
   }
 
   return (
