@@ -23,6 +23,10 @@ interface CssBarChartProps {
   showLegend?: boolean;
   gap?: number;
   ariaLabel?: string;
+  /** Max number of x-axis labels to display; surplus labels are hidden. */
+  maxLabels?: number;
+  /** Render x-axis labels at a -45° angle (useful for dense charts). */
+  angledLabels?: boolean;
 }
 
 export const CssBarChart = React.memo(function CssBarChart({
@@ -32,6 +36,8 @@ export const CssBarChart = React.memo(function CssBarChart({
   showLegend = true,
   gap = 2,
   ariaLabel = 'Bar chart',
+  maxLabels,
+  angledLabels = false,
 }: CssBarChartProps) {
   const maxTotal = useMemo(
     () => Math.max(...bars.map((b) => b.segments.reduce((sum, s) => sum + s.value, 0)), 1),
@@ -42,6 +48,20 @@ export const CssBarChart = React.memo(function CssBarChart({
     '--chart-height': `${height}px`,
     '--chart-mobile-height': `${mobileHeight}px`,
   } as React.CSSProperties;
+
+  // Pre-compute which label indices are visible when maxLabels is set.
+  // Distributes exactly maxLabels labels evenly across the range.
+  const visibleLabelIndices = useMemo(() => {
+    if (!maxLabels || bars.length <= maxLabels) return null;
+    const count = Math.min(maxLabels, bars.length);
+    if (count <= 1) return new Set([0]);
+    const step = (bars.length - 1) / (count - 1);
+    const indices = new Set<number>();
+    for (let k = 0; k < count; k++) {
+      indices.add(Math.round(k * step));
+    }
+    return indices;
+  }, [bars.length, maxLabels]);
 
   return (
     <div className={styles.container}>
@@ -88,12 +108,23 @@ export const CssBarChart = React.memo(function CssBarChart({
         })}
       </div>
       {showLegend && (
-        <div className={styles.legend} style={{ gap: `${gap}px` }} aria-hidden="true">
-          {bars.map((bar) => (
-            <span key={bar.key} className={styles.legendLabel}>
-              {bar.label}
-            </span>
-          ))}
+        <div
+          className={`${styles.legend} ${angledLabels ? styles.legendAngled : ''}`}
+          style={{ gap: `${gap}px` }}
+          aria-hidden="true"
+        >
+          {bars.map((bar, i) => {
+            const visible = !visibleLabelIndices || visibleLabelIndices.has(i);
+            return (
+              <span
+                key={bar.key}
+                className={styles.legendLabel}
+                style={visible ? undefined : { visibility: 'hidden' }}
+              >
+                {bar.label}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

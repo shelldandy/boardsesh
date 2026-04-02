@@ -13,7 +13,7 @@
 .barColumn {
   flex: 1;
   min-width: 4px;
-  max-width: 24px;
+  max-width: 64px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -44,7 +44,7 @@
 .legendLabel {
   flex: 1;
   min-width: 4px;
-  max-width: 24px;
+  max-width: 64px;
   text-align: center;
   font-size: 9px;
   color: var(--neutral-500);
@@ -52,6 +52,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Angled x-axis labels for dense charts (e.g. weekly) */
+.legendAngled {
+  position: relative;
+  height: 28px;
+}
+
+.legendAngled .legendLabel {
+  position: relative;
+  transform: rotate(-45deg);
+  transform-origin: top center;
+  text-align: right;
+  overflow: visible;
 }
 
 /* Stacked legend (for charts with multiple segment colors) */
@@ -90,7 +104,7 @@
 .groupedBarColumn {
   flex: 1;
   min-width: 8px;
-  max-width: 48px;
+  max-width: 80px;
   height: 100%;
   display: flex;
   gap: 1px;
