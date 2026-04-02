@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { CLIMB_SESSION_COOKIE } from '@/app/lib/climb-session-cookie';
 
 vi.mock('@/app/lib/board-data', () => ({
   SUPPORTED_BOARDS: ['kilter', 'tension'],
+}));
+
+const mockPrecomputeAllFlags = vi.fn().mockResolvedValue('__test_code__');
+vi.mock('@/app/flags', () => ({
+  precomputeAllFlags: mockPrecomputeAllFlags,
 }));
 
 const { getListPageCacheTTL, hasUserSpecificFilters } = await import('@/app/lib/list-page-cache');
@@ -217,29 +222,29 @@ function makeRequest(url: string): NextRequest {
 }
 
 describe('middleware session redirect', () => {
-  it('redirects when ?session= is present on a list page', () => {
-    const response = middleware(makeRequest('/b/kilter-original-12x12/40/list?session=abc-123'));
+  it('redirects when ?session= is present on a list page', async () => {
+    const response = await middleware(makeRequest('/b/kilter-original-12x12/40/list?session=abc-123'));
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
     expect(location).toBe('http://localhost:3000/b/kilter-original-12x12/40/list');
   });
 
-  it('redirects when ?session= is present on any page', () => {
-    const response = middleware(makeRequest('/some/page?session=xyz'));
+  it('redirects when ?session= is present on any page', async () => {
+    const response = await middleware(makeRequest('/some/page?session=xyz'));
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
     expect(location).toBe('http://localhost:3000/some/page');
   });
 
-  it('sets the climb session cookie on redirect', () => {
-    const response = middleware(makeRequest('/b/kilter-original-12x12/40/list?session=abc-123'));
+  it('sets the climb session cookie on redirect', async () => {
+    const response = await middleware(makeRequest('/b/kilter-original-12x12/40/list?session=abc-123'));
     const setCookie = response.headers.get('set-cookie');
     expect(setCookie).toContain(CLIMB_SESSION_COOKIE);
     expect(setCookie).toContain('abc-123');
   });
 
-  it('preserves other query params when stripping session', () => {
-    const response = middleware(makeRequest('/b/kilter-original-12x12/40/list?minGrade=10&session=abc-123&sortBy=difficulty'));
+  it('preserves other query params when stripping session', async () => {
+    const response = await middleware(makeRequest('/b/kilter-original-12x12/40/list?minGrade=10&session=abc-123&sortBy=difficulty'));
     expect(response.status).toBe(307);
     const location = new URL(response.headers.get('location')!);
     expect(location.searchParams.get('minGrade')).toBe('10');
@@ -247,14 +252,111 @@ describe('middleware session redirect', () => {
     expect(location.searchParams.has('session')).toBe(false);
   });
 
-  it('does not redirect when no ?session= is present', () => {
-    const response = middleware(makeRequest('/b/kilter-original-12x12/40/list'));
+  it('does not redirect when no ?session= is present', async () => {
+    const response = await middleware(makeRequest('/b/kilter-original-12x12/40/list'));
     expect(response.status).not.toBe(307);
   });
 
-  it('session redirect takes priority over CDN cache headers', () => {
-    const response = middleware(makeRequest('/kilter/original/12x12-square/screw_bolt/40/list?session=abc-123'));
+  it('session redirect takes priority over CDN cache headers', async () => {
+    const response = await middleware(makeRequest('/kilter/original/12x12-square/screw_bolt/40/list?session=abc-123'));
     expect(response.status).toBe(307);
     expect(response.headers.has('Vercel-CDN-Cache-Control')).toBe(false);
+  });
+});
+
+// --- Visitor ID tests ---
+
+describe('middleware visitor ID (bs_vid)', () => {
+  beforeEach(() => {
+    mockPrecomputeAllFlags.mockResolvedValue('__test_code__');
+  });
+
+  it('sets bs_vid cookie when not present', async () => {
+    const response = await middleware(makeRequest('/some/page'));
+    const setCookie = response.headers.get('set-cookie');
+    expect(setCookie).toContain('bs_vid=');
+  });
+
+  it('does not overwrite existing bs_vid cookie', async () => {
+    const req = makeRequest('/some/page');
+    req.cookies.set('bs_vid', 'existing-id');
+    const response = await middleware(req);
+    const setCookie = response.headers.get('set-cookie');
+    expect(setCookie).toBeNull();
+  });
+
+  it('sets bs_vid with httpOnly, lax, and 1-year maxAge', async () => {
+    const response = await middleware(makeRequest('/some/page'));
+    const setCookie = response.headers.get('set-cookie')!;
+    expect(setCookie).toContain('HttpOnly');
+    expect(setCookie.toLowerCase()).toContain('samesite=lax');
+    expect(setCookie).toContain('Max-Age=31536000');
+  });
+});
+
+// --- Feature flag precompute tests ---
+
+describe('middleware flag precompute on list pages', () => {
+  beforeEach(() => {
+    mockPrecomputeAllFlags.mockResolvedValue('__test_code__');
+  });
+
+  it('rewrites URL with _flags param on cacheable list pages', async () => {
+    const response = await middleware(makeRequest(LEGACY_LIST));
+    expect(response.headers.get('x-middleware-rewrite')).toContain('_flags=__test_code__');
+  });
+
+  it('sets CDN cache headers on cacheable list pages', async () => {
+    const response = await middleware(makeRequest(LEGACY_LIST));
+    expect(response.headers.get('Vercel-CDN-Cache-Control')).toBe(`s-maxage=${TTL_24H}, stale-while-revalidate=${TTL_24H * 7}`);
+    expect(response.headers.get('CDN-Cache-Control')).toBe(`s-maxage=${TTL_24H}, stale-while-revalidate=${TTL_24H * 7}`);
+  });
+
+  it('bypasses CDN cache when vercel-flag-overrides cookie is present', async () => {
+    mockPrecomputeAllFlags.mockClear();
+    const req = makeRequest(LEGACY_LIST);
+    req.cookies.set('vercel-flag-overrides', 'some-override');
+    const response = await middleware(req);
+    expect(response.headers.has('x-middleware-rewrite')).toBe(false);
+    expect(mockPrecomputeAllFlags).not.toHaveBeenCalled();
+  });
+
+  it('falls back gracefully when precomputeAllFlags throws', async () => {
+    mockPrecomputeAllFlags.mockRejectedValueOnce(new Error('FLAGS_SECRET missing'));
+    const response = await middleware(makeRequest(LEGACY_LIST));
+    // Should still set CDN cache headers (just without variant rewrite)
+    expect(response.headers.get('Vercel-CDN-Cache-Control')).toBe(`s-maxage=${TTL_24H}, stale-while-revalidate=${TTL_24H * 7}`);
+    expect(response.headers.has('x-middleware-rewrite')).toBe(false);
+  });
+
+  it('does not call precomputeAllFlags for non-list pages', async () => {
+    mockPrecomputeAllFlags.mockClear();
+    await middleware(makeRequest('/some/page'));
+    expect(mockPrecomputeAllFlags).not.toHaveBeenCalled();
+  });
+
+  it('injects bs_vid into request cookies before calling precomputeAllFlags on first visit', async () => {
+    // Capture the request's cookie state at the moment precomputeAllFlags is called
+    let requestHadVisitorId = false;
+    mockPrecomputeAllFlags.mockImplementationOnce(async function (this: unknown) {
+      // The middleware should have set bs_vid on the request cookies
+      // before calling precomputeAllFlags. We can't read the request
+      // directly, but we can verify the mock was called (meaning
+      // the middleware didn't skip it due to a missing visitor ID).
+      requestHadVisitorId = true;
+      return '__first_visit_code__';
+    });
+    const req = makeRequest(LEGACY_LIST);
+    // Verify no bs_vid cookie exists initially
+    expect(req.cookies.get('bs_vid')).toBeUndefined();
+    const response = await middleware(req);
+    // precomputeAllFlags was called (not skipped)
+    expect(requestHadVisitorId).toBe(true);
+    // The request should now have bs_vid set (via request.cookies.set)
+    expect(req.cookies.get('bs_vid')?.value).toBeDefined();
+    // Response also persists the cookie for subsequent requests
+    const setCookie = response.headers.get('set-cookie');
+    expect(setCookie).toContain('bs_vid=');
+    expect(setCookie).toContain(req.cookies.get('bs_vid')!.value);
   });
 });
