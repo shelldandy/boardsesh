@@ -36,7 +36,7 @@ describe('RecentSearchPills', () => {
     render(<RecentSearchPills />);
 
     expect(screen.getByTestId('recent-search-pills-loading')).toBeTruthy();
-    expect(screen.getAllByTestId('recent-search-pill-shadow')).toHaveLength(3);
+    expect(screen.getAllByTestId('recent-search-pill-shadow')).toHaveLength(5);
 
     resolveSearches([]);
 

@@ -9,7 +9,7 @@ import { DEFAULT_SEARCH_PARAMS } from '@/app/lib/url-utils';
 import { getSearchPillFullSummary } from './search-summary-utils';
 import styles from './recent-search-pills.module.css';
 
-const SHADOW_PILL_WIDTHS = [72, 104, 88];
+const SHADOW_PILL_WIDTHS = [72, 104, 88, 96, 80];
 
 const RecentSearchPills: React.FC = () => {
   const [searches, setSearches] = useState<RecentSearch[]>([]);
@@ -56,7 +56,7 @@ const RecentSearchPills: React.FC = () => {
               className={`${styles.pill} ${styles.pillShadow}`}
               data-testid="recent-search-pill-shadow"
             >
-              <span className={styles.pillShadowIcon} />
+              <HistoryOutlined className={`${styles.pillIcon} ${styles.pillShadowIcon}`} />
               <span className={styles.pillShadowLabel} style={{ width }} />
             </div>
           ))}

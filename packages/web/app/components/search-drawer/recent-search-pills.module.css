@@ -37,6 +37,9 @@
 .pillShadow {
   pointer-events: none;
   cursor: default;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 2px 10px;
 }
 
 .pillShadow:hover,
@@ -46,11 +49,7 @@
 }
 
 .pillShadowIcon {
-  width: 10px;
-  height: 10px;
-  border-radius: 9999px;
-  background: var(--neutral-200);
-  flex-shrink: 0;
+  color: var(--neutral-200);
 }
 
 .pillShadowLabel {
@@ -96,7 +95,10 @@
   white-space: nowrap;
 }
 
-:global(html[data-theme="dark"]) .pillShadowIcon,
+:global(html[data-theme="dark"]) .pillShadowIcon {
+  color: rgba(255, 255, 255, 0.12);
+}
+
 :global(html[data-theme="dark"]) .pillShadowLabel {
   background: rgba(255, 255, 255, 0.12);
 }
