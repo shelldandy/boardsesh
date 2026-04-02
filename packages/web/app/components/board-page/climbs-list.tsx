@@ -44,6 +44,7 @@ export type ClimbsListProps = {
   boardDetails: BoardDetails;
   boardDetailsMap?: Record<string, BoardDetails>;
   unsupportedClimbs?: Set<string>;
+  initialImageCount?: number;
   climbs: Climb[];
   selectedClimbUuid?: string | null;
   isFetching: boolean;
@@ -74,6 +75,7 @@ const ClimbsList = ({
   boardDetails,
   boardDetailsMap,
   unsupportedClimbs,
+  initialImageCount = 0,
   climbs,
   selectedClimbUuid,
   isFetching,
@@ -368,6 +370,7 @@ const ClimbsList = ({
                 <ClimbCard
                   climb={climb}
                   boardDetails={resolveBoardDetails(climb)}
+                  preferImageLayers={index < initialImageCount}
                   selected={selectedClimbUuid === climb.uuid}
                   onCoverClick={climbHandlersMap.get(climb.uuid)}
                   unsupported={unsupportedClimbs?.has(climb.uuid)}
@@ -392,6 +395,7 @@ const ClimbsList = ({
                   <ClimbListItem
                     climb={climb}
                     boardDetails={resolveBoardDetails(climb)}
+                    preferImageLayers={index < initialImageCount}
                     selected={selectedClimbUuid === climb.uuid}
                     onSelect={climbHandlersMap.get(climb.uuid)}
                     onThumbnailClick={climbHandlersMap.get(climb.uuid)}

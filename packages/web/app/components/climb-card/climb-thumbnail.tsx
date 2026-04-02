@@ -14,6 +14,7 @@ type ClimbThumbnailProps = {
   enableNavigation?: boolean;
   onNavigate?: () => void;
   maxHeight?: string;
+  preferImageLayers?: boolean;
 };
 
 const ClimbThumbnail = ({
@@ -22,9 +23,10 @@ const ClimbThumbnail = ({
   enableNavigation = false,
   onNavigate,
   maxHeight,
+  preferImageLayers = false,
 }: ClimbThumbnailProps) => {
   const pathname = usePathname();
-  const canvasReady = useCanvasRendererReady(true);
+  const canvasReady = useCanvasRendererReady();
 
   const boardStyle: React.CSSProperties = {
     aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}`,
@@ -33,7 +35,7 @@ const ClimbThumbnail = ({
 
   let renderContent: React.ReactNode = null;
   if (currentClimb) {
-    if (canvasReady) {
+    if (!preferImageLayers && canvasReady) {
       renderContent = (
         <BoardCanvasRenderer
           boardDetails={boardDetails}

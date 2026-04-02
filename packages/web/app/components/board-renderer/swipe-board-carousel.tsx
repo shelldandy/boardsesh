@@ -89,7 +89,7 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
   };
 
   const transition = getSwipeTransition();
-  const canvasReady = useCanvasRendererReady(true);
+  const canvasReady = useCanvasRendererReady();
 
   const renderBoard = (climb: ClimbBoardData) => {
     if (canvasReady) {

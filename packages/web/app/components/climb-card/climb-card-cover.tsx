@@ -11,11 +11,18 @@ type ClimbCardCoverProps = {
   boardDetails: BoardDetails;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  preferImageLayers?: boolean;
 };
 
-const ClimbCardCover = ({ climb, boardDetails, onClick, onDoubleClick }: ClimbCardCoverProps) => {
+const ClimbCardCover = ({
+  climb,
+  boardDetails,
+  onClick,
+  onDoubleClick,
+  preferImageLayers = false,
+}: ClimbCardCoverProps) => {
   const { ref, onDoubleClick: handleDoubleClick } = useDoubleTap(onDoubleClick);
-  const canvasReady = useCanvasRendererReady(true);
+  const canvasReady = useCanvasRendererReady();
 
   const boardStyle: React.CSSProperties = {
     aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}`,
@@ -25,7 +32,7 @@ const ClimbCardCover = ({ climb, boardDetails, onClick, onDoubleClick }: ClimbCa
   let renderContent: React.ReactNode;
   if (!climb) {
     renderContent = <BoardImageLayers boardDetails={boardDetails} mirrored={false} style={boardStyle} />;
-  } else if (canvasReady) {
+  } else if (!preferImageLayers && canvasReady) {
     renderContent = (
       <BoardCanvasRenderer
         boardDetails={boardDetails}

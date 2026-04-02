@@ -31,7 +31,7 @@ const AscentThumbnail: React.FC<AscentThumbnailProps> = ({
   frames,
   isMirror,
 }) => {
-  const canvasReady = useCanvasRendererReady(true);
+  const canvasReady = useCanvasRendererReady();
   // Memoize board details to avoid recomputing on every render
   const boardDetails = useMemo<BoardDetails | null>(() => {
     if (!layoutId) return null;
