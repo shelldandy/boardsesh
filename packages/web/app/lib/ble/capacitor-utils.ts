@@ -5,8 +5,11 @@ export const isCapacitor = (): boolean =>
  * Detect if we're running inside a Capacitor WebView even before
  * window.Capacitor is injected, using user-agent heuristics.
  *
- * Android WebView UA contains "; wv)" — a reliable, long-standing marker.
+ * Android WebView UA includes the "wv" token — a reliable, long-standing marker.
  * iOS WKWebView (loaded by a native app) omits the "Safari" token.
+ * Most iOS browsers (Chrome, Firefox, Edge) still include "Safari" in their UA
+ * because they use the system WebKit engine, so this heuristic is narrower than
+ * it appears — it primarily matches native-app WKWebViews.
  */
 export const isCapacitorWebView = (): boolean => {
   if (typeof navigator === 'undefined') return false;
