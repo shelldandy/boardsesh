@@ -122,6 +122,20 @@ describe('BoardImageLayers', () => {
     }
   });
 
+  it('does not set loading="lazy" on thumbnail overlay images', () => {
+    const { container } = render(
+      <BoardImageLayers
+        boardDetails={mockBoardDetails}
+        frames="p1r42p2r43"
+        mirrored={false}
+        thumbnail
+      />,
+    );
+
+    const images = container.querySelectorAll('img');
+    expect(images[images.length - 1].getAttribute('loading')).toBeNull();
+  });
+
   it('renders multiple background images when board has multiple sets', () => {
     const multiSetBoard: BoardDetails = {
       ...mockBoardDetails,

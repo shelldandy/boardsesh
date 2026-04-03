@@ -83,7 +83,7 @@ const BoardImageLayers = React.memo(function BoardImageLayers({
         <img
           src={overlayUrl}
           alt=""
-          loading="lazy"
+          loading={thumbnail ? undefined : 'lazy'}
           style={imgStyle}
           onLoad={handleOverlayLoad}
           onError={handleOverlayError}
