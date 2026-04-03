@@ -83,7 +83,7 @@ providers.push(
   }),
 );
 
-// Always add credentials provider
+// Always add email/password credentials provider
 providers.push(
   CredentialsProvider({
       name: "Email",

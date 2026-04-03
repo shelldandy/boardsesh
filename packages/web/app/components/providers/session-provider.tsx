@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SessionProvider, signIn } from 'next-auth/react';
 import { ReactNode } from 'react';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 import { isNativeApp } from '@/app/lib/ble/capacitor-utils';
 
 interface SessionProviderWrapperProps {
@@ -10,6 +12,8 @@ interface SessionProviderWrapperProps {
 }
 
 export default function SessionProviderWrapper({ children }: SessionProviderWrapperProps) {
+  const [deepLinkError, setDeepLinkError] = useState(false);
+
   useEffect(() => {
     if (!isNativeApp()) {
       return;
@@ -64,6 +68,7 @@ export default function SessionProviderWrapper({ children }: SessionProviderWrap
       }
     }).catch((err) => {
       console.error('[Native OAuth] Failed to register appUrlOpen listener:', err);
+      setDeepLinkError(true);
     });
 
     return () => {
@@ -78,6 +83,15 @@ export default function SessionProviderWrapper({ children }: SessionProviderWrap
       refetchWhenOffline={false}
     >
       {children}
+      <Snackbar
+        open={deepLinkError}
+        autoHideDuration={8000}
+        onClose={() => setDeepLinkError(false)}
+      >
+        <Alert severity="warning" onClose={() => setDeepLinkError(false)}>
+          Sign-in with Google, Apple, or Facebook may not work. Try restarting the app.
+        </Alert>
+      </Snackbar>
     </SessionProvider>
   );
 }
