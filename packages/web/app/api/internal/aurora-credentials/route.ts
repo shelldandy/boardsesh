@@ -143,8 +143,8 @@ export async function POST(request: NextRequest) {
           encryptedPassword,
           auroraUserId: loginResponse.user_id,
           auroraToken: encryptedToken,
-          lastSyncAt: now,
-          syncStatus: "active",
+          lastSyncAt: null,
+          syncStatus: "pending",
           syncError: null,
           updatedAt: now,
         })
@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
         encryptedPassword,
         auroraUserId: loginResponse.user_id,
         auroraToken: encryptedToken,
-        lastSyncAt: now,
-        syncStatus: "active",
+        lastSyncAt: null,
+        syncStatus: "pending",
         syncError: null,
       });
     }
@@ -210,8 +210,8 @@ export async function POST(request: NextRequest) {
         boardType,
         auroraUsername: username,
         auroraUserId: loginResponse.user_id,
-        lastSyncAt: now.toISOString(),
-        syncStatus: "active",
+        lastSyncAt: null,
+        syncStatus: "pending",
         syncError: null,
         createdAt: now.toISOString(),
       },
