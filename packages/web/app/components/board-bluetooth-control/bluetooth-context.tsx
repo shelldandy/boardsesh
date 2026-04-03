@@ -36,13 +36,15 @@ export function BluetoothProvider({
   useEffect(() => {
     let cancelPolling: (() => void) | undefined;
 
-    // Immediate synchronous checks
-    if (isCapacitor() || isCapacitorWebView()) {
+    if (isCapacitor()) {
+      // Bridge already available — confirmed native environment
       setIsBluetoothSupported(true);
     } else if (typeof navigator !== 'undefined' && !!navigator.bluetooth) {
+      // Web Bluetooth API present (Chrome, Edge, etc.)
       setIsBluetoothSupported(true);
-    } else {
-      // Safety net: poll for window.Capacitor in case the bridge loads late
+    } else if (isCapacitorWebView()) {
+      // UA looks like a native WebView — bridge may not be injected yet.
+      // Poll for window.Capacitor; only confirm support once the bridge appears.
       let cancelled = false;
       waitForCapacitor(2000).then((found) => {
         if (!cancelled && found) {
