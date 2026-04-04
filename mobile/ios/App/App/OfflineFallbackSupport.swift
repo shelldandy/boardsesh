@@ -1,7 +1,7 @@
 import Foundation
 
 enum OfflineFallbackSupport {
-    static let defaultURL = URL(string: "https://boardsesh.com")!
+    static let defaultURL = URL(string: "https://www.boardsesh.com")!
 
     static func sanitizedRetryURL(_ candidate: URL?) -> URL {
         guard let candidate, let scheme = candidate.scheme?.lowercased() else {

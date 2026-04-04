@@ -20,7 +20,7 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
-    private static final String DEFAULT_RETRY_URL = "https://boardsesh.com";
+    private static final String DEFAULT_RETRY_URL = "https://www.boardsesh.com";
     private final OfflineFallbackStateMachine fallbackState = new OfflineFallbackStateMachine();
 
     @Override
