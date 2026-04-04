@@ -1,7 +1,6 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import NextError from "next/error";
 import { useEffect } from "react";
 
 export default function GlobalError({
@@ -14,13 +13,49 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
-      <body>
-        {/* `NextError` is the default Next.js error page component. Its type
-        definition requires a `statusCode` prop. However, since the App Router
-        does not expose status codes for errors, we simply pass 0 to render a
-        generic error message. */}
-        <NextError statusCode={0} />
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <body
+        style={{
+          margin: 0,
+          backgroundColor: "#0A0A0A",
+          color: "#F3F4F6",
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100dvh",
+            padding: "24px",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ fontSize: 18, fontWeight: 500, margin: "0 0 8px" }}>
+            Something went wrong
+          </p>
+          <p style={{ fontSize: 14, color: "#9CA3AF", margin: "0 0 24px" }}>
+            Pull down to refresh, or tap below
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "12px 24px",
+              borderRadius: 8,
+              border: "none",
+              backgroundColor: "#8C4A52",
+              color: "#fff",
+              fontSize: 16,
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            Reload app
+          </button>
+        </div>
       </body>
     </html>
   );
