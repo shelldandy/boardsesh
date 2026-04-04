@@ -49,12 +49,19 @@ jobs:
         working-directory: mobile/ios/App
         run: pod install
 
+      - name: Resolve simulator destination
+        id: simulator
+        run: |
+          DESTINATION=$(xctrace list devices 2>/dev/null | grep -m1 'iPhone.*Simulator' | sed 's/ *(.*//' | xargs)
+          echo "device=$DESTINATION" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $DESTINATION"
+
       - name: Build for testing (compiler check)
         run: |
           xcodebuild build-for-testing \
             -workspace "$WORKSPACE_PATH" \
             -scheme "$SCHEME" \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,name=${{ steps.simulator.outputs.device }}' \
             -configuration Debug \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -65,4 +72,4 @@ jobs:
           xcodebuild test-without-building \
             -workspace "$WORKSPACE_PATH" \
             -scheme "$SCHEME" \
-            -destination 'platform=iOS Simulator,name=iPhone 16'
+            -destination 'platform=iOS Simulator,name=${{ steps.simulator.outputs.device }}'

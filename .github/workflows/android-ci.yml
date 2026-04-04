@@ -42,10 +42,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Read SDK versions from project config
+        id: sdk-versions
+        working-directory: mobile/android
+        run: |
+          COMPILE_SDK=$(grep 'compileSdkVersion' variables.gradle | grep -oP '\d+')
+          echo "compile-sdk=$COMPILE_SDK" >> "$GITHUB_OUTPUT"
+          echo "Using compileSdkVersion=$COMPILE_SDK from variables.gradle"
+
       - name: Accept licenses and install SDK components
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          yes | sdkmanager --licenses 2>&1 | tail -5
+          sdkmanager "platforms;android-${{ steps.sdk-versions.outputs.compile-sdk }}"
 
       - name: Install Node.js dependencies
         working-directory: mobile
