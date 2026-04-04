@@ -9,6 +9,7 @@
     "@capacitor-community/bluetooth-le": "^8",
     "@capacitor-community/keep-awake": "^8",
     "@capacitor/android": "^8",
+    "@capacitor/app": "^8",
     "@capacitor/browser": "^8",
     "@capacitor/core": "^8",
     "@capacitor/geolocation": "^8",
