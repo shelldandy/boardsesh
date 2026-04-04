@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 
 const NATIVE_OAUTH_TRANSFER_TTL_SECONDS = 120;
+const CLOCK_SKEW_TOLERANCE_SECONDS = 5;
 
 type NativeOAuthTransferPayload = {
   userId: string;
@@ -70,11 +71,19 @@ export const verifyNativeOAuthTransferToken = (
     .update(encodedPayload)
     .digest('base64url');
 
-  if (signature.length !== expectedSignature.length) {
+  const sigBuffer = Buffer.from(signature);
+  const expectedSigBuffer = Buffer.from(expectedSignature);
+
+  if (sigBuffer.length !== expectedSigBuffer.length) {
+    // Perform a no-op timingSafeEqual so this branch takes the same time as
+    // the valid-length comparison below. The earlier structural checks
+    // (missing payload/signature) return immediately — that's fine because
+    // they don't reveal anything about a valid token's signature.
+    crypto.timingSafeEqual(expectedSigBuffer, expectedSigBuffer);
     return null;
   }
 
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+  if (!crypto.timingSafeEqual(sigBuffer, expectedSigBuffer)) {
     return null;
   }
 
@@ -91,8 +100,8 @@ export const verifyNativeOAuthTransferToken = (
     !payload?.nextPath ||
     !payload?.exp ||
     !payload?.iat ||
-    payload.exp < now ||
-    payload.iat > now
+    payload.exp < now - CLOCK_SKEW_TOLERANCE_SECONDS ||
+    payload.iat > now + CLOCK_SKEW_TOLERANCE_SECONDS
   ) {
     return null;
   }
