@@ -136,7 +136,7 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
     isPersistentSessionActive,
     hasConnected,
     users,
-    lastReceivedSequence: state.lastReceivedSequence,
+    lastReceivedSequenceRef: isPersistentSessionActive ? persistentSession.lastReceivedSequenceRef : { current: null },
     persistentSession,
     currentQueue: state.queue,
     currentClimbQueueItem: state.currentClimbQueueItem,

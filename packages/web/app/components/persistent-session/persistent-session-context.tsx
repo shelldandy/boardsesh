@@ -142,6 +142,7 @@ export const PersistentSessionProvider: React.FC<{ children: React.ReactNode }> 
       mirrorCurrentClimb: mutations.mirrorCurrentClimb,
       setQueue: mutations.setQueue,
       offlineBufferRef,
+      lastReceivedSequenceRef,
       subscribeToQueueEvents: subscriptions.subscribeToQueueEvents,
       subscribeToSessionEvents: subscriptions.subscribeToSessionEvents,
       triggerResync: subscriptions.triggerResync,

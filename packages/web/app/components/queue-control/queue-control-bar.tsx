@@ -107,6 +107,7 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
     endSession,
     disconnect,
     isDisconnected,
+    users,
   } = useQueueContext();
 
   const { showMessage } = useSnackbar();
@@ -428,7 +429,14 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
           }}
         >
           <CloudOffOutlined sx={{ fontSize: '0.875rem' }} />
-          <span>Offline{sessionId ? ' — climbs you add will sync when you reconnect' : ''}</span>
+          <span>
+            Disconnected
+            {sessionId
+              ? users && users.length > 1
+                ? ' — climbs you add will sync, but other changes may be lost'
+                : ' — your changes will sync when you reconnect'
+              : ''}
+          </span>
         </Box>
       )}
       {/* Main Control Bar */}

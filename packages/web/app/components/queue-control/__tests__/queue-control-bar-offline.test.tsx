@@ -155,6 +155,7 @@ const baseQueueContext = {
   sessionId: 'session-1',
   canMutate: true,
   isDisconnected: false,
+  users: [{ id: 'me', username: 'me', isLeader: true }, { id: 'other', username: 'other', isLeader: false }],
   endSession: vi.fn(),
   disconnect: vi.fn(),
   addToQueue: vi.fn(),
@@ -200,7 +201,7 @@ describe('QueueControlBar offline UI', () => {
     render(<QueueControlBar {...defaultProps} />);
 
     expect(screen.queryByText(/Reconnecting/)).toBeNull();
-    expect(screen.queryByText(/Offline/i)).toBeNull();
+    expect(screen.queryByText(/Disconnected/i)).toBeNull();
   });
 
   it('shows reconnecting view when online but WebSocket reconnecting', () => {
@@ -215,19 +216,36 @@ describe('QueueControlBar offline UI', () => {
     expect(screen.getByText(/Reconnecting/)).toBeTruthy();
   });
 
-  it('shows offline indicator (not reconnecting view) when offline in party mode', () => {
+  it('shows disconnected indicator with multi-user warning when offline in party mode', () => {
     mockQueueContext = {
       ...baseQueueContext,
       connectionState: 'reconnecting',
       isDisconnected: true,
+      users: [{ id: 'me', username: 'me', isLeader: true }, { id: 'other', username: 'other', isLeader: false }],
     };
 
     render(<QueueControlBar {...defaultProps} />);
 
     // Should NOT show the reconnecting spinner view
     expect(screen.queryByText(/Reconnecting/)).toBeNull();
-    // Should show the offline indicator
-    expect(screen.getByText(/Offline/i)).toBeTruthy();
+    // Should show disconnected indicator with multi-user warning
+    expect(screen.getByText(/Disconnected/i)).toBeTruthy();
+    expect(screen.getByText(/other changes may be lost/i)).toBeTruthy();
+  });
+
+  it('shows disconnected indicator without warning when solo in party mode', () => {
+    mockQueueContext = {
+      ...baseQueueContext,
+      connectionState: 'reconnecting',
+      isDisconnected: true,
+      users: [{ id: 'me', username: 'me', isLeader: true }],
+    };
+
+    render(<QueueControlBar {...defaultProps} />);
+
+    expect(screen.getByText(/Disconnected/i)).toBeTruthy();
+    expect(screen.getByText(/your changes will sync/i)).toBeTruthy();
+    expect(screen.queryByText(/may be lost/i)).toBeNull();
   });
 
   it('shows normal controls when offline in solo mode (no session)', () => {

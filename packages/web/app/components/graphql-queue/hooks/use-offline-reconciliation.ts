@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import type { SubscriptionQueueEvent, SessionUser } from '@boardsesh/shared-schema';
 import type { ClimbQueueItem } from '../../queue-control/types';
 
@@ -15,7 +15,7 @@ export interface UseOfflineReconciliationParams {
   isPersistentSessionActive: boolean;
   hasConnected: boolean;
   users: SessionUser[];
-  lastReceivedSequence: number | null;
+  lastReceivedSequenceRef: MutableRefObject<number | null>;
   persistentSession: {
     addQueueItem: (item: ClimbQueueItem) => Promise<void>;
     setQueue: (queue: ClimbQueueItem[], currentClimb?: ClimbQueueItem | null) => Promise<void>;
@@ -27,17 +27,17 @@ export interface UseOfflineReconciliationParams {
 }
 
 /**
- * Watches for offline-to-online transitions and reconciles local queue
+ * Watches for disconnected-to-connected transitions and reconciles local queue
  * changes with the server.
  *
  * **Client-wins conditions** (full local state pushed to server):
  * - Only 1 user in the session (solo party session), OR
- * - Remote session hasn't changed while we were offline (same sequence number)
+ * - Remote session hasn't changed while we were disconnected (same sequence number)
  *
  * **Server-wins with additions merge** (default):
  * - Server queue state is authoritative
  * - Only locally-added items are pushed to the server
- * - Removals, reorders, current-climb changes made offline are discarded
+ * - Removals, reorders, current-climb changes made while disconnected are discarded
  *
  * Note on timing: the FullSync event may arrive before this effect subscribes
  * (React effects are async). The 15-second safety timeout handles this case.
@@ -50,70 +50,75 @@ export function useOfflineReconciliation({
   isPersistentSessionActive,
   hasConnected,
   users,
-  lastReceivedSequence,
+  lastReceivedSequenceRef,
   persistentSession,
   currentQueue,
   currentClimbQueueItem,
 }: UseOfflineReconciliationParams) {
-  const wasOfflineRef = useRef(isDisconnected);
-  const isReconcilingRef = useRef(false);
+  const wasDisconnectedRef = useRef(isDisconnected);
   const currentQueueRef = useRef(currentQueue);
   const currentClimbRef = useRef(currentClimbQueueItem);
+  const usersRef = useRef(users);
   const sequenceAtDisconnectRef = useRef<number | null>(null);
+  // Generation counter: incremented on each reconciliation attempt. Async
+  // reconciliation functions check this to bail out if superseded by a newer attempt.
+  const reconciliationGenerationRef = useRef(0);
 
   // Keep refs fresh
   currentQueueRef.current = currentQueue;
   currentClimbRef.current = currentClimbQueueItem;
+  usersRef.current = users;
 
-  // Capture the sequence number when offline so we can compare on reconnect.
-  // We continuously update while offline in case the sequence was updated
-  // just before the disconnect was detected.
+  // Capture the sequence number while disconnected so we can compare on reconnect.
   useEffect(() => {
     if (isDisconnected) {
-      sequenceAtDisconnectRef.current = lastReceivedSequence;
+      sequenceAtDisconnectRef.current = lastReceivedSequenceRef.current;
     }
-  }, [isDisconnected, lastReceivedSequence]);
+  }, [isDisconnected, lastReceivedSequenceRef]);
 
   useEffect(() => {
-    const wasOffline = wasOfflineRef.current;
-    wasOfflineRef.current = isDisconnected;
+    const wasDisconnected = wasDisconnectedRef.current;
+    wasDisconnectedRef.current = isDisconnected;
 
-    // Detect offline-to-online transition
-    if (!wasOffline || isDisconnected) return;
+    // Detect disconnected-to-connected transition
+    if (!wasDisconnected || isDisconnected) return;
     if (!isPersistentSessionActive || !hasConnected) return;
     if (!offlineBuffer.hasPendingAdditions) return;
-    if (isReconcilingRef.current) return;
 
-    isReconcilingRef.current = true;
+    const generation = ++reconciliationGenerationRef.current;
 
     /**
      * Determine whether the client's full local state should win.
-     * This is safe when no other user could have modified the queue:
-     * - Only 1 user in the session (us), OR
-     * - The server sequence hasn't advanced (no changes while we were offline)
+     * Reads from refs to get the freshest values at FullSync time.
      */
     function shouldClientWin(serverSequence: number): boolean {
+      const currentUsers = usersRef.current;
       // Solo session — no one else could have changed anything
-      if (users.length <= 1) return true;
-      // Server state unchanged since we went offline
+      if (currentUsers.length <= 1) return true;
+      // Server state unchanged since we went disconnected
       if (sequenceAtDisconnectRef.current !== null && serverSequence === sequenceAtDisconnectRef.current) return true;
       return false;
     }
 
+    function isSuperseded() {
+      return reconciliationGenerationRef.current !== generation;
+    }
+
     async function reconcileClientWins() {
-      // Push the full local queue state to the server
       const localQueue = currentQueueRef.current;
       const localCurrentClimb = currentClimbRef.current;
       try {
+        if (isSuperseded()) return;
         await persistentSession.setQueue(localQueue, localCurrentClimb);
-        if (localCurrentClimb) {
+        if (localCurrentClimb && !isSuperseded()) {
           await persistentSession.setCurrentClimb(localCurrentClimb, false);
         }
       } catch (error) {
         console.error('[OfflineReconciliation] Failed to push full local state:', error);
       }
-      offlineBuffer.clearBuffer();
-      isReconcilingRef.current = false;
+      if (!isSuperseded()) {
+        offlineBuffer.clearBuffer();
+      }
     }
 
     async function reconcileAdditionsOnly(serverQueue: ClimbQueueItem[]) {
@@ -121,6 +126,7 @@ export function useOfflineReconciliation({
       const serverUuids = new Set(serverQueue.map(item => item.uuid));
 
       for (const item of pending) {
+        if (isSuperseded()) return;
         if (serverUuids.has(item.uuid)) continue;
         try {
           await persistentSession.addQueueItem(item);
@@ -129,8 +135,9 @@ export function useOfflineReconciliation({
         }
       }
 
-      offlineBuffer.clearBuffer();
-      isReconcilingRef.current = false;
+      if (!isSuperseded()) {
+        offlineBuffer.clearBuffer();
+      }
     }
 
     // Subscribe to queue events and wait for FullSync
@@ -149,17 +156,18 @@ export function useOfflineReconciliation({
       }
     });
 
-    // Safety timeout: if no FullSync arrives, reconcile against current state
+    // Safety timeout: if no FullSync arrives, push additions using the server
+    // queue from the FullSync that may have already been processed by the event
+    // processor (which merges offline items). The UUID dedup means already-merged
+    // items are skipped. This is a best-effort fallback.
     timeoutId = setTimeout(() => {
       unsubscribe();
-      // On timeout, fall back to additions-only (we can't determine server sequence)
       reconcileAdditionsOnly(currentQueueRef.current);
     }, RECONCILIATION_TIMEOUT_MS);
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
       unsubscribe();
-      isReconcilingRef.current = false;
     };
-  }, [isDisconnected, isPersistentSessionActive, hasConnected, offlineBuffer, persistentSession, users]);
+  }, [isDisconnected, isPersistentSessionActive, hasConnected, offlineBuffer, persistentSession]);
 }

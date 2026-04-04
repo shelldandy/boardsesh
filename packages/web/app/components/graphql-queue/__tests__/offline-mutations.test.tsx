@@ -49,6 +49,7 @@ const mockPersistentSession = {
   mirrorCurrentClimb: mockMirrorCurrentClimb,
   setQueue: mockSetQueue,
   offlineBufferRef: { current: [] as unknown[] },
+  lastReceivedSequenceRef: { current: null as number | null },
   subscribeToQueueEvents: vi.fn(() => vi.fn()),
   subscribeToSessionEvents: vi.fn(() => vi.fn()),
   triggerResync: vi.fn(),

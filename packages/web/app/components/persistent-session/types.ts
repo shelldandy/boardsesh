@@ -92,6 +92,9 @@ export interface PersistentSessionContextType {
   // Ref for offline queue buffer (used by QueueContext to populate, read by event processor during FullSync)
   offlineBufferRef: MutableRefObject<LocalClimbQueueItem[]>;
 
+  // Ref for last received sequence number (used by reconciliation to detect server changes)
+  lastReceivedSequenceRef: MutableRefObject<number | null>;
+
   // Trigger a resync with the server (useful when corrupted data is detected)
   triggerResync: () => void;
 

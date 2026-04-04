@@ -48,11 +48,15 @@ describe('useOfflineReconciliation', () => {
     return () => { subscriberCallback = null; };
   });
 
+  // Shared ref that simulates the persistent session's lastReceivedSequenceRef
+  const mockLastReceivedSequenceRef = { current: 5 as number | null };
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     subscriberCallback = null;
     mockGetBufferedAdditions.mockReturnValue([]);
+    mockLastReceivedSequenceRef.current = 5;
   });
 
   afterEach(() => {
@@ -68,6 +72,9 @@ describe('useOfflineReconciliation', () => {
     users?: SessionUser[];
     lastReceivedSequence?: number | null;
   } = {}) {
+    if (overrides.lastReceivedSequence !== undefined) {
+      mockLastReceivedSequenceRef.current = overrides.lastReceivedSequence;
+    }
     return renderHook<void, UseOfflineReconciliationParams>(
       (props) => useOfflineReconciliation(props),
       {
@@ -82,7 +89,7 @@ describe('useOfflineReconciliation', () => {
           isPersistentSessionActive: overrides.isPersistentSessionActive ?? true,
           hasConnected: overrides.hasConnected ?? true,
           users: overrides.users ?? [createUser('me'), createUser('other')],
-          lastReceivedSequence: overrides.lastReceivedSequence ?? 5,
+          lastReceivedSequenceRef: mockLastReceivedSequenceRef,
           persistentSession: {
             addQueueItem: mockAddQueueItem,
             setQueue: mockSetQueue,
@@ -96,7 +103,11 @@ describe('useOfflineReconciliation', () => {
     );
   }
 
-  function goOnline(hook: ReturnType<typeof renderReconciliation>, overrides: Partial<UseOfflineReconciliationParams> = {}) {
+  function goOnline(hook: ReturnType<typeof renderReconciliation>, overrides: {
+    users?: SessionUser[];
+    currentQueue?: ClimbQueueItem[];
+    currentClimbQueueItem?: ClimbQueueItem | null;
+  } = {}) {
     hook.rerender({
       offlineBuffer: {
         getBufferedAdditions: mockGetBufferedAdditions,
@@ -108,7 +119,7 @@ describe('useOfflineReconciliation', () => {
       isPersistentSessionActive: true,
       hasConnected: true,
       users: overrides.users ?? [createUser('me'), createUser('other')],
-      lastReceivedSequence: overrides.lastReceivedSequence ?? 5,
+      lastReceivedSequenceRef: mockLastReceivedSequenceRef,
       persistentSession: {
         addQueueItem: mockAddQueueItem,
         setQueue: mockSetQueue,
@@ -137,7 +148,7 @@ describe('useOfflineReconciliation', () => {
         isPersistentSessionActive: true,
         hasConnected: true,
         users: [createUser('me'), createUser('other')],
-        lastReceivedSequence: 5,
+        lastReceivedSequenceRef: mockLastReceivedSequenceRef,
         persistentSession: {
           addQueueItem: mockAddQueueItem,
           setQueue: mockSetQueue,
@@ -165,7 +176,6 @@ describe('useOfflineReconciliation', () => {
 
       goOnline(hook, {
         users: [createUser('me'), createUser('other')],
-        lastReceivedSequence: 5,
       });
 
       // FullSync with advanced sequence (server changed)
@@ -374,7 +384,7 @@ describe('useOfflineReconciliation', () => {
         isPersistentSessionActive: false,
         hasConnected: true,
         users: [],
-        lastReceivedSequence: 5,
+        lastReceivedSequenceRef: mockLastReceivedSequenceRef,
         persistentSession: {
           addQueueItem: mockAddQueueItem,
           setQueue: mockSetQueue,
@@ -446,6 +456,7 @@ describe('useOfflineReconciliation', () => {
       expect(mockAddQueueItem).toHaveBeenCalledTimes(1);
 
       // Go offline again while reconciliation is in-flight
+      mockLastReceivedSequenceRef.current = 10;
       hook.rerender({
         offlineBuffer: {
           getBufferedAdditions: mockGetBufferedAdditions,
@@ -457,7 +468,7 @@ describe('useOfflineReconciliation', () => {
         isPersistentSessionActive: true,
         hasConnected: true,
         users: [createUser('me'), createUser('other')],
-        lastReceivedSequence: 10,
+        lastReceivedSequenceRef: mockLastReceivedSequenceRef,
         persistentSession: {
           addQueueItem: mockAddQueueItem,
           setQueue: mockSetQueue,
