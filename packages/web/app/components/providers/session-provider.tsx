@@ -27,7 +27,10 @@ export default function SessionProviderWrapper({ children }: SessionProviderWrap
     let cancelled = false;
     let listenerHandle: { remove: () => Promise<void> } | null = null;
 
-    appPlugin.addListener('appUrlOpen', async ({ url }) => {
+    // addListener may return a PluginListenerHandle directly (Capacitor 6+)
+    // or a Promise<PluginListenerHandle> (Capacitor 5). Wrap with
+    // Promise.resolve to handle both cases safely.
+    const listenerResult = appPlugin.addListener('appUrlOpen', async ({ url }) => {
       if (!url.startsWith('com.boardsesh.app://auth/callback')) {
         return;
       }
@@ -67,7 +70,9 @@ export default function SessionProviderWrapper({ children }: SessionProviderWrap
       }
 
       window.location.assign(result?.url ?? safeCallbackUrl);
-    }).then((handle) => {
+    });
+
+    Promise.resolve(listenerResult).then((handle) => {
       if (cancelled) {
         // Component unmounted before the listener was registered — clean up
         void handle.remove();
