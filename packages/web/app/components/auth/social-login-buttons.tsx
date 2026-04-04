@@ -56,6 +56,24 @@ type SocialLoginButtonsProps = {
   disabled?: boolean;
 };
 
+const sanitizeRelativePath = (path: string): string => (path.startsWith('/') ? path : '/');
+
+export const buildNativeOAuthSignInUrl = ({
+  origin,
+  provider,
+  callbackPath,
+}: {
+  origin: string;
+  provider: string;
+  callbackPath: string;
+}): string => {
+  const nextPath = sanitizeRelativePath(callbackPath);
+  const nativeCallbackUrl = `${origin}/api/auth/native/callback?next=${encodeURIComponent(nextPath)}`;
+  const signInUrl = new URL(`/api/auth/signin/${provider}`, origin);
+  signInUrl.searchParams.set('callbackUrl', nativeCallbackUrl);
+  return signInUrl.toString();
+};
+
 export default function SocialLoginButtons({
   callbackUrl = '/',
   disabled = false,
@@ -91,21 +109,13 @@ export default function SocialLoginButtons({
       const browser = window.Capacitor?.Plugins?.Browser;
       if (!browser) return;
 
-      // Build the URL chain: after OAuth completes, NextAuth redirects to
-      // /api/auth/native/callback which issues a transfer token and redirects
-      // to the app's deep link scheme.
-      const nextPath = callbackUrl.startsWith('/') ? callbackUrl : '/';
-      const nativeCallbackUrl =
-        `${window.location.origin}/api/auth/native/callback?next=${encodeURIComponent(nextPath)}`;
+      const url = buildNativeOAuthSignInUrl({
+        origin: window.location.origin,
+        provider,
+        callbackPath: callbackUrl,
+      });
 
-      // Open /auth/native-start in the external browser so the entire OAuth
-      // flow (CSRF token, state cookies, provider redirect, callback) happens
-      // in a single browser context. Calling signIn() from the WebView would
-      // set cookies here that the external browser never sees, breaking the flow.
-      const startUrl =
-        `${window.location.origin}/auth/native-start?provider=${encodeURIComponent(provider)}&callbackUrl=${encodeURIComponent(nativeCallbackUrl)}`;
-
-      browser.open({ url: startUrl });
+      browser.open({ url });
       return;
     }
 
