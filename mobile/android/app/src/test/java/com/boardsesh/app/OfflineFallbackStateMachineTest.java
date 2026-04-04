@@ -14,9 +14,12 @@ public class OfflineFallbackStateMachineTest {
 
         state.onPageStarted();
         state.onMainFrameError("https://boardsesh.com");
-        state.onPageFinished();
 
+        // Real flow: cache attempt is decided immediately after the first error.
         assertTrue(state.shouldAttemptCacheFallback());
+
+        // First failing navigation can still "finish" with an error callback sequence.
+        state.onPageFinished();
         assertFalse(state.shouldAttemptCacheFallback());
         assertEquals("https://boardsesh.com", state.getLastFailedUrl());
     }

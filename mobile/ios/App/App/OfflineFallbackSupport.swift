@@ -41,6 +41,9 @@ enum OfflineFallbackSupport {
 }
 
 final class IOSOfflineFallbackStateMachine {
+    // Accessed only from WKWebView delegate callbacks inside BoardseshViewController,
+    // which are executed on the main thread. Keep usage on main unless this class
+    // is reused from background queues in the future.
     private var attemptedCacheFallback = false
     private var mainFrameLoadHadError = false
     private var lastFailedURL: URL?

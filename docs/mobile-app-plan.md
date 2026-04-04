@@ -767,7 +767,7 @@ The backend CORS handler (`packages/backend/src/handlers/cors.ts`) whitelists sp
 - [ ] Add `@capacitor/app` for back button handling (Android)
 - [ ] Test pull-to-refresh behavior
 - [ ] **Offline handling:**
-  - [ ] Install `@capacitor/network` plugin
+  - [x] Install `@capacitor/network` plugin *(superseded: implemented native Android/iOS connectivity monitoring directly in shell code)*
   - [ ] Add offline detection screen showing cached queue from IndexedDB
   - [ ] Show "reconnecting..." banner when connectivity is lost mid-session
   - [ ] Ensure app has *some* functionality without internet (cached queue view, BLE connection to board)
