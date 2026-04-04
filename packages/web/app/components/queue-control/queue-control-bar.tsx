@@ -424,11 +424,11 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
             px: 2,
             py: 0.5,
             backgroundColor: 'var(--semantic-surface-secondary, #f5f5f5)',
-            fontSize: '0.75rem',
+            typography: 'caption',
             color: 'text.secondary',
           }}
         >
-          <CloudOffOutlined sx={{ fontSize: '0.875rem' }} />
+          <CloudOffOutlined sx={{ fontSize: 'body2.fontSize' }} />
           <span>
             Disconnected
             {sessionId
