@@ -61,10 +61,11 @@ export const verifyNativeOAuthTransferToken = (
     return null;
   }
 
-  const [encodedPayload, signature] = token.split('.');
-  if (!encodedPayload || !signature) {
+  const parts = token.split('.');
+  if (parts.length !== 2) {
     return null;
   }
+  const [encodedPayload, signature] = parts;
 
   const expectedSignature = crypto
     .createHmac('sha256', secret)

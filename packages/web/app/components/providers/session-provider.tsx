@@ -47,8 +47,8 @@ export default function SessionProviderWrapper({ children }: SessionProviderWrap
         return;
       }
 
-      const transferToken = parsed.searchParams.get('transferToken');
       const callbackError = parsed.searchParams.get('error');
+      const transferToken = parsed.searchParams.get('transferToken');
       const nextPath = parsed.searchParams.get('next') ?? '/';
       const safeCallbackUrl = nextPath.startsWith('/') ? nextPath : '/';
 
