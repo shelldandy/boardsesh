@@ -40,7 +40,7 @@ export default function GlobalError({
             Something went wrong
           </p>
           <p style={{ fontSize: 14, color: "#9CA3AF", margin: "0 0 24px" }}>
-            Pull down to refresh, or tap below
+            Try reloading to get back on track
           </p>
           <button
             onClick={() => reset()}
