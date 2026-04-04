@@ -478,6 +478,9 @@ export const constructCreateClimbUrl = (
   return baseUrl;
 };
 
+/** BoardDetails with slug fields guaranteed to be present. */
+type ResolvedBoardSlugs = BoardDetails & Required<Pick<BoardDetails, 'layout_name' | 'size_name' | 'set_names'>>;
+
 /**
  * Resolve slug-ready board details from static data.
  * Returns null if the lookup fails or the result lacks slug fields.
@@ -487,11 +490,11 @@ const tryResolveBoardSlugs = (
   layout_id: number,
   size_id: number,
   set_ids: number[],
-): BoardDetails | null => {
+): ResolvedBoardSlugs | null => {
   try {
     const details = getBoardDetailsForBoard({ board_name, layout_id, size_id, set_ids });
     if (details.layout_name && details.size_name && details.set_names) {
-      return details;
+      return details as ResolvedBoardSlugs;
     }
   } catch {
     // Static data lookup failed for this board config
@@ -506,7 +509,7 @@ export const tryConstructSlugPlayUrl = (
 ): string | null => {
   const d = tryResolveBoardSlugs(board_name, layout_id, size_id, set_ids);
   return d ? constructPlayUrlWithSlugs(
-    d.board_name, d.layout_name!, d.size_name!, d.size_description, d.set_names!, angle, climb_uuid, climbName,
+    d.board_name, d.layout_name, d.size_name, d.size_description, d.set_names, angle, climb_uuid, climbName,
   ) : null;
 };
 
@@ -517,7 +520,7 @@ export const tryConstructSlugViewUrl = (
 ): string | null => {
   const d = tryResolveBoardSlugs(board_name, layout_id, size_id, set_ids);
   return d ? constructClimbViewUrlWithSlugs(
-    d.board_name, d.layout_name!, d.size_name!, d.size_description, d.set_names!, angle, climb_uuid, climbName,
+    d.board_name, d.layout_name, d.size_name, d.size_description, d.set_names, angle, climb_uuid, climbName,
   ) : null;
 };
 
@@ -528,7 +531,7 @@ export const tryConstructSlugListUrl = (
 ): string | null => {
   const d = tryResolveBoardSlugs(board_name, layout_id, size_id, set_ids);
   return d ? constructClimbListWithSlugs(
-    d.board_name, d.layout_name!, d.size_name!, d.size_description, d.set_names!, angle,
+    d.board_name, d.layout_name, d.size_name, d.size_description, d.set_names, angle,
   ) : null;
 };
 
