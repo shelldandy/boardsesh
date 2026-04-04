@@ -34,7 +34,7 @@
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: var(--neutral-100);
+  background: var(--neutral-200);
   flex-shrink: 0;
   color: var(--neutral-600);
 }

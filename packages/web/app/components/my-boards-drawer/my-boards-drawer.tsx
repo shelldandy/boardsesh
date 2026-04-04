@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined';
 import DashboardOutlined from '@mui/icons-material/DashboardOutlined';
 import SwipeableDrawer from '../swipeable-drawer/swipeable-drawer';
@@ -17,7 +18,7 @@ interface MyBoardsDrawerProps {
 }
 
 export default function MyBoardsDrawer({ open, onClose }: MyBoardsDrawerProps) {
-  const { boards, isLoading } = useMyBoards(open);
+  const { boards, isLoading, error } = useMyBoards(open);
   const [editingBoard, setEditingBoard] = useState<UserBoard | null>(null);
 
   const handleEditSuccess = useCallback(
@@ -51,7 +52,13 @@ export default function MyBoardsDrawer({ open, onClose }: MyBoardsDrawerProps) {
         onClose={onClose}
         height="85dvh"
       >
-        {isLoading && boards.length === 0 ? (
+        {error && boards.length === 0 ? (
+          <div className={styles.emptyState} data-testid="my-boards-error">
+            <Alert severity="error" sx={{ width: '100%' }}>
+              {error}
+            </Alert>
+          </div>
+        ) : isLoading && boards.length === 0 ? (
           <div className={styles.loadingState} data-testid="my-boards-loading">
             <CircularProgress size={32} />
           </div>

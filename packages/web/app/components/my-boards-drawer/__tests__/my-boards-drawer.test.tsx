@@ -5,12 +5,13 @@ import React from 'react';
 // Mock data
 let mockBoards: Array<Record<string, unknown>> = [];
 let mockIsLoading = false;
+let mockError: string | null = null;
 
 vi.mock('@/app/hooks/use-my-boards', () => ({
   useMyBoards: () => ({
     boards: mockBoards,
     isLoading: mockIsLoading,
-    error: null,
+    error: mockError,
   }),
 }));
 
@@ -90,6 +91,7 @@ describe('MyBoardsDrawer', () => {
     vi.clearAllMocks();
     mockBoards = [];
     mockIsLoading = false;
+    mockError = null;
   });
 
   it('does not render when closed', () => {
@@ -137,6 +139,13 @@ describe('MyBoardsDrawer', () => {
     expect(screen.getByTestId('drawer-Edit Board')).toBeDefined();
     expect(screen.getByTestId('edit-board-form')).toBeDefined();
     expect(screen.getByText('Editing: My Kilter Board')).toBeDefined();
+  });
+
+  it('renders error state when fetch fails', () => {
+    mockError = 'Failed to load your boards';
+    render(<MyBoardsDrawer open={true} onClose={mockOnClose} />);
+    expect(screen.getByTestId('my-boards-error')).toBeDefined();
+    expect(screen.getByText('Failed to load your boards')).toBeDefined();
   });
 
   it('closes edit drawer when cancel is clicked', () => {
