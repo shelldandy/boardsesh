@@ -25,7 +25,7 @@ final class NetworkStatus {
     }
 }
 
-class BoardseshViewController: CAPBridgeViewController {
+class BoardseshViewController: CAPBridgeViewController, WKNavigationDelegate {
     private let fallbackState = IOSOfflineFallbackStateMachine()
 
     override func viewDidLoad() {
@@ -33,6 +33,9 @@ class BoardseshViewController: CAPBridgeViewController {
 
         // Disable rubber-band bounce so the page cannot overscroll
         webView?.scrollView.bounces = false
+
+        // Become the navigation delegate so we can intercept load failures.
+        webView?.navigationDelegate = self
 
         // Start monitor eagerly so offline decisions have recent connectivity state.
         _ = NetworkStatus.shared
@@ -59,32 +62,26 @@ class BoardseshViewController: CAPBridgeViewController {
         webView?.load(URLRequest(url: pendingURL))
     }
 
-    override func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         fallbackState.onPageStarted()
-        super.webView(webView, didStartProvisionalNavigation: navigation)
     }
 
-    override func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         fallbackState.onPageFinished()
-        super.webView(webView, didFinish: navigation)
     }
 
-    override func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         fallbackState.onMainFrameError(webView.url)
         if shouldTriggerOfflineFallback(error: error) {
             tryCacheThenFallback(webView)
         }
-
-        super.webView(webView, didFail: navigation, withError: error)
     }
 
-    override func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         fallbackState.onMainFrameError(webView.url)
         if shouldTriggerOfflineFallback(error: error) {
             tryCacheThenFallback(webView)
         }
-
-        super.webView(webView, didFailProvisionalNavigation: navigation, withError: error)
     }
 
     private func shouldTriggerOfflineFallback(error: Error) -> Bool {
