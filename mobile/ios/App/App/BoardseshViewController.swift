@@ -54,8 +54,15 @@ final class NavigationDelegateProxy: NSObject, WKNavigationDelegate {
         original?.webView?(webView, didFailProvisionalNavigation: navigation, withError: error)
     }
 
+    // Objective-C selectors for the two decidePolicyFor variants.
+    // Using NSSelectorFromString avoids Swift #selector ambiguity between overloads.
+    private static let decidePolicyForActionSel =
+        NSSelectorFromString("webView:decidePolicyForNavigationAction:decisionHandler:")
+    private static let decidePolicyForResponseSel =
+        NSSelectorFromString("webView:decidePolicyForNavigationResponse:decisionHandler:")
+
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let orig = original {
+        if let orig = original, orig.responds(to: Self.decidePolicyForActionSel) {
             orig.webView?(webView, decidePolicyFor: navigationAction, decisionHandler: decisionHandler)
         } else {
             decisionHandler(.allow)
@@ -63,7 +70,7 @@ final class NavigationDelegateProxy: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        if let orig = original {
+        if let orig = original, orig.responds(to: Self.decidePolicyForResponseSel) {
             orig.webView?(webView, decidePolicyFor: navigationResponse, decisionHandler: decisionHandler)
         } else {
             decisionHandler(.allow)
