@@ -75,8 +75,10 @@ export const verifyNativeOAuthTransferToken = (
   const expectedSigBuffer = Buffer.from(expectedSignature);
 
   if (sigBuffer.length !== expectedSigBuffer.length) {
-    // Rehash to consume constant time before returning, avoiding a timing
-    // side-channel that leaks whether the token was malformed vs wrong.
+    // Perform a no-op timingSafeEqual so this branch takes the same time as
+    // the valid-length comparison below. The earlier structural checks
+    // (missing payload/signature) return immediately — that's fine because
+    // they don't reveal anything about a valid token's signature.
     crypto.timingSafeEqual(expectedSigBuffer, expectedSigBuffer);
     return null;
   }
@@ -98,7 +100,7 @@ export const verifyNativeOAuthTransferToken = (
     !payload?.nextPath ||
     !payload?.exp ||
     !payload?.iat ||
-    payload.exp < now ||
+    payload.exp < now - CLOCK_SKEW_TOLERANCE_SECONDS ||
     payload.iat > now + CLOCK_SKEW_TOLERANCE_SECONDS
   ) {
     return null;

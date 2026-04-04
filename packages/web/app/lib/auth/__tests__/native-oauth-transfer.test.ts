@@ -61,6 +61,48 @@ describe('native OAuth transfer token', () => {
     expect(verifyNativeOAuthTransferToken(tamperedToken)).toBeNull();
   });
 
+  it('accepts tokens with iat up to 5 seconds in the future (clock skew)', () => {
+    const token = issueNativeOAuthTransferToken({
+      userId: 'user_123',
+      nextPath: '/feed',
+    });
+
+    // Rewind time by 4 seconds — iat is 4s in the future, within tolerance
+    vi.setSystemTime(new Date('2026-04-03T11:59:56Z'));
+
+    expect(verifyNativeOAuthTransferToken(token)).toEqual({
+      userId: 'user_123',
+      nextPath: '/feed',
+    });
+  });
+
+  it('accepts tokens up to 5 seconds after exp (clock skew)', () => {
+    const token = issueNativeOAuthTransferToken({
+      userId: 'user_123',
+      nextPath: '/feed',
+    });
+
+    // Advance time to 4 seconds past expiry (120s TTL + 4s = 124s)
+    vi.setSystemTime(new Date('2026-04-03T12:02:04Z'));
+
+    expect(verifyNativeOAuthTransferToken(token)).toEqual({
+      userId: 'user_123',
+      nextPath: '/feed',
+    });
+  });
+
+  it('rejects tokens more than 5 seconds after exp', () => {
+    const token = issueNativeOAuthTransferToken({
+      userId: 'user_123',
+      nextPath: '/feed',
+    });
+
+    // Advance time to 6 seconds past expiry (120s TTL + 6s = 126s)
+    vi.setSystemTime(new Date('2026-04-03T12:02:06Z'));
+
+    expect(verifyNativeOAuthTransferToken(token)).toBeNull();
+  });
+
   it('rejects tokens with iat in the future', () => {
     // Issue a token, then rewind time so iat is in the future
     const token = issueNativeOAuthTransferToken({
