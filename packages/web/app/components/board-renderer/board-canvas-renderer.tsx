@@ -90,7 +90,7 @@ const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
       ref={canvasRef}
       style={{
         width: '100%',
-        height: '100%',
+        height: contain ? '100%' : 'auto',
         objectFit: contain ? 'contain' : undefined,
         ...style,
       }}
