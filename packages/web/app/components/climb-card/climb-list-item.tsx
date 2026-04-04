@@ -32,6 +32,7 @@ const MAX_GESTURE_SWIPE = 180;
 const SHORT_ACTION_WIDTH = 120;
 const LONG_SWIPE_ACTION_WIDTH = MAX_GESTURE_SWIPE;
 const SHORT_SWIPE_THRESHOLD = 90;
+const TRANSITION_START = 115;
 const LONG_SWIPE_THRESHOLD = 150;
 
 // Simple swipe constants for override mode (no long-swipe)
@@ -222,9 +223,9 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     );
 
     const longSwipeBlend = useMemo(() => {
-      const transitionRange = LONG_SWIPE_THRESHOLD - SHORT_SWIPE_THRESHOLD;
+      const transitionRange = LONG_SWIPE_THRESHOLD - TRANSITION_START;
       if (transitionRange <= 0) return 1;
-      return Math.max(0, Math.min(1, (rightSwipeOffset - SHORT_SWIPE_THRESHOLD) / transitionRange));
+      return Math.max(0, Math.min(1, (rightSwipeOffset - TRANSITION_START) / transitionRange));
     }, [rightSwipeOffset]);
 
     const shortSwipeLayerOpacity = useMemo(
@@ -241,9 +242,9 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     const leftSwipeBaseOpacity = useMemo(() => Math.min(1, leftSwipeOffset / SHORT_SWIPE_THRESHOLD), [leftSwipeOffset]);
 
     const leftLongSwipeBlend = useMemo(() => {
-      const transitionRange = LONG_SWIPE_THRESHOLD - SHORT_SWIPE_THRESHOLD;
+      const transitionRange = LONG_SWIPE_THRESHOLD - TRANSITION_START;
       if (transitionRange <= 0) return 1;
-      return Math.max(0, Math.min(1, (leftSwipeOffset - SHORT_SWIPE_THRESHOLD) / transitionRange));
+      return Math.max(0, Math.min(1, (leftSwipeOffset - TRANSITION_START) / transitionRange));
     }, [leftSwipeOffset]);
 
     const leftShortSwipeLayerOpacity = useMemo(
