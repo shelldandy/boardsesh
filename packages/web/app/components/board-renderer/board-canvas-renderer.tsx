@@ -113,17 +113,20 @@ const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={initialWidth}
-      height={initialHeight}
-      style={{
-        display: 'block',
-        width: '100%',
-        height: 'auto',
-        ...style,
-      }}
-    />
+    <div style={{ position: 'relative', ...style }}>
+      <canvas
+        ref={canvasRef}
+        width={initialWidth}
+        height={initialHeight}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+        }}
+      />
+    </div>
   );
 });
 
