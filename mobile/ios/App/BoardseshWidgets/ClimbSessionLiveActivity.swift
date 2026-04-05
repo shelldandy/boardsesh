@@ -126,7 +126,7 @@ struct ClimbSessionLiveActivity: Widget {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
-                    .disabled(!context.state.hasPrevious)
+                        .disabled(!context.state.hasPrevious)
 
                         Button(intent: NextClimbIntent()) {
                             HStack(spacing: 4) {
@@ -141,7 +141,7 @@ struct ClimbSessionLiveActivity: Widget {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         .buttonStyle(.plain)
-                    .disabled(!context.state.hasNext)
+                        .disabled(!context.state.hasNext)
                     }
                     .padding(.horizontal, 4)
                 }

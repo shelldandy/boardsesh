@@ -8,7 +8,7 @@ vi.mock('../util', () => ({
   getImageUrl: (imageUrl: string, board: string) => `/images/${board}/${imageUrl}`,
   buildOverlayUrl: vi.fn(
     (_bd: BoardDetails, frames: string, thumbnail?: boolean) =>
-      `/api/internal/board-render?frames=${frames}${thumbnail ? '&thumbnail=1' : ''}`,
+      `/api/internal/board-render?frames=${frames}${thumbnail ? '&thumbnail=1' : ''}&include_background=1`,
   ),
 }));
 
@@ -31,7 +31,7 @@ const mockBoardDetails: BoardDetails = {
 };
 
 describe('BoardImageLayers', () => {
-  it('renders background image and overlay', () => {
+  it('renders single composited image when frames are provided', () => {
     const { container } = render(
       <BoardImageLayers
         boardDetails={mockBoardDetails}
@@ -41,10 +41,62 @@ describe('BoardImageLayers', () => {
     );
 
     const images = container.querySelectorAll('img');
-    // 1 background + 1 overlay
-    expect(images).toHaveLength(2);
+    // Single composited image (background + overlay baked together)
+    expect(images).toHaveLength(1);
+    expect(images[0].getAttribute('src')).toContain('frames=p1r42p2r43');
+  });
+
+  it('renders background images when no frames are provided', () => {
+    const { container } = render(
+      <BoardImageLayers
+        boardDetails={mockBoardDetails}
+        mirrored={false}
+      />,
+    );
+
+    const images = container.querySelectorAll('img');
+    expect(images).toHaveLength(1);
     expect(images[0].getAttribute('src')).toBe('/images/kilter/product_sizes_layouts_sets/36-1.png');
-    expect(images[1].getAttribute('src')).toContain('frames=p1r42p2r43');
+  });
+
+  it('renders multiple background images when no frames and board has multiple sets', () => {
+    const multiSetBoard: BoardDetails = {
+      ...mockBoardDetails,
+      images_to_holds: {
+        'product_sizes_layouts_sets/36-1.png': [],
+        'product_sizes_layouts_sets/37-1.png': [],
+      },
+    };
+
+    const { container } = render(
+      <BoardImageLayers
+        boardDetails={multiSetBoard}
+        mirrored={false}
+      />,
+    );
+
+    expect(container.querySelectorAll('img')).toHaveLength(2);
+  });
+
+  it('renders single composited image even with multiple background sets', () => {
+    const multiSetBoard: BoardDetails = {
+      ...mockBoardDetails,
+      images_to_holds: {
+        'product_sizes_layouts_sets/36-1.png': [],
+        'product_sizes_layouts_sets/37-1.png': [],
+      },
+    };
+
+    const { container } = render(
+      <BoardImageLayers
+        boardDetails={multiSetBoard}
+        frames="p1r42"
+        mirrored={false}
+      />,
+    );
+
+    // Only 1 composited image, no separate backgrounds
+    expect(container.querySelectorAll('img')).toHaveLength(1);
   });
 
   it('applies scaleX(-1) transform when mirrored', () => {
@@ -104,7 +156,7 @@ describe('BoardImageLayers', () => {
     });
   });
 
-  it('sets loading="lazy" on the overlay image but not background images', () => {
+  it('sets loading="lazy" on the composited image', () => {
     const { container } = render(
       <BoardImageLayers
         boardDetails={mockBoardDetails}
@@ -114,15 +166,11 @@ describe('BoardImageLayers', () => {
     );
 
     const images = container.querySelectorAll('img');
-    // Last image is the overlay
-    expect(images[images.length - 1].getAttribute('loading')).toBe('lazy');
-    // Background images should NOT have loading="lazy"
-    for (let i = 0; i < images.length - 1; i++) {
-      expect(images[i].getAttribute('loading')).toBeNull();
-    }
+    expect(images).toHaveLength(1);
+    expect(images[0].getAttribute('loading')).toBe('lazy');
   });
 
-  it('does not set loading="lazy" on thumbnail overlay images', () => {
+  it('does not set loading="lazy" on thumbnail composited images', () => {
     const { container } = render(
       <BoardImageLayers
         boardDetails={mockBoardDetails}
@@ -133,27 +181,7 @@ describe('BoardImageLayers', () => {
     );
 
     const images = container.querySelectorAll('img');
-    expect(images[images.length - 1].getAttribute('loading')).toBeNull();
-  });
-
-  it('renders multiple background images when board has multiple sets', () => {
-    const multiSetBoard: BoardDetails = {
-      ...mockBoardDetails,
-      images_to_holds: {
-        'product_sizes_layouts_sets/36-1.png': [],
-        'product_sizes_layouts_sets/37-1.png': [],
-      },
-    };
-
-    const { container } = render(
-      <BoardImageLayers
-        boardDetails={multiSetBoard}
-        frames="p1r42"
-        mirrored={false}
-      />,
-    );
-
-    // 2 backgrounds + 1 overlay
-    expect(container.querySelectorAll('img')).toHaveLength(3);
+    expect(images).toHaveLength(1);
+    expect(images[0].getAttribute('loading')).toBeNull();
   });
 });

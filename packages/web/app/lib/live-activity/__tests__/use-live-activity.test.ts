@@ -281,7 +281,7 @@ describe('useLiveActivity', () => {
     await hook.unmount();
   });
 
-  it('does not call updateActivity in party mode', async () => {
+  it('calls updateActivity in party mode (JS handles updates for all modes)', async () => {
     mockIsNativeApp.mockReturnValue(true);
     mockGetPlatform.mockReturnValue('ios');
 
@@ -297,8 +297,8 @@ describe('useLiveActivity', () => {
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
 
-    // startSession may be called, but updateActivity should NOT be called in party mode
-    expect(mockUpdateLiveActivity).not.toHaveBeenCalled();
+    // JS side now always sends updates regardless of party mode
+    expect(mockUpdateLiveActivity).toHaveBeenCalled();
 
     await hook.unmount();
   });

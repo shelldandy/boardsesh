@@ -1382,10 +1382,11 @@ The web view's `graphql-ws` connection is tied to the web view's lifecycle — w
 The native client implements the same `graphql-ws` protocol as the web client:
 
 1. **ConnectionInit** — Sent on connect with optional `authToken` in `connectionParams`
-2. **ConnectionAck** — Server confirms, client then subscribes
-3. **Subscribe** — `queueUpdates(sessionId:)` subscription
-4. **Next** — Queue delta events (FullSync, CurrentClimbChanged, QueueItemAdded, etc.)
-5. **Ping/Pong** — Server sends pings every 30s, client responds with pong
+2. **ConnectionAck** — Server confirms
+3. **JoinSession** — Mutation to join the session, which sets `ctx.sessionId` on the server so subsequent mutations are authorized
+4. **Subscribe** — `queueUpdates(sessionId:)` subscription for queue delta events
+5. **Next** — Queue delta events (FullSync, CurrentClimbChanged, QueueItemAdded, etc.)
+6. **Ping/Pong** — Server sends pings every 30s, client responds with pong
 
 ### Reconnection
 
@@ -1414,11 +1415,16 @@ Widget button taps (next/prev) flow in the opposite direction:
 ```
 Widget App Intent (NextClimbIntent / PreviousClimbIntent)
   │ updates App Group UserDefaults optimistically
+  │ updates Live Activity directly
   │ posts Darwin notification
   ▼
-SessionWebSocketManager (main app process)
-  │ reads pending action from App Group
-  │ sends setCurrentClimb mutation via existing WS
+LiveActivityPlugin (main app process, Capacitor plugin)
+  │ reads updated queue state from App Group
+  │ calls SessionWebSocketManager.navigateToItem()
+  │ also emits JS event (fallback for foregrounded app)
+  ▼
+SessionWebSocketManager
+  │ sends setCurrentClimb mutation via native WS
   ▼
 Backend publishes CurrentClimbChanged
   │ all clients (web + native) receive update

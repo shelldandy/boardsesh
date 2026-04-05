@@ -7,7 +7,7 @@ import { LitUpHoldsMap, HOLD_STATE_MAP } from './types';
  * Mirroring is handled via CSS (scaleX(-1)), not a separate render — halves cache variants.
  */
 export const buildOverlayUrl = (boardDetails: BoardDetails, frames: string, thumbnail?: boolean) =>
-  `/api/internal/board-render?board_name=${boardDetails.board_name}&layout_id=${boardDetails.layout_id}&size_id=${boardDetails.size_id}&set_ids=${boardDetails.set_ids.join(',')}&frames=${encodeURIComponent(frames)}${thumbnail ? '&thumbnail=1' : ''}`;
+  `/api/internal/board-render?board_name=${boardDetails.board_name}&layout_id=${boardDetails.layout_id}&size_id=${boardDetails.size_id}&set_ids=${boardDetails.set_ids.join(',')}&frames=${encodeURIComponent(frames)}${thumbnail ? '&thumbnail=1' : ''}&include_background=1`;
 
 const USE_SELF_HOSTED_IMAGES = true;
 
