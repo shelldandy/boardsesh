@@ -44,11 +44,11 @@ describe('useSwipeActions', () => {
     vi.useRealTimers();
   });
 
-  it('returns swipeHandlers, isSwipeComplete, contentRef, leftActionRef, rightActionRef', () => {
+  it('returns swipeHandlers, swipeLeftConfirmed, contentRef, leftActionRef, rightActionRef', () => {
     const { result } = renderHook(() => useSwipeActions(createDefaultOptions()));
 
     expect(result.current.swipeHandlers).toBeDefined();
-    expect(result.current.isSwipeComplete).toBe(false);
+    expect(result.current.swipeLeftConfirmed).toBe(false);
     expect(typeof result.current.contentRef).toBe('function');
     expect(typeof result.current.leftActionRef).toBe('function');
     expect(typeof result.current.rightActionRef).toBe('function');
@@ -69,15 +69,13 @@ describe('useSwipeActions', () => {
     expect(mockDetect).not.toHaveBeenCalled();
   });
 
-  it('calls onSwipeLeft when swiped left past threshold and detected horizontal', () => {
+  it('calls onSwipeLeft immediately when swiped left past threshold', () => {
     const options = createDefaultOptions();
     renderHook(() => useSwipeActions(options));
 
-    // Set direction to horizontal
     mockIsHorizontalRef.current = true;
     mockDetect.mockReturnValue(true);
 
-    // Simulate swiping
     act(() => {
       capturedSwipeableConfig.onSwiping({
         deltaX: -110,
@@ -86,16 +84,11 @@ describe('useSwipeActions', () => {
       });
     });
 
-    // Trigger onSwipedLeft with sufficient delta
     act(() => {
       capturedSwipeableConfig.onSwipedLeft({ deltaX: -110 });
     });
 
-    // Wait for the completion animation timeout (default 200ms)
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-
+    // Action fires immediately — no timer advance needed
     expect(options.onSwipeLeft).toHaveBeenCalledTimes(1);
   });
 
@@ -146,14 +139,14 @@ describe('useSwipeActions', () => {
     expect(mockReset).toHaveBeenCalled();
   });
 
-  it('isSwipeComplete becomes true during left swipe animation', () => {
+  it('swipeLeftConfirmed becomes true immediately and resets after 600ms', () => {
     const options = createDefaultOptions();
     const { result } = renderHook(() => useSwipeActions(options));
 
     mockIsHorizontalRef.current = true;
     mockDetect.mockReturnValue(true);
 
-    expect(result.current.isSwipeComplete).toBe(false);
+    expect(result.current.swipeLeftConfirmed).toBe(false);
 
     act(() => {
       capturedSwipeableConfig.onSwiping({
@@ -167,15 +160,21 @@ describe('useSwipeActions', () => {
       capturedSwipeableConfig.onSwipedLeft({ deltaX: -110 });
     });
 
-    // During the animation, isSwipeComplete should be true
-    expect(result.current.isSwipeComplete).toBe(true);
+    // Action fires immediately and confirmation is active
+    expect(options.onSwipeLeft).toHaveBeenCalledTimes(1);
+    expect(result.current.swipeLeftConfirmed).toBe(true);
 
-    // After animation completes
+    // Still active before 600ms
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(500);
     });
+    expect(result.current.swipeLeftConfirmed).toBe(true);
 
-    expect(result.current.isSwipeComplete).toBe(false);
+    // Resets after 600ms
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(result.current.swipeLeftConfirmed).toBe(false);
   });
 
   it('does not trigger action for vertical swipes (isHorizontalRef.current = false)', () => {
@@ -272,11 +271,7 @@ describe('useSwipeActions', () => {
       capturedSwipeableConfig.onSwipedLeft({ deltaX: -60 });
     });
 
-    // Wait for the animation
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-
+    // Action fires immediately
     expect(options.onSwipeLeft).toHaveBeenCalledTimes(1);
   });
 
@@ -382,10 +377,7 @@ describe('useSwipeActions', () => {
       capturedSwipeableConfig.onSwipedLeft({ deltaX: -100 });
     });
 
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-
+    // Action fires immediately
     expect(options.onSwipeLeft).toHaveBeenCalledTimes(1);
     expect(options.onSwipeLeftLong).not.toHaveBeenCalled();
   });
@@ -428,5 +420,124 @@ describe('useSwipeActions', () => {
     expect(onSwipeZoneChange).toHaveBeenCalledWith('right-long');
     expect(onSwipeZoneChange).toHaveBeenCalledWith('none');
     expect(options.onSwipeRightLong).toHaveBeenCalledTimes(1);
+  });
+
+  it('peeks content and keeps action layer visible during left swipe confirmation', () => {
+    const options = createDefaultOptions();
+    const { result } = renderHook(() => useSwipeActions(options));
+
+    const mockContent = {
+      style: { transform: '', transition: '', opacity: '', visibility: '' },
+    } as unknown as HTMLElement;
+    const mockRightAction = {
+      style: { transform: '', transition: '', opacity: '', visibility: '' },
+    } as unknown as HTMLElement;
+
+    act(() => {
+      result.current.contentRef(mockContent);
+      result.current.rightActionRef(mockRightAction);
+    });
+
+    mockIsHorizontalRef.current = true;
+    mockDetect.mockReturnValue(true);
+
+    act(() => {
+      capturedSwipeableConfig.onSwiping({
+        deltaX: -110,
+        deltaY: 0,
+        event: { nativeEvent: { preventDefault: vi.fn() } },
+      });
+    });
+
+    act(() => {
+      capturedSwipeableConfig.onSwipedLeft({ deltaX: -110 });
+    });
+
+    // Content should be at peek offset
+    expect(mockContent.style.transform).toBe('translateX(-56px)');
+    expect(mockContent.style.transition).toBe('transform 150ms ease');
+    // Right action layer should be fully visible
+    expect(mockRightAction.style.opacity).toBe('1');
+    expect(mockRightAction.style.visibility).toBe('visible');
+
+    // After confirmation timer, content snaps back
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+
+    expect(mockContent.style.transform).toBe('translateX(0px)');
+  });
+
+  it('handles rapid double-swipe without duplicate actions', () => {
+    const options = createDefaultOptions();
+    renderHook(() => useSwipeActions(options));
+
+    mockIsHorizontalRef.current = true;
+    mockDetect.mockReturnValue(true);
+
+    // First swipe
+    act(() => {
+      capturedSwipeableConfig.onSwiping({
+        deltaX: -110,
+        deltaY: 0,
+        event: { nativeEvent: { preventDefault: vi.fn() } },
+      });
+    });
+    act(() => {
+      capturedSwipeableConfig.onSwipedLeft({ deltaX: -110 });
+    });
+
+    // Second swipe immediately after (before timer fires)
+    act(() => {
+      capturedSwipeableConfig.onSwiping({
+        deltaX: -110,
+        deltaY: 0,
+        event: { nativeEvent: { preventDefault: vi.fn() } },
+      });
+    });
+    act(() => {
+      capturedSwipeableConfig.onSwipedLeft({ deltaX: -110 });
+    });
+
+    // Action fires twice (once per swipe) — that's correct
+    expect(options.onSwipeLeft).toHaveBeenCalledTimes(2);
+
+    // But only one timer should be pending — advance and confirm single reset
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+
+    // No additional calls after timer
+    expect(options.onSwipeLeft).toHaveBeenCalledTimes(2);
+  });
+
+  it('cleans up confirmation timer on unmount', () => {
+    const options = createDefaultOptions();
+    const { result, unmount } = renderHook(() => useSwipeActions(options));
+
+    mockIsHorizontalRef.current = true;
+    mockDetect.mockReturnValue(true);
+
+    act(() => {
+      capturedSwipeableConfig.onSwiping({
+        deltaX: -110,
+        deltaY: 0,
+        event: { nativeEvent: { preventDefault: vi.fn() } },
+      });
+    });
+
+    act(() => {
+      capturedSwipeableConfig.onSwipedLeft({ deltaX: -110 });
+    });
+
+    expect(result.current.swipeLeftConfirmed).toBe(true);
+
+    // Unmount before timer fires — should not throw
+    unmount();
+
+    // Advancing timers should not cause errors
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
   });
 });

@@ -41,7 +41,7 @@ vi.mock('@/app/hooks/use-swipe-actions', () => ({
     capturedSwipeOptions = options;
     return {
       swipeHandlers: { ref: vi.fn() },
-      isSwipeComplete: false,
+      swipeLeftConfirmed: false,
       contentRef: vi.fn(),
       leftActionRef: vi.fn(),
       rightActionRef: vi.fn(),

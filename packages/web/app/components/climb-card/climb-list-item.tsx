@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined';
 import AddOutlined from '@mui/icons-material/AddOutlined';
+import CheckOutlined from '@mui/icons-material/CheckOutlined';
 import LocalOfferOutlined from '@mui/icons-material/LocalOfferOutlined';
 import { Climb, BoardDetails } from '@/app/lib/types';
 import ClimbThumbnail from './climb-thumbnail';
@@ -73,9 +74,15 @@ const longSwipeLayerInitialStyle: React.CSSProperties = {
   opacity: 0,
 };
 
-const rightActionLayerInitialStyle: React.CSSProperties = {
+const rightActionLayerDefaultStyle: React.CSSProperties = {
   ...rightSwipeActionLayerBaseStyle,
   backgroundColor: themeTokens.colors.primary,
+  opacity: 0,
+};
+
+const rightActionLayerConfirmedStyle: React.CSSProperties = {
+  ...rightSwipeActionLayerBaseStyle,
+  backgroundColor: themeTokens.colors.success,
   opacity: 0,
 };
 
@@ -285,7 +292,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       }
     }, []);
 
-    const { swipeHandlers, isSwipeComplete, contentRef, leftActionRef, rightActionRef } = useSwipeActions({
+    const { swipeHandlers, swipeLeftConfirmed, contentRef, leftActionRef, rightActionRef } = useSwipeActions({
       onSwipeLeft: resolvedSwipeLeft,
       onSwipeRight: handleDefaultSwipeRight,
       onSwipeRightLong: useSimpleSwipe ? undefined : handleDefaultSwipeRightLong,
@@ -380,9 +387,9 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
         borderBottom: `1px solid var(--neutral-200)`,
         cursor: 'pointer' as const,
         userSelect: 'none' as const,
-        opacity: isSwipeComplete ? 0 : (contentOpacity ?? 1),
+        opacity: contentOpacity ?? 1,
       }),
-      [resolvedBg, isSwipeComplete, contentOpacity],
+      [resolvedBg, contentOpacity],
     );
 
     // Default ClimbTitle props when no override is provided
@@ -422,8 +429,12 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
                 </div>
               ) : (
                 <div ref={rightActionRef} style={defaultRightActionStyle}>
-                  <div ref={rightActionLayerRef} style={rightActionLayerInitialStyle}>
-                    <AddOutlined style={iconStyle} />
+                  <div ref={rightActionLayerRef} style={swipeLeftConfirmed ? rightActionLayerConfirmedStyle : rightActionLayerDefaultStyle}>
+                    {swipeLeftConfirmed ? (
+                      <CheckOutlined style={iconStyle} />
+                    ) : (
+                      <AddOutlined style={iconStyle} />
+                    )}
                   </div>
                 </div>
               )}

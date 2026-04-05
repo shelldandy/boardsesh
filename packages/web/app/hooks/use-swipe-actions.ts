@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import { useSwipeDirection } from './use-swipe-direction';
 
@@ -8,6 +8,10 @@ import { useSwipeDirection } from './use-swipe-direction';
 const DEFAULT_SWIPE_THRESHOLD = 100;
 // Maximum swipe distance
 const DEFAULT_MAX_SWIPE = 120;
+// Peek offset shown during left-swipe confirmation (enough to reveal the action icon)
+const CONFIRMATION_PEEK_OFFSET = -56;
+// Duration the confirmation checkmark is shown before snapping back
+const CONFIRMATION_DISPLAY_MS = 600;
 
 export type SwipeZone = 'none' | 'left-short' | 'left-long' | 'right-short' | 'right-long';
 
@@ -45,8 +49,8 @@ export interface UseSwipeActionsOptions {
 export interface UseSwipeActionsReturn {
   /** Spread onto the swipeable container element */
   swipeHandlers: ReturnType<typeof useSwipeable>;
-  /** Whether the swipe-off animation is in progress (item fading out) */
-  isSwipeComplete: boolean;
+  /** Whether a left-swipe action was just confirmed (checkmark peek is visible) */
+  swipeLeftConfirmed: boolean;
   /** Ref for the swipeable content element (applies transform) */
   contentRef: React.RefCallback<HTMLElement>;
   /** Ref for the left action background (visible on swipe right) */
@@ -79,12 +83,20 @@ export function useSwipeActions({
   disabled = false,
   completionAnimationMs = 200,
 }: UseSwipeActionsOptions): UseSwipeActionsReturn {
-  const [isSwipeComplete, setIsSwipeComplete] = useState(false);
+  const [swipeLeftConfirmed, setSwipeLeftConfirmed] = useState(false);
+  const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // DOM element refs (set via ref callbacks)
   const contentEl = useRef<HTMLElement | null>(null);
   const leftActionEl = useRef<HTMLElement | null>(null);
   const rightActionEl = useRef<HTMLElement | null>(null);
+
+  // Clean up confirmation timer on unmount
+  useEffect(() => {
+    return () => {
+      if (confirmationTimerRef.current) clearTimeout(confirmationTimerRef.current);
+    };
+  }, []);
 
   // Gesture state (not React state -- no re-renders)
   const offsetRef = useRef(0);
@@ -143,21 +155,33 @@ export function useSwipeActions({
   }, [applyOffset, updateSwipeZone]);
 
   const handleSwipeLeftComplete = useCallback(() => {
-    setIsSwipeComplete(true);
+    // Guard against rapid double-swipes
+    if (confirmationTimerRef.current) clearTimeout(confirmationTimerRef.current);
+
+    // Fire action immediately — no delay
+    onSwipeLeft();
+    setSwipeLeftConfirmed(true);
+
+    // Animate content to a peek offset so the action layer (checkmark) stays visible
     if (contentEl.current) {
-      contentEl.current.style.opacity = '0';
-      contentEl.current.style.transition = 'transform 150ms ease, opacity 150ms ease';
+      contentEl.current.style.transition = 'transform 150ms ease';
+      contentEl.current.style.transform = `translateX(${CONFIRMATION_PEEK_OFFSET}px)`;
     }
-    setTimeout(() => {
-      onSwipeLeft();
+
+    // Keep the right action layer fully visible during confirmation
+    if (rightActionEl.current) {
+      rightActionEl.current.style.opacity = '1';
+      rightActionEl.current.style.visibility = 'visible';
+    }
+
+    // After the confirmation display, snap back
+    confirmationTimerRef.current = setTimeout(() => {
+      confirmationTimerRef.current = null;
       applyOffset(0);
       updateSwipeZone('none');
-      if (contentEl.current) {
-        contentEl.current.style.opacity = '';
-      }
-      setIsSwipeComplete(false);
-    }, completionAnimationMs);
-  }, [onSwipeLeft, applyOffset, completionAnimationMs, updateSwipeZone]);
+      setSwipeLeftConfirmed(false);
+    }, CONFIRMATION_DISPLAY_MS);
+  }, [onSwipeLeft, applyOffset, updateSwipeZone]);
 
   const handleSwipeRightComplete = useCallback(() => {
     applyOffset(0);
@@ -262,7 +286,7 @@ export function useSwipeActions({
 
   return {
     swipeHandlers,
-    isSwipeComplete,
+    swipeLeftConfirmed,
     contentRef,
     leftActionRef,
     rightActionRef,
