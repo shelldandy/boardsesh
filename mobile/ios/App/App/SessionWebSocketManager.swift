@@ -553,7 +553,6 @@ final class SessionWebSocketManager {
             handleNextMessage(msg)
 
         case .error:
-            print("[SessionWS] Received error for id=\(msg.id ?? "nil"): \(String(describing: msg.payload))")
             handleMutationError(msg)
 
         case .complete:
@@ -721,7 +720,6 @@ final class SessionWebSocketManager {
     /// Called by LiveActivityPlugin when the widget's Next/Previous intent fires.
     /// Sends the setCurrentClimb mutation over the native WebSocket.
     func navigateToItem(_ item: SharedQueueItem, at index: Int, totalItems items: [SharedQueueItem]) {
-        print("[SessionWS] navigateToItem called: index=\(index), item=\(item.climbName), connected=\(isConnected), hasTask=\(webSocketTask != nil)")
         stateQueue.async { [weak self] in
             guard let self = self else { return }
 
@@ -734,7 +732,6 @@ final class SessionWebSocketManager {
             self.pendingMutations[correlationId] = previousIndex
 
             self.persistAndNotify()
-            print("[SessionWS] Sending setCurrentClimb mutation for \(item.climbName)")
             self.sendSetCurrentClimb(item: item, correlationId: correlationId)
         }
     }
@@ -803,18 +800,9 @@ final class SessionWebSocketManager {
             return
         }
         stateQueue.async { [weak self] in
-            guard let self = self, let task = self.webSocketTask else {
-                print("[SessionWS] sendJSON: no webSocketTask available")
-                return
-            }
-            task.send(.string(text)) { error in
+            self?.webSocketTask?.send(.string(text)) { error in
                 if let error = error {
                     print("[SessionWS] Send failed: \(error.localizedDescription)")
-                } else {
-                    // Log the message type for debugging
-                    let type = dict["type"] as? String ?? "unknown"
-                    let id = dict["id"] as? String ?? ""
-                    print("[SessionWS] Sent \(type) \(id)")
                 }
             }
         }
