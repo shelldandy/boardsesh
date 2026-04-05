@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import IconButton from '@mui/material/IconButton';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -60,9 +60,58 @@ const rightSwipeActionLayerBaseStyle: React.CSSProperties = {
   willChange: 'opacity',
 };
 
+// Static initial styles for action layers — opacity updated via direct DOM manipulation during swipe
+const shortSwipeLayerInitialStyle: React.CSSProperties = {
+  ...swipeActionLayerBaseStyle,
+  backgroundColor: themeTokens.colors.primary,
+  opacity: 0,
+};
+
+const longSwipeLayerInitialStyle: React.CSSProperties = {
+  ...swipeActionLayerBaseStyle,
+  backgroundColor: themeTokens.neutral[600],
+  opacity: 0,
+};
+
+const rightActionLayerInitialStyle: React.CSSProperties = {
+  ...rightSwipeActionLayerBaseStyle,
+  backgroundColor: themeTokens.colors.primary,
+  opacity: 0,
+};
+
+const defaultLeftActionStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  bottom: 0,
+  width: SHORT_ACTION_WIDTH,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+  paddingLeft: themeTokens.spacing[3],
+  opacity: 0,
+  visibility: 'hidden',
+  overflow: 'hidden',
+};
+
+const defaultRightActionStyle: React.CSSProperties = {
+  position: 'absolute',
+  right: 0,
+  top: 0,
+  bottom: 0,
+  width: SHORT_ACTION_WIDTH,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  paddingRight: themeTokens.spacing[3],
+  opacity: 0,
+  visibility: 'hidden',
+  overflow: 'hidden',
+};
+
 const iconStyle: React.CSSProperties = { color: 'white', fontSize: 20 };
 
-const thumbnailStyle: React.CSSProperties = { width: themeTokens.spacing[16], flexShrink: 0 };
+const thumbnailStyle: React.CSSProperties = { width: themeTokens.spacing[16], flexShrink: 0, position: 'relative' };
 
 const centerStyle: React.CSSProperties = { flex: 1, minWidth: 0 };
 
@@ -141,8 +190,11 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     const hasParentDrawers = Boolean(onOpenActions && onOpenPlaylistSelector);
     const [isActionsOpen, setIsActionsOpen] = useState(false);
     const [isPlaylistSelectorOpen, setIsPlaylistSelectorOpen] = useState(false);
-    // Single signed offset: positive = right swipe, negative = left swipe
-    const [swipeOffset, setSwipeOffset] = useState(0);
+    // Refs for inner action layer elements — updated via direct DOM manipulation during swipe
+    const shortSwipeLayerRef = useRef<HTMLDivElement>(null);
+    const longSwipeLayerRef = useRef<HTMLDivElement>(null);
+    const rightActionLayerRef = useRef<HTMLDivElement>(null);
+    const leftActionContainerRef = useRef<HTMLDivElement>(null);
     const queueContext = useOptionalQueueContext();
     const addToQueue = queueContext?.addToQueue;
     const {
@@ -153,6 +205,10 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     } = useDoubleTapFavorite({ climbUuid: climb.uuid });
     const { ref: doubleTapRef, onDoubleClick: handleDoubleTapClick } = useDoubleTap(handleDoubleTap);
     const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Store onThumbnailClick in a ref so the memoized handler always reads the latest
+    // value without requiring onThumbnailClick in the memo comparator.
+    const onThumbnailClickRef = useRef(onThumbnailClick);
+    onThumbnailClickRef.current = onThumbnailClick;
 
     // Clear pending click timeout on unmount to prevent stale callbacks
     useEffect(() => {
@@ -200,17 +256,82 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     // Use simple thresholds when right action is overridden (no long-swipe needed for left action)
     const useSimpleSwipe = hasRightOverride;
 
+    // Direct DOM manipulation for swipe layer opacities — zero React re-renders during gesture
+    const handleSwipeOffset = useCallback((offset: number) => {
+      const rightOffset = offset > 0 ? offset : 0;
+      const leftOffset = offset < 0 ? -offset : 0;
+
+      // Right swipe: short (playlist) → long (actions) transition
+      const rightBaseOpacity = Math.min(1, rightOffset / SHORT_SWIPE_THRESHOLD);
+      const transitionRange = LONG_SWIPE_THRESHOLD - TRANSITION_START;
+      const blend =
+        transitionRange > 0
+          ? Math.max(0, Math.min(1, (rightOffset - TRANSITION_START) / transitionRange))
+          : 1;
+
+      if (shortSwipeLayerRef.current) {
+        shortSwipeLayerRef.current.style.opacity = String(rightBaseOpacity * (1 - blend));
+      }
+      if (longSwipeLayerRef.current) {
+        longSwipeLayerRef.current.style.opacity = String(rightBaseOpacity * blend);
+      }
+      if (leftActionContainerRef.current) {
+        leftActionContainerRef.current.style.width = `${SHORT_ACTION_WIDTH + (LONG_SWIPE_ACTION_WIDTH - SHORT_ACTION_WIDTH) * blend}px`;
+      }
+
+      // Left swipe: queue/tick action opacity
+      if (rightActionLayerRef.current) {
+        rightActionLayerRef.current.style.opacity = String(Math.min(1, leftOffset / SHORT_SWIPE_THRESHOLD));
+      }
+    }, []);
+
     const { swipeHandlers, isSwipeComplete, contentRef, leftActionRef, rightActionRef } = useSwipeActions({
       onSwipeLeft: resolvedSwipeLeft,
       onSwipeRight: handleDefaultSwipeRight,
       onSwipeRightLong: useSimpleSwipe ? undefined : handleDefaultSwipeRightLong,
-      onSwipeOffsetChange: useSimpleSwipe ? undefined : setSwipeOffset,
+      onSwipeOffsetChange: useSimpleSwipe ? undefined : handleSwipeOffset,
       swipeThreshold: useSimpleSwipe ? SIMPLE_SWIPE_THRESHOLD : SHORT_SWIPE_THRESHOLD,
       longSwipeRightThreshold: useSimpleSwipe ? undefined : LONG_SWIPE_THRESHOLD,
       maxSwipe: useSimpleSwipe ? SIMPLE_MAX_SWIPE : MAX_GESTURE_SWIPE,
       maxSwipeLeft: useSimpleSwipe ? undefined : SHORT_ACTION_WIDTH,
       disabled: disableSwipe,
     });
+
+    // Combined ref callback for left action container — avoids inline function recreation
+    const leftActionCombinedRef = useCallback((node: HTMLDivElement | null) => {
+      leftActionRef(node);
+      leftActionContainerRef.current = node;
+    }, [leftActionRef]);
+
+    // Combined ref callback for swipeable content div
+    const contentCombinedRef = useCallback((node: HTMLDivElement | null) => {
+      if (!disableSwipe) {
+        swipeHandlers.ref(node);
+        contentRef(node);
+      }
+    }, [disableSwipe, swipeHandlers, contentRef]);
+
+    // Thumbnail click handler — uses ref to avoid stale closure.
+    // Always attached (not conditional) because onThumbnailClick is excluded from
+    // the memo comparator; a render-time conditional would go stale.
+    const handleThumbnailClick = useCallback((e: React.MouseEvent) => {
+      if (!onThumbnailClickRef.current) return;
+      e.stopPropagation();
+      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = setTimeout(() => {
+        clickTimeoutRef.current = null;
+        onThumbnailClickRef.current?.();
+      }, 300);
+    }, []);
+
+    // Thumbnail double-click handler
+    const handleThumbnailDoubleClick = useCallback(() => {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      handleDoubleTapClick();
+    }, [handleDoubleTapClick]);
 
     const excludeActions = getExcludedClimbActions(boardDetails.board_name, 'list');
 
@@ -224,96 +345,6 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       [unsupported],
     );
 
-    // Derive directional offsets from the single signed value
-    const rightSwipeOffset = swipeOffset > 0 ? swipeOffset : 0;
-    const leftSwipeOffset = swipeOffset < 0 ? -swipeOffset : 0;
-
-    const rightSwipeBaseOpacity = useMemo(
-      () => Math.min(1, rightSwipeOffset / SHORT_SWIPE_THRESHOLD),
-      [rightSwipeOffset],
-    );
-
-    const longSwipeBlend = useMemo(() => {
-      const transitionRange = LONG_SWIPE_THRESHOLD - TRANSITION_START;
-      if (transitionRange <= 0) return 1;
-      return Math.max(0, Math.min(1, (rightSwipeOffset - TRANSITION_START) / transitionRange));
-    }, [rightSwipeOffset]);
-
-    const shortSwipeLayerOpacity = useMemo(
-      () => rightSwipeBaseOpacity * (1 - longSwipeBlend),
-      [rightSwipeBaseOpacity, longSwipeBlend],
-    );
-
-    const longSwipeLayerOpacity = useMemo(
-      () => rightSwipeBaseOpacity * longSwipeBlend,
-      [rightSwipeBaseOpacity, longSwipeBlend],
-    );
-
-    // Left-swipe opacity (for right action panel — queue only, no long swipe)
-    const leftSwipeOpacity = useMemo(() => Math.min(1, leftSwipeOffset / SHORT_SWIPE_THRESHOLD), [leftSwipeOffset]);
-
-    const defaultLeftActionStyle = useMemo(
-      () => ({
-        position: 'absolute' as const,
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: SHORT_ACTION_WIDTH + (LONG_SWIPE_ACTION_WIDTH - SHORT_ACTION_WIDTH) * longSwipeBlend,
-        display: 'flex' as const,
-        alignItems: 'center' as const,
-        justifyContent: 'flex-start' as const,
-        paddingLeft: themeTokens.spacing[3],
-        opacity: 0,
-        visibility: 'hidden' as const,
-        overflow: 'hidden' as const,
-      }),
-      [longSwipeBlend],
-    );
-
-    const shortSwipeLayerStyle = useMemo(
-      () => ({
-        ...swipeActionLayerBaseStyle,
-        backgroundColor: themeTokens.colors.primary,
-        opacity: shortSwipeLayerOpacity,
-      }),
-      [shortSwipeLayerOpacity],
-    );
-
-    const longSwipeLayerStyle = useMemo(
-      () => ({
-        ...swipeActionLayerBaseStyle,
-        backgroundColor: themeTokens.neutral[600],
-        opacity: longSwipeLayerOpacity,
-      }),
-      [longSwipeLayerOpacity],
-    );
-
-    const defaultRightActionStyle = useMemo(
-      () => ({
-        position: 'absolute' as const,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: SHORT_ACTION_WIDTH,
-        display: 'flex' as const,
-        alignItems: 'center' as const,
-        justifyContent: 'flex-end' as const,
-        paddingRight: themeTokens.spacing[3],
-        opacity: 0,
-        visibility: 'hidden' as const,
-        overflow: 'hidden' as const,
-      }),
-      [],
-    );
-
-    const rightActionLayerStyle = useMemo(
-      () => ({
-        ...rightSwipeActionLayerBaseStyle,
-        backgroundColor: themeTokens.colors.primary,
-        opacity: leftSwipeOpacity,
-      }),
-      [leftSwipeOpacity],
-    );
 
     const simpleRightActionStyle = useMemo(
       () => ({
@@ -355,13 +386,17 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     );
 
     // Default ClimbTitle props when no override is provided
-    const resolvedTitleProps: Partial<ClimbTitleProps> = titleProps ?? {
-      gradePosition: 'right',
-      showSetterInfo: true,
-      titleFontSize: themeTokens.typography.fontSize.xl,
-      rightAddon: <AscentStatus climbUuid={climb.uuid} fontSize={20} />,
-      favorited: isFavorited,
-    };
+    const resolvedTitleProps = useMemo<Partial<ClimbTitleProps>>(
+      () =>
+        titleProps ?? {
+          gradePosition: 'right',
+          showSetterInfo: true,
+          titleFontSize: themeTokens.typography.fontSize.xl,
+          rightAddon: <AscentStatus climbUuid={climb.uuid} fontSize={20} />,
+          favorited: isFavorited,
+        },
+      [titleProps, climb.uuid, isFavorited],
+    );
 
     return (
       <>
@@ -369,12 +404,12 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
           {!disableSwipe && (
             <>
               {/* Left action (revealed on swipe right) */}
-              <div ref={leftActionRef} style={defaultLeftActionStyle}>
-                <div style={shortSwipeLayerStyle}>
+              <div ref={leftActionCombinedRef} style={defaultLeftActionStyle}>
+                <div ref={shortSwipeLayerRef} style={shortSwipeLayerInitialStyle}>
                   <LocalOfferOutlined style={iconStyle} />
                 </div>
                 {!useSimpleSwipe && (
-                  <div style={longSwipeLayerStyle}>
+                  <div ref={longSwipeLayerRef} style={longSwipeLayerInitialStyle}>
                     <MoreHorizOutlined style={iconStyle} />
                   </div>
                 )}
@@ -387,7 +422,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
                 </div>
               ) : (
                 <div ref={rightActionRef} style={defaultRightActionStyle}>
-                  <div style={rightActionLayerStyle}>
+                  <div ref={rightActionLayerRef} style={rightActionLayerInitialStyle}>
                     <AddOutlined style={iconStyle} />
                   </div>
                 </div>
@@ -398,38 +433,16 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
           {/* Content (swipeable when swipe is enabled) */}
           <div
             {...(disableSwipe ? {} : swipeHandlers)}
-            ref={(node: HTMLDivElement | null) => {
-              if (!disableSwipe) {
-                swipeHandlers.ref(node);
-                contentRef(node);
-              }
-            }}
+            ref={contentCombinedRef}
             onClick={onSelect}
             style={swipeableContentStyle}
           >
             {/* Thumbnail */}
             <div
               ref={doubleTapRef}
-              style={{ ...thumbnailStyle, position: 'relative' }}
-              onClick={
-                onThumbnailClick
-                  ? (e) => {
-                      e.stopPropagation();
-                      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
-                      clickTimeoutRef.current = setTimeout(() => {
-                        clickTimeoutRef.current = null;
-                        onThumbnailClick();
-                      }, 300);
-                    }
-                  : undefined
-              }
-              onDoubleClick={() => {
-                if (clickTimeoutRef.current) {
-                  clearTimeout(clickTimeoutRef.current);
-                  clickTimeoutRef.current = null;
-                }
-                handleDoubleTapClick();
-              }}
+              style={thumbnailStyle}
+              onClick={handleThumbnailClick}
+              onDoubleClick={handleThumbnailDoubleClick}
             >
               <ClimbThumbnail
                 boardDetails={boardDetails}
@@ -532,7 +545,6 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       prev.contentOpacity === next.contentOpacity &&
       prev.disableThumbnailNavigation === next.disableThumbnailNavigation &&
       prev.preferImageLayers === next.preferImageLayers &&
-      prev.onThumbnailClick === next.onThumbnailClick &&
       prev.onOpenActions === next.onOpenActions &&
       prev.onOpenPlaylistSelector === next.onOpenPlaylistSelector &&
       prev.onNavigate === next.onNavigate
