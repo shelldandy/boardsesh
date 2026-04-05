@@ -187,7 +187,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     const { swipeHandlers, isSwipeComplete, contentRef, leftActionRef, rightActionRef } = useSwipeActions({
       onSwipeLeft: resolvedSwipeLeft,
       onSwipeRight: handleDefaultSwipeRight,
-      onSwipeRightLong: handleDefaultSwipeRightLong,
+      onSwipeRightLong: useSimpleSwipe ? undefined : handleDefaultSwipeRightLong,
       onSwipeOffsetChange: useSimpleSwipe ? undefined : setSwipeOffset,
       swipeThreshold: useSimpleSwipe ? SIMPLE_SWIPE_THRESHOLD : SHORT_SWIPE_THRESHOLD,
       longSwipeRightThreshold: useSimpleSwipe ? undefined : LONG_SWIPE_THRESHOLD,
