@@ -183,13 +183,16 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     }, [onOpenActions, climb]);
 
     // Resolve per-direction: override or default
-    const resolvedSwipeLeft = hasRightOverride
-      ? () => swipeRightAction!.onAction()
-      : handleDefaultSwipeLeft;
+    const handleOverrideSwipeLeft = useCallback(() => {
+      swipeRightAction?.onAction();
+    }, [swipeRightAction]);
 
-    const resolvedSwipeRight = hasLeftOverride
-      ? () => swipeLeftAction!.onAction()
-      : handleDefaultSwipeRight;
+    const handleOverrideSwipeRight = useCallback(() => {
+      swipeLeftAction?.onAction();
+    }, [swipeLeftAction]);
+
+    const resolvedSwipeLeft = hasRightOverride ? handleOverrideSwipeLeft : handleDefaultSwipeLeft;
+    const resolvedSwipeRight = hasLeftOverride ? handleOverrideSwipeRight : handleDefaultSwipeRight;
 
     // Long swipe right only available when left action uses default (playlist → actions)
     const resolvedSwipeRightLong = hasLeftOverride ? undefined : handleDefaultSwipeRightLong;

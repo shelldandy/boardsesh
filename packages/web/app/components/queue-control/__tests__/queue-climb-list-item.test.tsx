@@ -228,31 +228,33 @@ describe('QueueClimbListItem', () => {
   });
 
   describe('swipe actions', () => {
-    it('configures simple swipe thresholds (no long-swipe)', () => {
+    it('uses default swipe thresholds with long-swipe support for playlist/actions', () => {
       render(<QueueClimbListItem {...defaultProps()} />);
 
       expect(capturedSwipeOptions).not.toBeNull();
-      expect(capturedSwipeOptions?.swipeThreshold).toBe(100);
-      expect(capturedSwipeOptions?.maxSwipe).toBe(120);
-      expect(capturedSwipeOptions?.longSwipeRightThreshold).toBeUndefined();
+      // Only swipeRightAction is overridden (tick), so default thresholds apply
+      expect(capturedSwipeOptions?.swipeThreshold).toBe(90);
+      expect(capturedSwipeOptions?.maxSwipe).toBe(180);
+      expect(capturedSwipeOptions?.longSwipeRightThreshold).toBe(150);
     });
 
-    it('calls onTickClick when swiped right (tick action)', () => {
+    it('calls onTickClick when swiped left (tick action)', () => {
       const props = defaultProps();
       render(<QueueClimbListItem {...props} />);
 
-      const swipeRightHandler = capturedSwipeOptions?.onSwipeRight as () => void;
-      swipeRightHandler();
+      // Swipe left triggers the right action override (tick) instead of default add-to-queue
+      const swipeLeftHandler = capturedSwipeOptions?.onSwipeLeft as () => void;
+      swipeLeftHandler();
       expect(props.onTickClick).toHaveBeenCalledWith(props.item.climb);
     });
 
-    it('calls removeFromQueue when swiped left (delete action)', () => {
-      const props = defaultProps();
-      render(<QueueClimbListItem {...props} />);
+    it('uses default playlist/actions behavior on swipe right', () => {
+      render(<QueueClimbListItem {...defaultProps()} />);
 
-      const swipeLeftHandler = capturedSwipeOptions?.onSwipeLeft as () => void;
-      swipeLeftHandler();
-      expect(props.removeFromQueue).toHaveBeenCalledWith(props.item);
+      // Swipe right uses default behavior (playlist selector / actions menu)
+      // since swipeLeftAction is not overridden
+      expect(capturedSwipeOptions?.onSwipeRight).toBeDefined();
+      expect(capturedSwipeOptions?.onSwipeRightLong).toBeDefined();
     });
 
     it('disables swipe in edit mode', () => {
