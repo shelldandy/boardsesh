@@ -22,6 +22,7 @@ import { usePathname } from 'next/navigation';
 import { useQueueContext } from '../graphql-queue';
 import { useFavorite, ClimbActions } from '../climb-actions';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
+import DrawerFavoriteButton from '../climb-card/drawer-favorite-button';
 import { ShareBoardButton } from '../board-page/share-button';
 import { useBoardProvider } from '../board-provider/board-provider-context';
 import QueueList, { QueueListHandle } from '../queue-control/queue-list';
@@ -431,6 +432,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         {currentClimb && (
           <SwipeableDrawer
             title={currentClimb.name}
+            extra={<DrawerFavoriteButton climbUuid={currentClimb.uuid} />}
             placement="bottom"
             open={isPlaylistSelectorOpen}
             onClose={() => setIsPlaylistSelectorOpen(false)}

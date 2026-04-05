@@ -12,6 +12,7 @@ import ErrorBoundary from '../error-boundary';
 import ClimbCard from '../climb-card/climb-card';
 import ClimbListItem from '../climb-card/climb-list-item';
 import DrawerClimbHeader from '../climb-card/drawer-climb-header';
+import DrawerFavoriteButton from '../climb-card/drawer-favorite-button';
 import { ClimbActions } from '../climb-actions';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
 import { ClimbCardSkeleton, ClimbListItemSkeleton } from './board-page-skeleton';
@@ -465,6 +466,7 @@ const ClimbsList = ({
             <DrawerClimbHeader climb={activeDrawerClimb} boardDetails={activeDrawerBoardDetails} />
           ) : undefined
         }
+        extra={activeDrawerClimb ? <DrawerFavoriteButton climbUuid={activeDrawerClimb.uuid} /> : undefined}
         placement="bottom"
         open={drawerMode === 'playlist'}
         onClose={handleCloseDrawer}

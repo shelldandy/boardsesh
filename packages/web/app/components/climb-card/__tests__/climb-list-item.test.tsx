@@ -20,13 +20,17 @@ vi.mock('../../graphql-queue', () => ({
 }));
 
 vi.mock('../../climb-actions', () => ({
+  ClimbActions: () => <div data-testid="climb-actions" />,
   useFavorite: () => ({
     isFavorited: false,
     isLoading: false,
     toggleFavorite: vi.fn(),
     isAuthenticated: false,
   }),
-  ClimbActions: () => <div data-testid="climb-actions" />,
+}));
+
+vi.mock('../drawer-favorite-button', () => ({
+  default: () => <span data-testid="drawer-favorite-button" />,
 }));
 
 vi.mock('@/app/hooks/use-swipe-actions', () => ({
@@ -169,8 +173,8 @@ describe('ClimbListItem', () => {
         <ClimbListItem climb={makeClimb()} boardDetails={makeBoardDetails()} disableSwipe />,
       );
 
-      // Swipe icons (FavoriteBorderOutlined and AddOutlined) should not be in the DOM
-      expect(screen.queryByTestId('FavoriteBorderOutlinedIcon')).toBeNull();
+      // Swipe icons (LocalOfferOutlined and AddOutlined) should not be in the DOM
+      expect(screen.queryByTestId('LocalOfferOutlinedIcon')).toBeNull();
       expect(screen.queryByTestId('AddOutlinedIcon')).toBeNull();
     });
 
@@ -180,7 +184,7 @@ describe('ClimbListItem', () => {
       );
 
       // Swipe icons should be present when swipe is enabled
-      expect(screen.getByTestId('FavoriteBorderOutlinedIcon')).toBeTruthy();
+      expect(screen.getByTestId('LocalOfferOutlinedIcon')).toBeTruthy();
       expect(screen.getByTestId('AddOutlinedIcon')).toBeTruthy();
     });
 
@@ -232,7 +236,7 @@ describe('ClimbListItem', () => {
       expect(screen.getByTestId('custom-left-icon')).toBeTruthy();
       expect(screen.getByTestId('custom-right-icon')).toBeTruthy();
       // Default icons should NOT be present
-      expect(screen.queryByTestId('FavoriteBorderOutlinedIcon')).toBeNull();
+      expect(screen.queryByTestId('LocalOfferOutlinedIcon')).toBeNull();
       expect(screen.queryByTestId('AddOutlinedIcon')).toBeNull();
     });
 
