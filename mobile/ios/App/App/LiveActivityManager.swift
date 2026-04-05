@@ -5,7 +5,7 @@ import os.log
 // MARK: - LiveActivityManager
 
 @available(iOS 16.1, *)
-final class LiveActivityManager {
+actor LiveActivityManager {
 
     // MARK: - Singleton
 
@@ -30,7 +30,7 @@ final class LiveActivityManager {
     // MARK: - Availability
 
     /// Whether Live Activities are supported and the user has granted permission.
-    var isAvailable: Bool {
+    nonisolated var isAvailable: Bool {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
@@ -164,7 +164,7 @@ final class LiveActivityManager {
     /// Builds a `ContentState` from the current shared queue state.
     ///
     /// Returns `nil` if the queue is empty or the index is out of bounds.
-    static func buildContentState(
+    nonisolated static func buildContentState(
         items: [SharedQueueItem],
         currentIndex: Int
     ) -> ClimbSessionAttributes.ContentState? {
