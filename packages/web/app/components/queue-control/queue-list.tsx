@@ -2,12 +2,10 @@
 import React, { useEffect, useState, useCallback, useRef, useImperativeHandle, forwardRef, useMemo } from 'react';
 import Skeleton from '@mui/material/Skeleton';
 import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import MuiDivider from '@mui/material/Divider';
 import SwipeableDrawer from '../swipeable-drawer/swipeable-drawer';
-import AddOutlined from '@mui/icons-material/AddOutlined';
 import LoginOutlined from '@mui/icons-material/LoginOutlined';
 import { useQueueContext } from '../graphql-queue';
 import { Climb, BoardDetails } from '@/app/lib/types';
@@ -23,13 +21,6 @@ import { LogAscentDrawer } from '../logbook/log-ascent-drawer';
 import AuthModal from '../auth/auth-modal';
 import styles from './queue-list.module.css';
 
-
-/** Memoized wrapper so the menuSlot reference stays stable per climb, preserving ClimbListItem's React.memo. */
-const SuggestedAddButton = React.memo(({ climb, addToQueue }: { climb: Climb; addToQueue: (climb: Climb) => void }) => {
-  const handleClick = useCallback(() => addToQueue(climb), [climb, addToQueue]);
-  return <IconButton onClick={handleClick}><AddOutlined /></IconButton>;
-});
-SuggestedAddButton.displayName = 'SuggestedAddButton';
 
 export type QueueListHandle = {
   scrollToCurrentClimb: () => void;
@@ -311,9 +302,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                 key={`suggested-${climb.uuid}`}
                 climb={climb}
                 boardDetails={boardDetails}
-                disableSwipe
                 titleProps={suggestedTitleProps}
-                menuSlot={<SuggestedAddButton climb={climb} addToQueue={addToQueue} />}
                 onNavigate={onClimbNavigate}
               />
             ))}
