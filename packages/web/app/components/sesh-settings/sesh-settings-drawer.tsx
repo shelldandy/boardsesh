@@ -21,6 +21,7 @@ import {
   GET_SESSION_DETAIL,
   type GetSessionDetailQueryResponse,
 } from '@/app/lib/graphql/operations/activity-feed';
+import { clearClimbSessionCookie } from '@/app/lib/climb-session-cookie';
 import type { SessionDetail } from '@boardsesh/shared-schema';
 import SessionDetailContent from '@/app/session/[sessionId]/session-detail-content';
 
@@ -55,6 +56,7 @@ export default function SeshSettingsDrawer({ open, onClose }: SeshSettingsDrawer
 
   const handleStopSession = useCallback(() => {
     deactivateSession();
+    clearClimbSessionCookie();
     setIsStopped(true);
   }, [deactivateSession]);
 
