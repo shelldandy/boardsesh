@@ -42,8 +42,6 @@ export interface UseSwipeActionsOptions {
   maxSwipeRight?: number;
   /** Whether swipe is disabled (e.g. in edit mode) */
   disabled?: boolean;
-  /** Duration of the completion animation in ms (default: 200) */
-  completionAnimationMs?: number;
 }
 
 export interface UseSwipeActionsReturn {
@@ -81,7 +79,6 @@ export function useSwipeActions({
   maxSwipeLeft,
   maxSwipeRight,
   disabled = false,
-  completionAnimationMs = 200,
 }: UseSwipeActionsOptions): UseSwipeActionsReturn {
   const [swipeLeftConfirmed, setSwipeLeftConfirmed] = useState(false);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
