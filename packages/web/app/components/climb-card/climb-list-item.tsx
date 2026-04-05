@@ -86,9 +86,13 @@ type ClimbListItemProps = {
   /** When true, swipe gestures (favorite/queue) are disabled */
   disableSwipe?: boolean;
   onSelect?: () => void;
-  /** Override the left swipe action (revealed on swipe right). Default: favorite/playlist */
+  /**
+   * @deprecated Do not use. Left here to prevent reintroduction. All climb lists should use the
+   * default swipe-right behavior (playlist selector / actions menu) for consistency.
+   */
   swipeLeftAction?: SwipeActionOverride;
-  /** Override the right swipe action (revealed on swipe left). Default: add to queue */
+  /** Override the right swipe action (revealed on swipe left). Default: add to queue.
+   *  Only used by queue items to replace add-to-queue with tick. */
   swipeRightAction?: SwipeActionOverride;
   /** Content rendered between the title and menu button (e.g., avatar) */
   afterTitleSlot?: React.ReactNode;
