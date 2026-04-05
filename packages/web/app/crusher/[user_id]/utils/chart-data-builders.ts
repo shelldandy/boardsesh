@@ -277,6 +277,152 @@ export function buildAggregatedFlashRedpointBars(
   return buildFlashRedpointBars(allEntries);
 }
 
+// ── V-Points stacked area timeline ──────────────────────────────────
+
+export interface VPointsLayoutSeries {
+  layoutKey: string;
+  displayName: string;
+  color: string;
+  /** Cumulative v-points per week for this layout */
+  data: number[];
+}
+
+export interface VPointsTimelineData {
+  weekLabels: string[];
+  series: VPointsLayoutSeries[];
+  totalPoints: number;
+}
+
+/**
+ * Extract the numeric V-grade value from a V-grade string.
+ * "V3" → 3, "V10" → 10, etc. V0 returns 1 so every send counts.
+ */
+function vGradeToPoints(vGrade: string): number {
+  const match = vGrade.match(/^V(\d+)$/);
+  if (!match) return 0;
+  const num = parseInt(match[1], 10);
+  return Math.max(num, 1);
+}
+
+const LAYOUT_ORDER = [
+  'kilter-1', 'kilter-8', 'tension-9', 'tension-10', 'tension-11',
+  'moonboard-1', 'moonboard-2', 'moonboard-3', 'moonboard-4', 'moonboard-5',
+];
+
+export function buildVPointsTimeline(
+  allBoardsTicks: Record<string, LogbookEntry[]>,
+  aggregatedTimeframe: AggregatedTimeframeType,
+): VPointsTimelineData | null {
+  // Collect entries per layout, filter by timeframe, exclude attempts
+  const entriesByLayout: Record<string, LogbookEntry[]> = {};
+
+  BOARD_TYPES.forEach((boardType) => {
+    const ticks = allBoardsTicks[boardType] || [];
+    const filtered = filterByAggregatedTimeframe(ticks, aggregatedTimeframe)
+      .filter((e) => e.difficulty !== null && e.status !== 'attempt');
+
+    for (const entry of filtered) {
+      const layoutKey = getLayoutKey(boardType, entry.layoutId);
+      if (!entriesByLayout[layoutKey]) entriesByLayout[layoutKey] = [];
+      entriesByLayout[layoutKey].push(entry);
+    }
+  });
+
+  const activeLayouts = Object.keys(entriesByLayout);
+  if (activeLayouts.length === 0) return null;
+
+  // Collect all entries to find the overall time range
+  const allEntries = activeLayouts.flatMap((lk) => entriesByLayout[lk]);
+  const sorted = [...allEntries].sort(
+    (a, b) => new Date(a.climbed_at).getTime() - new Date(b.climbed_at).getTime(),
+  );
+
+  // Build full week key range
+  const allWeekKeys: string[] = [];
+  const first = dayjs(sorted[0].climbed_at).startOf('isoWeek');
+  const last = dayjs(sorted[sorted.length - 1].climbed_at).endOf('isoWeek');
+  let current = first;
+  while (current.isBefore(last) || current.isSame(last, 'day')) {
+    allWeekKeys.push(`${current.isoWeekYear()}-W${current.isoWeek()}`);
+    current = current.add(1, 'week');
+  }
+
+  if (allWeekKeys.length === 0) return null;
+
+  // Cap at 104 weeks
+  const cappedKeys = allWeekKeys.length > 104 ? allWeekKeys.slice(-104) : allWeekKeys;
+  const skippedKeys = allWeekKeys.length > 104 ? allWeekKeys.slice(0, -104) : [];
+
+  // Per-layout: sum points per week
+  const layoutWeeklyPoints: Record<string, Record<string, number>> = {};
+  for (const layoutKey of activeLayouts) {
+    const weekPoints: Record<string, number> = {};
+    for (const entry of entriesByLayout[layoutKey]) {
+      if (entry.difficulty === null) continue;
+      const grade = difficultyMapping[entry.difficulty];
+      if (!grade) continue;
+      const d = dayjs(entry.climbed_at);
+      const wk = `${d.isoWeekYear()}-W${d.isoWeek()}`;
+      weekPoints[wk] = (weekPoints[wk] || 0) + vGradeToPoints(grade);
+    }
+    layoutWeeklyPoints[layoutKey] = weekPoints;
+  }
+
+  // Sort layouts in consistent order
+  const sortedLayouts = activeLayouts.sort((a, b) => {
+    const idxA = LAYOUT_ORDER.indexOf(a);
+    const idxB = LAYOUT_ORDER.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  // Week label formatting
+  const spansYears =
+    cappedKeys.length > 1 &&
+    cappedKeys[0].split('-')[0] !== cappedKeys[cappedKeys.length - 1].split('-')[0];
+
+  const weekLabels = cappedKeys.map((wk) => {
+    const [year, weekPart] = wk.split('-');
+    return spansYears ? `${weekPart} '${year.slice(2)}` : weekPart;
+  });
+
+  // Build cumulative series per layout
+  let totalPoints = 0;
+  const series: VPointsLayoutSeries[] = sortedLayouts.map((layoutKey) => {
+    const [boardType, layoutIdStr] = layoutKey.split('-');
+    const layoutId = layoutIdStr === 'unknown' ? null : parseInt(layoutIdStr, 10);
+    const weekPoints = layoutWeeklyPoints[layoutKey];
+
+    // Base from skipped weeks
+    let cumulative = 0;
+    for (const wk of skippedKeys) {
+      cumulative += weekPoints[wk] || 0;
+    }
+
+    const data = cappedKeys.map((wk) => {
+      cumulative += weekPoints[wk] || 0;
+      return cumulative;
+    });
+
+    totalPoints += cumulative;
+
+    return {
+      layoutKey,
+      displayName: getLayoutDisplayName(boardType, layoutId),
+      color: getLayoutColor(boardType, layoutId),
+      data,
+    };
+  });
+
+  // Only keep series that have at least 1 point
+  const nonEmptySeries = series.filter((s) => s.data[s.data.length - 1] > 0);
+  if (nonEmptySeries.length === 0) return null;
+
+  return { weekLabels, series: nonEmptySeries, totalPoints };
+}
+
 // ── Statistics summary (layout percentages) ─────────────────────────
 
 export interface LayoutPercentage {
