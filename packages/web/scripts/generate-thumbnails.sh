@@ -1,7 +1,7 @@
 #!/bin/bash
-# Generate thumbnail-sized AVIF images for board thumbnails.
-# Resizes PNGs to max 416px wide (2x retina for 208px containers) and encodes as AVIF.
-# Requires: sips (macOS built-in), avifenc (brew install libavif)
+# Generate thumbnail-sized WebP images for board thumbnails.
+# Resizes PNGs to max 416px wide (2x retina for 208px containers) and encodes as WebP.
+# Requires: sips (macOS built-in), cwebp (brew install webp)
 #
 # Usage: bash packages/web/scripts/generate-thumbnails.sh
 # Run from the repo root.
@@ -12,8 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLIC_DIR="$SCRIPT_DIR/../public"
 
 MAX_WIDTH=416
-QUALITY=40
-SPEED=4
+QUALITY=75
 
 converted=0
 skipped=0
@@ -24,12 +23,12 @@ convert_thumbnail() {
   local dir="$(dirname "$png_file")"
   local basename="$(basename "$png_file" .png)"
   local thumbs_dir="$dir/thumbs"
-  local avif_file="$thumbs_dir/$basename.avif"
+  local webp_file="$thumbs_dir/$basename.webp"
 
   mkdir -p "$thumbs_dir"
 
   # Skip if thumbnail exists and is newer than source
-  if [[ -f "$avif_file" && "$avif_file" -nt "$png_file" ]]; then
+  if [[ -f "$webp_file" && "$webp_file" -nt "$png_file" ]]; then
     skipped=$((skipped + 1))
     return
   fi
@@ -48,19 +47,19 @@ convert_thumbnail() {
     sips --resampleWidth "$MAX_WIDTH" "$tmp_png" --out "$tmp_png" >/dev/null 2>&1
   fi
 
-  # Encode to AVIF
-  avifenc --min 0 --max 63 -q "$QUALITY" -s "$SPEED" "$tmp_png" "$avif_file" 2>/dev/null
+  # Encode to WebP
+  cwebp -q "$QUALITY" "$tmp_png" -o "$webp_file" -quiet
 
-  local avif_size
-  avif_size=$(stat -f%z "$avif_file" 2>/dev/null || stat -c%s "$avif_file")
-  total_size=$((total_size + avif_size))
+  local webp_size
+  webp_size=$(stat -f%z "$webp_file" 2>/dev/null || stat -c%s "$webp_file")
+  total_size=$((total_size + webp_size))
   converted=$((converted + 1))
 
   rm -f "$tmp_png"
-  echo "  $(basename "$png_file") → thumbs/$basename.avif  ($(( avif_size / 1024 ))KB)"
+  echo "  $(basename "$png_file") → thumbs/$basename.webp  ($(( webp_size / 1024 ))KB)"
 }
 
-echo "Generating thumbnail AVIFs (max ${MAX_WIDTH}px wide, quality=$QUALITY)..."
+echo "Generating thumbnail WebPs (max ${MAX_WIDTH}px wide, quality=$QUALITY)..."
 echo ""
 
 # Kilter board images

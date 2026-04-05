@@ -14,20 +14,16 @@ const USE_SELF_HOSTED_IMAGES = true;
 export const getImageUrl = (imageUrl: string, board: BoardName, thumbnail?: boolean) => {
   // If the URL already starts with /, it's a full path (e.g., MoonBoard images)
   if (imageUrl.startsWith('/')) {
-    if (thumbnail) {
-      const lastSlash = imageUrl.lastIndexOf('/');
-      return `${imageUrl.substring(0, lastSlash)}/thumbs${imageUrl.substring(lastSlash)}`.replace(/\.png$/, '.avif');
-    }
-    return imageUrl;
+    return imageUrl.replace(/\.png$/, '.webp');
   }
 
   if (USE_SELF_HOSTED_IMAGES) {
-    const avifUrl = `/images/${board}/${imageUrl}`.replace(/\.png$/, '.avif');
+    const webpUrl = `/images/${board}/${imageUrl}`.replace(/\.png$/, '.webp');
     if (thumbnail) {
-      const lastSlash = avifUrl.lastIndexOf('/');
-      return `${avifUrl.substring(0, lastSlash)}/thumbs${avifUrl.substring(lastSlash)}`;
+      const lastSlash = webpUrl.lastIndexOf('/');
+      return `${webpUrl.substring(0, lastSlash)}/thumbs${webpUrl.substring(lastSlash)}`;
     }
-    return avifUrl;
+    return webpUrl;
   }
 
   return `https://api.${board}boardapp${board === 'tension' ? '2' : ''}.com/img/${imageUrl}`;
