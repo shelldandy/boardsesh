@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import IconButton from '@mui/material/IconButton';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -164,6 +164,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       setShowAuthModal,
     } = useDoubleTapFavorite({ climbUuid: climb.uuid });
     const { ref: doubleTapRef, onDoubleClick: handleDoubleTapClick } = useDoubleTap(handleDoubleTap);
+    const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Per-direction override flags
     const hasLeftOverride = Boolean(swipeLeftAction);
@@ -453,11 +454,21 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
                 onThumbnailClick
                   ? (e) => {
                       e.stopPropagation();
-                      onThumbnailClick();
+                      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
+                      clickTimeoutRef.current = setTimeout(() => {
+                        clickTimeoutRef.current = null;
+                        onThumbnailClick();
+                      }, 300);
                     }
                   : undefined
               }
-              onDoubleClick={handleDoubleTapClick}
+              onDoubleClick={() => {
+                if (clickTimeoutRef.current) {
+                  clearTimeout(clickTimeoutRef.current);
+                  clickTimeoutRef.current = null;
+                }
+                handleDoubleTapClick();
+              }}
             >
               <ClimbThumbnail
                 boardDetails={boardDetails}
