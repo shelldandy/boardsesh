@@ -44,6 +44,11 @@
   /* Borders */
   --border-subtle: rgba(0, 0, 0, 0.06);
 
+  /* Overlays */
+  --overlay-light: rgba(0, 0, 0, 0.3);
+  --overlay-dark: rgba(0, 0, 0, 0.6);
+  --overlay-text: rgba(255, 255, 255, 0.9);
+
   /* Layout */
   --global-header-height: calc(max(8dvh, 48px) + env(safe-area-inset-top, 0px));
 }
@@ -84,6 +89,11 @@ html[data-theme="dark"] {
 
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* Overlays */
+  --overlay-light: rgba(0, 0, 0, 0.4);
+  --overlay-dark: rgba(0, 0, 0, 0.7);
+  --overlay-text: rgba(255, 255, 255, 0.85);
 }
 
 /* Base styles */

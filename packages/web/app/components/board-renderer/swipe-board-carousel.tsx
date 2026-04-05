@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import BoardImageLayers from './board-image-layers';
 import BoardCanvasRenderer from './board-canvas-renderer';
 import {
@@ -12,6 +12,7 @@ import {
 import type { BoardDetails } from '@/app/lib/types';
 import { useCanvasRendererReady } from '@/app/lib/board-render-worker/worker-manager';
 import { useDoubleTap } from '@/app/lib/hooks/use-double-tap';
+import ZoomableBoard from './zoomable-board';
 import styles from './swipe-board-carousel.module.css';
 
 interface ClimbBoardData {
@@ -51,6 +52,7 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
   overlay,
 }) => {
   const enterFallbackRef = useRef<NodeJS.Timeout | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   const { swipeHandlers, swipeOffset, isAnimating, animationDirection, enterDirection, clearEnterAnimation } =
     useCardSwipeNavigation({
@@ -60,6 +62,7 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
       canSwipePrevious,
       threshold: 80,
       delayNavigation: true,
+      enabled: !isZoomed,
     });
 
   useEffect(() => {
@@ -95,7 +98,11 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
 
   const transition = getSwipeTransition();
   const canvasReady = useCanvasRendererReady();
-  const { ref: doubleTapRef, onDoubleClick: handleDoubleTapClick } = useDoubleTap(onDoubleTap);
+  const { ref: doubleTapRef, onDoubleClick: handleDoubleTapClick } = useDoubleTap(isZoomed ? undefined : onDoubleTap);
+
+  const handleZoomChange = useCallback((zoomed: boolean) => {
+    setIsZoomed(zoomed);
+  }, []);
 
   // Merge swipe ref and double-tap ref into one callback ref
   const mergedRef = useCallback(
@@ -147,7 +154,12 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
           transition,
         }}
       >
-        {renderBoard(currentClimb)}
+        <ZoomableBoard
+          onZoomChange={handleZoomChange}
+          resetKey={currentClimb.frames}
+        >
+          {renderBoard(currentClimb)}
+        </ZoomableBoard>
       </div>
       {overlay}
       {showPeek && peekClimb && (
