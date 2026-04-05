@@ -125,7 +125,8 @@ struct ClimbSessionLiveActivity: Widget {
                             .background(context.state.hasPrevious ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
-                        .disabled(!context.state.hasPrevious)
+                        .buttonStyle(.plain)
+                    .disabled(!context.state.hasPrevious)
 
                         Button(intent: NextClimbIntent()) {
                             HStack(spacing: 4) {
@@ -139,7 +140,8 @@ struct ClimbSessionLiveActivity: Widget {
                             .background(context.state.hasNext ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
-                        .disabled(!context.state.hasNext)
+                        .buttonStyle(.plain)
+                    .disabled(!context.state.hasNext)
                     }
                     .padding(.horizontal, 4)
                 }
@@ -252,6 +254,7 @@ private struct LockScreenView: View {
                         .background(context.state.hasNext ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .buttonStyle(.plain)
                     .disabled(!context.state.hasNext)
                 }
             }
