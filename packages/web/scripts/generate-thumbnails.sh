@@ -5,6 +5,15 @@
 #
 # Usage: bash packages/web/scripts/generate-thumbnails.sh
 # Run from the repo root.
+#
+# WHY WebP INSTEAD OF AVIF:
+# iOS 18.x (WebKit) has an AVIF decoder bug that reports incorrect intrinsic image dimensions.
+# When a board background image is decoded with wrong dimensions, Safari stretches it to fill
+# its container — compressing the image horizontally across every rendering path (SVG <image>,
+# canvas WASM compositing, and SSR <img> elements). The bug manifests on all iOS 18.x devices
+# running the Capacitor WKWebView. WebP does not have this bug, has comparable file sizes to
+# AVIF (both ~75-80% smaller than PNG), and is universally supported on all target platforms.
+# We switched from AVIF to WebP in April 2026 to fix this iOS compression bug.
 
 set -euo pipefail
 
