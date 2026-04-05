@@ -12,7 +12,7 @@ interface UseQueueStorageSyncParams {
   boardDetails: BoardDetails;
   isDisconnected: boolean;
   persistentSession: {
-    setLocalQueueState: (
+    persistToStorageOnly: (
       queue: ClimbQueueItem[],
       currentItem: ClimbQueueItem | null,
       boardPath: string,
@@ -46,8 +46,9 @@ export function useQueueStorageSync({
     if (isPersistentSessionActive && !isDisconnected) return;
     if (sessionId && !isPersistentSessionActive && !isDisconnected) return;
 
-    // Sync queue state to persistent session for local storage
-    persistentSession.setLocalQueueState(
+    // Sync queue state to IndexedDB only — no React state updates to avoid
+    // cascading re-renders through PersistentSessionProvider tree
+    persistentSession.persistToStorageOnly(
       queue,
       currentClimbQueueItem,
       baseBoardPath,

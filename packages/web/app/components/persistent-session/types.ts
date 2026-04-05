@@ -65,6 +65,14 @@ export interface PersistentSessionContextType {
     boardPath: string,
     boardDetails: BoardDetails,
   ) => void;
+  /** Write to IndexedDB only (debounced), without triggering React state updates.
+   *  Used by useQueueStorageSync on board pages to avoid cascading re-renders. */
+  persistToStorageOnly: (
+    queue: LocalClimbQueueItem[],
+    currentItem: LocalClimbQueueItem | null,
+    boardPath: string,
+    boardDetails: BoardDetails,
+  ) => void;
   clearLocalQueue: () => void;
   loadStoredQueue: (boardPath: string) => Promise<StoredQueueState | null>;
 

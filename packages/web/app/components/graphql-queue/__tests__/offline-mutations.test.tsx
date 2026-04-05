@@ -38,6 +38,7 @@ const mockPersistentSession = {
   localBoardDetails: null,
   isLocalQueueLoaded: true,
   setLocalQueueState: vi.fn(),
+  persistToStorageOnly: vi.fn(),
   clearLocalQueue: vi.fn(),
   loadStoredQueue: vi.fn().mockResolvedValue(null),
   activateSession: vi.fn(),
