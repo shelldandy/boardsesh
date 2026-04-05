@@ -106,13 +106,13 @@ export function TickAction({
     }
 
     setDrawerVisible(true);
-    onComplete?.();
-  }, [boardDetails, badgeCount, onComplete, isAuthenticated, alwaysUseApp, loaded, climb.uuid, angle]);
+  }, [boardDetails, badgeCount, isAuthenticated, alwaysUseApp, loaded, climb.uuid, angle]);
 
   const closeDrawer = useCallback(() => {
     setDrawerVisible(false);
     setSelectedBoard(null);
-  }, []);
+    onComplete?.();
+  }, [onComplete]);
 
   // URL for opening in the Aurora app (null for Kilter as app URL is no longer accessible)
   const openInAppUrl = useMemo(() => constructClimbInfoUrl(boardDetails, climb.uuid), [boardDetails, climb.uuid]);
