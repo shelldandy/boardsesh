@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import IconButton from '@mui/material/IconButton';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -15,7 +15,6 @@ import { AscentStatus } from './ascent-status';
 import { ClimbActions } from '../climb-actions';
 import { useDoubleTapFavorite } from '../climb-actions/use-double-tap-favorite';
 import HeartAnimationOverlay from './heart-animation-overlay';
-import AuthModal from '../auth/auth-modal';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
 import { useOptionalQueueContext } from '../graphql-queue';
 import { useSwipeActions } from '@/app/hooks/use-swipe-actions';
@@ -160,11 +159,16 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       showHeart,
       dismissHeart,
       isFavorited,
-      showAuthModal,
-      setShowAuthModal,
     } = useDoubleTapFavorite({ climbUuid: climb.uuid });
     const { ref: doubleTapRef, onDoubleClick: handleDoubleTapClick } = useDoubleTap(handleDoubleTap);
     const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Clear pending click timeout on unmount to prevent stale callbacks
+    useEffect(() => {
+      return () => {
+        if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
+      };
+    }, []);
 
     // Per-direction override flags
     const hasLeftOverride = Boolean(swipeLeftAction);
@@ -558,12 +562,6 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
             </SwipeableDrawer>
           </>
         )}
-        <AuthModal
-          open={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          title="Sign in to like climbs"
-          description="Save your favorite climbs so you can find them later."
-        />
       </>
     );
   },

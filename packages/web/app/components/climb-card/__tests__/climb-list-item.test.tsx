@@ -29,8 +29,6 @@ const mockDoubleTapFavorite = {
   dismissHeart: vi.fn(),
   isFavorited: false,
   toggleFavorite: vi.fn(),
-  showAuthModal: false,
-  setShowAuthModal: vi.fn(),
 };
 
 vi.mock('../../climb-actions/use-double-tap-favorite', () => ({
@@ -38,8 +36,7 @@ vi.mock('../../climb-actions/use-double-tap-favorite', () => ({
 }));
 
 vi.mock('../../auth/auth-modal', () => ({
-  default: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="auth-modal" /> : null,
+  default: () => null,
 }));
 
 vi.mock('../heart-animation-overlay', () => ({
@@ -167,8 +164,6 @@ describe('ClimbListItem', () => {
     mockDoubleTapFavorite.dismissHeart = vi.fn();
     mockDoubleTapFavorite.isFavorited = false;
     mockDoubleTapFavorite.toggleFavorite = vi.fn();
-    mockDoubleTapFavorite.showAuthModal = false;
-    mockDoubleTapFavorite.setShowAuthModal = vi.fn();
   });
 
   describe('basic rendering', () => {
@@ -490,20 +485,6 @@ describe('ClimbListItem', () => {
       // Our mock uses onClick to simulate onAnimationEnd
       fireEvent.click(screen.getByTestId('heart-animation-overlay'));
       expect(mockDoubleTapFavorite.dismissHeart).toHaveBeenCalled();
-    });
-
-    it('shows auth modal when showAuthModal is true', () => {
-      mockDoubleTapFavorite.showAuthModal = true;
-      render(<ClimbListItem climb={makeClimb()} boardDetails={makeBoardDetails()} />);
-
-      expect(screen.getByTestId('auth-modal')).toBeTruthy();
-    });
-
-    it('does not show auth modal when showAuthModal is false', () => {
-      mockDoubleTapFavorite.showAuthModal = false;
-      render(<ClimbListItem climb={makeClimb()} boardDetails={makeBoardDetails()} />);
-
-      expect(screen.queryByTestId('auth-modal')).toBeNull();
     });
 
     it('delays onThumbnailClick to avoid conflict with double-click', () => {
