@@ -16,8 +16,9 @@ vi.mock('../../../providers/snackbar-provider', () => ({
   }),
 }));
 
-vi.mock('../../../auth/auth-modal', () => ({
-  default: ({ open }: { open: boolean }) => (open ? <div data-testid="auth-modal">auth</div> : null),
+const mockOpenAuthModal = vi.fn();
+vi.mock('@/app/components/providers/auth-modal-provider', () => ({
+  useAuthModal: () => ({ openAuthModal: mockOpenAuthModal }),
 }));
 
 vi.mock('@vercel/analytics', () => ({
@@ -75,6 +76,7 @@ function createProps(overrides?: Partial<ClimbActionProps>): ClimbActionProps {
 describe('PlaylistAction (list mode)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockOpenAuthModal.mockClear();
     mockUsePlaylists.mockReturnValue({
       playlists: [],
       playlistsContainingClimb: new Set<string>(),
@@ -124,5 +126,6 @@ describe('PlaylistAction (list mode)', () => {
 
     expect(onOpenPlaylistSelector).not.toHaveBeenCalled();
     expect(onComplete).not.toHaveBeenCalled();
+    expect(mockOpenAuthModal).toHaveBeenCalledTimes(1);
   });
 });

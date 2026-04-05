@@ -14,6 +14,7 @@ import {
 import { Climb, BoardDetails } from '@/app/lib/types';
 import { UseClimbActionsReturn } from './types';
 import { openExternalUrl } from '@/app/lib/open-external-url';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 
 interface UseClimbActionsOptions {
   climb: Climb;
@@ -36,7 +37,7 @@ export function useClimbActions({
   const { showMessage } = useSnackbar();
 
   const [recentlyAddedToQueue, setRecentlyAddedToQueue] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
 
   const { isFavorited, isLoading: isFavoriteLoading, toggleFavorite, isAuthenticated } = useFavorite({
     climbUuid: climb?.uuid ?? '',
@@ -111,7 +112,10 @@ export function useClimbActions({
     if (!climb) return;
 
     if (!isAuthenticated) {
-      setShowAuthModal(true);
+      openAuthModal({
+        title: "Sign in to save favorites",
+        description: `Sign in to save "${climb.name}" to your favorites.`,
+      });
       return;
     }
 
@@ -126,7 +130,7 @@ export function useClimbActions({
     } catch {
       // Silently fail
     }
-  }, [climb, isAuthenticated, toggleFavorite, boardDetails.board_name, onActionComplete]);
+  }, [climb, isAuthenticated, toggleFavorite, boardDetails.board_name, onActionComplete, openAuthModal]);
 
   const handleQueue = useCallback(() => {
     if (!climb || !addToQueue || recentlyAddedToQueue) return;
@@ -238,8 +242,6 @@ export function useClimbActions({
     isFavoriteLoading,
     isAuthenticated,
     recentlyAddedToQueue,
-    showAuthModal,
-    setShowAuthModal,
 
     // Computed availability
     canFork,

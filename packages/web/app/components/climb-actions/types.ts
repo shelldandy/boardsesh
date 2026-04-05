@@ -121,9 +121,6 @@ export interface UseClimbActionsReturn {
   isFavoriteLoading: boolean;
   isAuthenticated: boolean;
   recentlyAddedToQueue: boolean;
-  showAuthModal: boolean;
-  setShowAuthModal: (show: boolean) => void;
-
   // Computed availability
   canFork: boolean;
   canMirror: boolean;

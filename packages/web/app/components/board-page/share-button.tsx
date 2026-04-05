@@ -30,7 +30,7 @@ import './share-button.css';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { TabPanel } from '@/app/components/ui/tab-panel';
 import { themeTokens } from '@/app/theme/theme-config';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import SessionCreationForm from '../session-creation/session-creation-form';
 import type { SessionCreationFormData } from '../session-creation/session-creation-form';
 import { useCreateSession } from '@/app/hooks/use-create-session';
@@ -193,7 +193,7 @@ export const ShareBoardButton = () => {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [joinSessionId, setJoinSessionId] = useState('');
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [activeNoSessionTab, setActiveNoSessionTab] = useState('led');
   const [activeSessionTab, setActiveSessionTab] = useState('led');
 
@@ -233,7 +233,7 @@ export const ShareBoardButton = () => {
 
   const handleStartSessionEnhanced = async (formData: SessionCreationFormData) => {
     if (!isLoggedIn) {
-      setShowAuthModal(true);
+      openAuthModal({ title: 'Sign in to start a session', description: 'Sign in to start climbing with your crew.' });
       return;
     }
 
@@ -402,7 +402,7 @@ export const ShareBoardButton = () => {
           <Typography variant="body2" component="span" color="text.secondary" sx={{ fontSize: '13px' }}>
             Sign in to customize your username
           </Typography>
-          <MuiButton variant="text" size="small" startIcon={<LoginOutlined />} onClick={() => setShowAuthModal(true)}>
+          <MuiButton variant="text" size="small" startIcon={<LoginOutlined />} onClick={() => openAuthModal({ title: 'Sign in to start a session', description: 'Sign in to start climbing with your crew.' })}>
             Sign in
           </MuiButton>
         </Box>
@@ -449,7 +449,7 @@ export const ShareBoardButton = () => {
           }}
         >
           <Typography variant="body2" component="span">Sign in to start a session</Typography>
-          <MuiButton variant="contained" size="small" startIcon={<LoginOutlined />} onClick={() => setShowAuthModal(true)}>
+          <MuiButton variant="contained" size="small" startIcon={<LoginOutlined />} onClick={() => openAuthModal({ title: 'Sign in to start a session', description: 'Sign in to start climbing with your crew.' })}>
             Sign in
           </MuiButton>
         </Box>
@@ -609,12 +609,6 @@ export const ShareBoardButton = () => {
         </Box>
       </SwipeableDrawer>
 
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to start a session"
-        description="Sign in to start climbing with your crew."
-      />
     </>
   );
 };

@@ -13,7 +13,7 @@ import AddOutlined from '@mui/icons-material/AddOutlined';
 import CheckOutlined from '@mui/icons-material/CheckOutlined';
 import { track } from '@vercel/analytics';
 import { usePlaylists } from './use-playlists';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import type { Playlist } from './playlists-batch-context';
 import type { BoardDetails } from '@/app/lib/types';
 import { themeTokens } from '@/app/theme/theme-config';
@@ -33,7 +33,7 @@ export default function PlaylistSelectionContent({
   angle,
   onDone,
 }: PlaylistSelectionContentProps) {
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createFormValues, setCreateFormValues] = useState({ name: '', description: '', color: '' });
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
@@ -146,7 +146,10 @@ export default function PlaylistSelectionContent({
           </MuiTypography>
           <MuiButton
             variant="contained"
-            onClick={() => setShowAuthModal(true)}
+            onClick={() => openAuthModal({
+              title: "Sign in to create playlists",
+              description: "Sign in to organize your climbs into custom playlists.",
+            })}
             fullWidth
             size="small"
           >
@@ -293,13 +296,6 @@ export default function PlaylistSelectionContent({
         </>
       )}
 
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={() => setShowAuthModal(false)}
-        title="Sign in to create playlists"
-        description="Sign in to organize your climbs into custom playlists."
-      />
     </Box>
   );
 }

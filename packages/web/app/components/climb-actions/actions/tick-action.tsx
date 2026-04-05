@@ -13,7 +13,7 @@ import LoginOutlined from '@mui/icons-material/LoginOutlined';
 import AppsOutlined from '@mui/icons-material/AppsOutlined';
 import { ClimbActionProps, ClimbActionResult } from '../types';
 import { useOptionalBoardProvider, BoardProvider } from '../../board-provider/board-provider-context';
-import AuthModal from '../../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import { LogAscentForm } from '../../logbook/logascent-form';
 import { track } from '@vercel/analytics';
 import { constructClimbInfoUrl } from '@/app/lib/url-utils';
@@ -46,8 +46,8 @@ export function TickAction({
   onComplete,
 }: ClimbActionProps): ClimbActionResult {
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState<UserBoard | null>(null);
+  const { openAuthModal } = useAuthModal();
 
   // Use optional board provider - allows TickAction to work outside board routes
   const boardProvider = useOptionalBoardProvider();
@@ -129,7 +129,7 @@ export function TickAction({
       <Typography variant="body1" component="p" color="text.secondary">
         Create a Boardsesh account to log your climbs and track your progress.
       </Typography>
-      <MuiButton variant="contained" startIcon={<LoginOutlined />} onClick={() => setShowAuthModal(true)} fullWidth>
+      <MuiButton variant="contained" startIcon={<LoginOutlined />} onClick={() => openAuthModal({ title: "Sign in to record ticks", description: "Create an account to log your climbs and track your progress." })} fullWidth>
         Sign In
       </MuiButton>
       {openInAppUrl && (
@@ -280,12 +280,6 @@ export function TickAction({
           {renderSignInPrompt()}
         </SwipeableDrawer>
       )}
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to record ticks"
-        description="Create an account to log your climbs and track your progress."
-      />
     </>
   );
 

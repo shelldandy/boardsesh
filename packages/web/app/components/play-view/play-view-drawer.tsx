@@ -23,7 +23,6 @@ import { useQueueContext } from '../graphql-queue';
 import { ClimbActions } from '../climb-actions';
 import { useDoubleTapFavorite } from '../climb-actions/use-double-tap-favorite';
 import HeartAnimationOverlay from '../climb-card/heart-animation-overlay';
-import AuthModal from '../auth/auth-modal';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
 import DrawerClimbHeader from '../climb-card/drawer-climb-header';
 import { ShareBoardButton } from '../board-page/share-button';
@@ -120,8 +119,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     dismissHeart,
     isFavorited,
     toggleFavorite,
-    showAuthModal,
-    setShowAuthModal,
   } = useDoubleTapFavorite({
     climbUuid: currentClimb?.uuid ?? '',
   });
@@ -591,12 +588,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
           </div>
         </SwipeableDrawer>
     </SwipeableDrawer>
-    <AuthModal
-      open={showAuthModal}
-      onClose={() => setShowAuthModal(false)}
-      title="Sign in to like climbs"
-      description="Save your favorite climbs so you can find them later."
-    />
     </>
   );
 };

@@ -24,7 +24,7 @@ import { constructClimbListWithSlugs, generateLayoutSlug, generateSizeSlug, gene
 import { themeTokens } from '@/app/theme/theme-config';
 import { useColorMode } from '@/app/hooks/use-color-mode';
 import { PlaylistsContext } from '../climb-actions/playlists-batch-context';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import { usePersistentSession } from '../persistent-session';
 import { getLastUsedBoard } from '@/app/lib/last-used-board-db';
 import { getRecentSearches } from '@/app/components/search-drawer/recent-searches-storage';
@@ -93,7 +93,7 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [isBoardSelectorOpen, setIsBoardSelectorOpen] = useState(false);
   const [pendingCreateAction, setPendingCreateAction] = useState<PendingCreateAction>(null);
   const [selectedBoardContext, setSelectedBoardContext] = useState<SelectedBoardContext | null>(null);
@@ -329,7 +329,23 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
 
   const handleOpenCreatePlaylist = () => {
     if (!isAuthenticated) {
-      setShowAuthModal(true);
+      openAuthModal({
+        title: 'Sign in to create playlists',
+        description: 'Sign in to create and manage your climb playlists.',
+        onSuccess: () => {
+          setIsCreateOpen(false);
+          if (!canCreatePlaylistHere) {
+            if (boardConfigs) {
+              setPendingCreateAction('playlist');
+              setIsBoardSelectorOpen(true);
+            } else {
+              showMessage('Select a board before creating a playlist', 'error');
+            }
+            return;
+          }
+          setIsCreatePlaylistOpen(true);
+        },
+      });
       return;
     }
 
@@ -633,26 +649,6 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
         />
       )}
 
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={() => {
-          setShowAuthModal(false);
-          setIsCreateOpen(false);
-          if (!canCreatePlaylistHere) {
-            if (boardConfigs) {
-              setPendingCreateAction('playlist');
-              setIsBoardSelectorOpen(true);
-            } else {
-              showMessage('Select a board before creating a playlist', 'error');
-            }
-            return;
-          }
-          setIsCreatePlaylistOpen(true);
-        }}
-        title="Sign in to create playlists"
-        description="Sign in to create and manage your climb playlists."
-      />
     </>
   );
 }

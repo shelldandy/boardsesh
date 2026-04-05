@@ -15,7 +15,7 @@ import {
   GitHub,
 } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
-import AuthModal from '@/app/components/auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import BoardImportPrompt from '@/app/components/settings/board-import-prompt';
 import UserSmartCard from '@/app/components/social/user-smart-card';
 import { themeTokens } from '@/app/theme/theme-config';
@@ -23,7 +23,7 @@ import styles from './aurora-migration.module.css';
 
 export default function AuroraMigrationContent() {
   const { data: session, status } = useSession();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [importRefreshKey, setImportRefreshKey] = useState(0);
   const isAuthenticated = status === 'authenticated';
 
@@ -178,7 +178,7 @@ export default function AuroraMigrationContent() {
                         <MuiButton
                           variant="contained"
                           size="small"
-                          onClick={() => setAuthModalOpen(true)}
+                          onClick={() => openAuthModal({ title: 'Sign in to migrate your data', description: 'Create an account or sign in to import your Aurora data.' })}
                           sx={{ mt: 1, textTransform: 'none' }}
                         >
                           Sign in or Create Account
@@ -294,12 +294,6 @@ export default function AuroraMigrationContent() {
         </Stack>
       </Box>
 
-      <AuthModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        title="Sign in to migrate your data"
-        description="Create an account or sign in to import your Aurora data."
-      />
     </Box>
   );
 }

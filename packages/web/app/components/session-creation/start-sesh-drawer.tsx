@@ -17,7 +17,7 @@ import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { constructBoardSlugListUrl } from '@/app/lib/url-utils';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import { setClimbSessionCookie } from '@/app/lib/climb-session-cookie';
 import { useMyBoards } from '@/app/hooks/use-my-boards';
 import { BoardConfigData } from '@/app/lib/server-board-configs';
@@ -39,7 +39,7 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
   const [selectedBoard, setSelectedBoard] = useState<(typeof boards)[number] | null>(null);
   const [selectedCustomPath, setSelectedCustomPath] = useState<string | null>(null);
   const [selectedCustomConfig, setSelectedCustomConfig] = useState<StoredBoardConfig | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [showBoardDrawer, setShowBoardDrawer] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
@@ -159,7 +159,7 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
               variant="text"
               size="small"
               startIcon={<LoginOutlined />}
-              onClick={() => setShowAuthModal(true)}
+              onClick={() => openAuthModal({ title: 'Sign in to save your session', description: "Your sends won't disappear when you close the tab." })}
               sx={{ alignSelf: 'center' }}
             >
               Sign in for more features
@@ -178,12 +178,6 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
         />
       )}
 
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to save your session"
-        description="Your sends won't disappear when you close the tab."
-      />
     </>
   );
 }

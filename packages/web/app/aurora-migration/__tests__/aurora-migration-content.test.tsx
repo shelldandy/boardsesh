@@ -13,14 +13,9 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/aurora-migration',
 }));
 
-vi.mock('@/app/components/auth/auth-modal', () => ({
-  default: ({ open, onClose, title }: { open: boolean; onClose: () => void; title: string }) =>
-    open ? (
-      <div data-testid="auth-modal">
-        <span>{title}</span>
-        <button onClick={onClose}>Close</button>
-      </div>
-    ) : null,
+const mockOpenAuthModal = vi.fn();
+vi.mock('@/app/components/providers/auth-modal-provider', () => ({
+  useAuthModal: () => ({ openAuthModal: mockOpenAuthModal }),
 }));
 
 vi.mock('@/app/components/settings/board-import-prompt', () => ({
@@ -35,6 +30,7 @@ describe('AuroraMigrationContent', () => {
   beforeEach(() => {
     mockSessionStatus = 'unauthenticated';
     mockSessionData = null;
+    mockOpenAuthModal.mockClear();
   });
 
   it('renders the "What Happened" section', () => {
@@ -76,20 +72,19 @@ describe('AuroraMigrationContent', () => {
 
     it('opens auth modal when sign in button is clicked', () => {
       render(<AuroraMigrationContent />);
-      expect(screen.queryByTestId('auth-modal')).toBeNull();
 
       fireEvent.click(screen.getByText('Sign in or Create Account'));
-      expect(screen.getByTestId('auth-modal')).toBeTruthy();
-      expect(screen.getByText('Sign in to migrate your data')).toBeTruthy();
+      expect(mockOpenAuthModal).toHaveBeenCalledTimes(1);
+      expect(mockOpenAuthModal).toHaveBeenCalledWith(expect.objectContaining({ title: 'Sign in to migrate your data' }));
     });
 
-    it('closes auth modal when close is clicked', () => {
+    it('calls openAuthModal each time sign in button is clicked', () => {
       render(<AuroraMigrationContent />);
       fireEvent.click(screen.getByText('Sign in or Create Account'));
-      expect(screen.getByTestId('auth-modal')).toBeTruthy();
+      expect(mockOpenAuthModal).toHaveBeenCalledTimes(1);
 
-      fireEvent.click(screen.getByText('Close'));
-      expect(screen.queryByTestId('auth-modal')).toBeNull();
+      fireEvent.click(screen.getByText('Sign in or Create Account'));
+      expect(mockOpenAuthModal).toHaveBeenCalledTimes(2);
     });
   });
 

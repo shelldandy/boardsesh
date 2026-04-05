@@ -37,7 +37,7 @@ import { parseScreenshot } from '@boardsesh/moonboard-ocr/browser';
 import { convertOcrHoldsToMap } from '@/app/lib/moonboard-climbs-db';
 import { createGraphQLClient, execute, type Client } from '../graphql-queue/graphql-client';
 import { getBackendWsUrl } from '@/app/lib/backend-url';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import { useSnackbar } from '../providers/snackbar-provider';
 import CreateClimbHeatmapOverlay from './create-climb-heatmap-overlay';
 import styles from './create-climb-form.module.css';
@@ -133,7 +133,7 @@ export default function CreateClimbForm({
 
   // Form state
   const [isSaving, setIsSaving] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [pendingFormValues, setPendingFormValues] = useState<CreateClimbFormValues | null>(null);
 
   // Aurora-specific state
@@ -340,7 +340,11 @@ export default function CreateClimbForm({
     if (!isLoggedIn) {
       if (boardType === 'aurora') {
         setPendingFormValues({ name: climbName, description, isDraft });
-        setShowAuthModal(true);
+        openAuthModal({
+          title: 'Sign in to save your climb',
+          description: 'Create an account or sign in to save your climb to the board.',
+          onSuccess: handleAuthSuccess,
+        });
       }
       return;
     }
@@ -397,7 +401,7 @@ export default function CreateClimbForm({
     if (boardType === 'aurora') {
       if (!isAuthenticated) {
         return (
-          <MuiButton variant="contained" startIcon={<LoginOutlined />} onClick={() => setShowAuthModal(true)}>
+          <MuiButton variant="contained" startIcon={<LoginOutlined />} onClick={() => openAuthModal({ title: 'Sign in to save your climb', description: 'Create an account or sign in to save your climb to the board.', onSuccess: handleAuthSuccess })}>
             Sign In
           </MuiButton>
         );
@@ -710,16 +714,6 @@ export default function CreateClimbForm({
         </div>
       )}
 
-      {/* Auth modal (Aurora only) */}
-      {boardType === 'aurora' && (
-        <AuthModal
-          open={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          onSuccess={handleAuthSuccess}
-          title="Sign in to save your climb"
-          description="Create an account or sign in to save your climb to the board."
-        />
-      )}
     </div>
   );
 }

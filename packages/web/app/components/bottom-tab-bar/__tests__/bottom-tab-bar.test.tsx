@@ -83,8 +83,8 @@ vi.mock('../../board-selector-drawer/board-selector-drawer', () => ({
     : null),
 }));
 
-vi.mock('../../auth/auth-modal', () => ({
-  default: () => null,
+vi.mock('@/app/components/providers/auth-modal-provider', () => ({
+  useAuthModal: () => ({ openAuthModal: vi.fn() }),
 }));
 
 vi.mock('@/app/components/providers/snackbar-provider', () => ({

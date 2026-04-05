@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 const mockToggleFavorite = vi.fn().mockResolvedValue(true);
+const mockOpenAuthModal = vi.fn();
 
 vi.mock('../use-favorite', () => ({
   useFavorite: vi.fn(() => ({
@@ -10,6 +11,10 @@ vi.mock('../use-favorite', () => ({
     toggleFavorite: mockToggleFavorite,
     isAuthenticated: true,
   })),
+}));
+
+vi.mock('@/app/components/providers/auth-modal-provider', () => ({
+  useAuthModal: () => ({ openAuthModal: mockOpenAuthModal }),
 }));
 
 import { useDoubleTapFavorite } from '../use-double-tap-favorite';
@@ -40,8 +45,6 @@ describe('useDoubleTapFavorite', () => {
         dismissHeart: expect.any(Function),
         isFavorited: false,
         toggleFavorite: expect.any(Function),
-        showAuthModal: false,
-        setShowAuthModal: expect.any(Function),
       }),
     );
   });
@@ -62,7 +65,10 @@ describe('useDoubleTapFavorite', () => {
       result.current.handleDoubleTap();
     });
 
-    expect(result.current.showAuthModal).toBe(true);
+    expect(mockOpenAuthModal).toHaveBeenCalledWith({
+      title: "Sign in to like climbs",
+      description: "Save your favorite climbs so you can find them later.",
+    });
     expect(result.current.showHeart).toBe(false);
     expect(mockToggleFavorite).not.toHaveBeenCalled();
   });
@@ -114,24 +120,6 @@ describe('useDoubleTapFavorite', () => {
       result.current.dismissHeart();
     });
     expect(result.current.showHeart).toBe(false);
-  });
-
-  it('setShowAuthModal controls auth modal visibility', () => {
-    const { result } = renderHook(() =>
-      useDoubleTapFavorite({ climbUuid: 'test-uuid' }),
-    );
-
-    expect(result.current.showAuthModal).toBe(false);
-
-    act(() => {
-      result.current.setShowAuthModal(true);
-    });
-    expect(result.current.showAuthModal).toBe(true);
-
-    act(() => {
-      result.current.setShowAuthModal(false);
-    });
-    expect(result.current.showAuthModal).toBe(false);
   });
 
   it('passes isFavorited and toggleFavorite through from useFavorite', () => {

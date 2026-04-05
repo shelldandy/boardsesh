@@ -121,9 +121,8 @@ vi.mock('../action-tooltip', () => ({
   ActionTooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('../../auth/auth-modal', () => ({
-  default: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="auth-modal" /> : null,
+vi.mock('@/app/components/providers/auth-modal-provider', () => ({
+  useAuthModal: () => ({ openAuthModal: vi.fn() }),
 }));
 
 vi.mock('../../logbook/log-ascent-drawer', () => ({
@@ -801,9 +800,11 @@ describe('TickAction', () => {
       const onComplete = vi.fn();
       render(<TestTickAction {...defaultProps} onComplete={onComplete} />);
 
+      // Clicking opens the drawer but does not call onComplete yet
       await act(async () => {
         screen.getByRole('button', { name: /tick/i }).click();
       });
+      expect(onComplete).not.toHaveBeenCalled();
 
       // onComplete fires when the drawer closes, not on the initial click
       expect(onComplete).not.toHaveBeenCalled();

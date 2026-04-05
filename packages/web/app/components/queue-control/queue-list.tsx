@@ -18,7 +18,7 @@ import { themeTokens } from '@/app/theme/theme-config';
 import { SUGGESTIONS_THRESHOLD } from '../board-page/constants';
 import { useOptionalBoardProvider } from '../board-provider/board-provider-context';
 import { LogAscentDrawer } from '../logbook/log-ascent-drawer';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import styles from './queue-list.module.css';
 
 
@@ -57,7 +57,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
   // Tick drawer state
   const [tickDrawerVisible, setTickDrawerVisible] = useState(false);
   const [tickClimb, setTickClimb] = useState<Climb | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
 
   // Ref for scrolling to position that shows only 2 history items above current
   const scrollTargetRef = useRef<HTMLDivElement>(null);
@@ -359,19 +359,13 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
             <Typography variant="body1" component="p" color="text.secondary">
               Create a Boardsesh account to log your climbs and track your progress.
             </Typography>
-            <Button variant="contained" startIcon={<LoginOutlined />} onClick={() => setShowAuthModal(true)} fullWidth>
+            <Button variant="contained" startIcon={<LoginOutlined />} onClick={() => openAuthModal({ title: 'Sign in to record ticks', description: 'Create an account to log your climbs and track your progress.' })} fullWidth>
               Sign In
             </Button>
           </Stack>
         </SwipeableDrawer>
       )}
 
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to record ticks"
-        description="Create an account to log your climbs and track your progress."
-      />
     </>
   );
 });

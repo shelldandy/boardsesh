@@ -15,8 +15,8 @@ vi.mock('../../providers/snackbar-provider', () => ({
   }),
 }));
 
-vi.mock('../../auth/auth-modal', () => ({
-  default: () => null,
+vi.mock('@/app/components/providers/auth-modal-provider', () => ({
+  useAuthModal: () => ({ openAuthModal: vi.fn() }),
 }));
 
 vi.mock('@vercel/analytics', () => ({

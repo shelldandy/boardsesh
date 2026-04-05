@@ -18,7 +18,7 @@ import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import { track } from '@vercel/analytics';
 import type { ClimbActionProps, ClimbActionResult } from '../types';
 import { usePlaylists } from '../use-playlists';
-import AuthModal from '../../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import type { Playlist } from '../playlists-batch-context';
 import { themeTokens } from '@/app/theme/theme-config';
 import { useSnackbar } from '../../providers/snackbar-provider';
@@ -43,7 +43,7 @@ export function PlaylistAction({
   // Playlists not supported for moonboard yet
   const isMoonboard = boardDetails.board_name === 'moonboard';
 
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createFormValues, setCreateFormValues] = useState({ name: '', description: '', color: '' });
@@ -68,7 +68,10 @@ export function PlaylistAction({
       e?.preventDefault();
 
       if (!isAuthenticated) {
-        setShowAuthModal(true);
+        openAuthModal({
+          title: "Sign in to create playlists",
+          description: "Sign in to organize your climbs into custom playlists.",
+        });
         return;
       }
 
@@ -323,43 +326,27 @@ export function PlaylistAction({
     <LocalOfferOutlined sx={{ fontSize: iconSize }} />
   );
 
-  const authModalElement = (
-    <AuthModal
-      open={showAuthModal}
-      onClose={() => setShowAuthModal(false)}
-      onSuccess={() => setShowAuthModal(false)}
-      title="Sign in to create playlists"
-      description="Sign in to organize your climbs into custom playlists."
-    />
-  );
-
   // Icon mode - for Card actions (renders inline content below when expanded)
   const iconElement = (
-    <>
-      <ActionTooltip title={label}>
-        <span onClick={handleClick} style={{ cursor: 'pointer' }} className={className}>
-          {icon}
-        </span>
-      </ActionTooltip>
-      {authModalElement}
-    </>
+    <ActionTooltip title={label}>
+      <span onClick={handleClick} style={{ cursor: 'pointer' }} className={className}>
+        {icon}
+      </span>
+    </ActionTooltip>
   );
 
   // Button mode
   const buttonElement = (
-    <>
-      <MuiButton
-        variant="outlined"
-        startIcon={icon}
-        onClick={handleClick}
-        size={size === 'large' ? 'large' : 'small'}
-        disabled={disabled}
-        className={className}
-      >
-        {shouldShowLabel && label}
-      </MuiButton>
-      {authModalElement}
-    </>
+    <MuiButton
+      variant="outlined"
+      startIcon={icon}
+      onClick={handleClick}
+      size={size === 'large' ? 'large' : 'small'}
+      disabled={disabled}
+      className={className}
+    >
+      {shouldShowLabel && label}
+    </MuiButton>
   );
 
   // Menu item for dropdown
@@ -375,24 +362,21 @@ export function PlaylistAction({
 
   // List mode - full-width row for drawer menus
   const listElement = (
-    <>
-      <MuiButton
-        variant="text"
-        startIcon={icon}
-        fullWidth
-        onClick={handleClick}
-        disabled={disabled}
-        sx={{
-          height: 48,
-          justifyContent: 'flex-start',
-          paddingLeft: `${themeTokens.spacing[4]}px`,
-          fontSize: themeTokens.typography.fontSize.base,
-        }}
-      >
-        {inPlaylistCount > 0 ? `${label} (${inPlaylistCount})` : label}
-      </MuiButton>
-      {authModalElement}
-    </>
+    <MuiButton
+      variant="text"
+      startIcon={icon}
+      fullWidth
+      onClick={handleClick}
+      disabled={disabled}
+      sx={{
+        height: 48,
+        justifyContent: 'flex-start',
+        paddingLeft: `${themeTokens.spacing[4]}px`,
+        fontSize: themeTokens.typography.fontSize.base,
+      }}
+    >
+      {inPlaylistCount > 0 ? `${label} (${inPlaylistCount})` : label}
+    </MuiButton>
   );
 
   let element: React.ReactNode;
@@ -408,7 +392,7 @@ export function PlaylistAction({
       element = listElement;
       break;
     case 'dropdown':
-      element = authModalElement; // Need to render modals even in dropdown mode
+      element = null;
       break;
     default:
       element = iconElement;

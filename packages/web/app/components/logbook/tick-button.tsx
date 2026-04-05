@@ -14,7 +14,7 @@ import LoginOutlined from '@mui/icons-material/LoginOutlined';
 import AppsOutlined from '@mui/icons-material/AppsOutlined';
 import { track } from '@vercel/analytics';
 import { LogAscentDrawer } from './log-ascent-drawer';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import { constructClimbInfoUrl } from '@/app/lib/url-utils';
 import { openExternalUrl } from '@/app/lib/open-external-url';
 import { themeTokens } from '@/app/theme/theme-config';
@@ -29,7 +29,7 @@ interface TickButtonProps {
 export const TickButton: React.FC<TickButtonProps> = ({ currentClimb, angle, boardDetails }) => {
   const { logbook, isAuthenticated } = useBoardProvider();
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const { alwaysUseApp, loaded, enableAlwaysUseApp } = useAlwaysTickInApp();
 
   // URL for opening in the Aurora app (null for Kilter as app URL is no longer accessible)
@@ -103,7 +103,7 @@ export const TickButton: React.FC<TickButtonProps> = ({ currentClimb, angle, boa
             <Typography variant="body1" component="p" color="text.secondary">
               Create a Boardsesh account to log your climbs and track your progress.
             </Typography>
-            <Button variant="contained" startIcon={<LoginOutlined />} onClick={() => setShowAuthModal(true)} fullWidth>
+            <Button variant="contained" startIcon={<LoginOutlined />} onClick={() => openAuthModal({ title: 'Sign in to record ticks', description: 'Create an account to log your climbs and track your progress.' })} fullWidth>
               Sign In
             </Button>
             {openInAppUrl && (
@@ -131,12 +131,6 @@ export const TickButton: React.FC<TickButtonProps> = ({ currentClimb, angle, boa
         </SwipeableDrawer>
       )}
 
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to record ticks"
-        description="Create an account to log your climbs and track your progress."
-      />
     </>
   );
 };

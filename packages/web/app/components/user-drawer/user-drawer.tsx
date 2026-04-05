@@ -27,8 +27,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { getPlaylistsBasePath } from '@/app/lib/url-utils';
 import SwipeableDrawer from '../swipeable-drawer/swipeable-drawer';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import { HoldClassificationWizard } from '../hold-classification';
+
 import BoardSelectorDrawer from '../board-selector-drawer/board-selector-drawer';
 import { BoardDetails } from '@/app/lib/types';
 import { BoardConfigData } from '@/app/lib/server-board-configs';
@@ -51,7 +52,7 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [showHoldClassification, setShowHoldClassification] = useState(false);
   const [showBoardSelector, setShowBoardSelector] = useState(false);
   const [recentSessions, setRecentSessions] = useState<StoredSession[]>([]);
@@ -145,7 +146,7 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
                 startIcon={<LoginOutlined />}
                 onClick={() => {
                   handleClose();
-                  setShowAuthModal(true);
+                  openAuthModal({ title: 'Sign in to Boardsesh', description: 'Sign in to access all features including saving favorites, tracking ascents, and more.' });
                 }}
               >
                 Sign in
@@ -303,13 +304,6 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
           </div>
         </div>
       </SwipeableDrawer>
-
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to Boardsesh"
-        description="Sign in to access all features including saving favorites, tracking ascents, and more."
-      />
 
       {boardDetails && (
         <HoldClassificationWizard

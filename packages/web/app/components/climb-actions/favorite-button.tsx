@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import FavoriteBorderOutlined from '@mui/icons-material/FavoriteBorderOutlined';
 import Favorite from '@mui/icons-material/Favorite';
 import Tooltip from '@mui/material/Tooltip';
@@ -8,7 +8,7 @@ import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { track } from '@vercel/analytics';
 import { useFavorite } from './use-favorite';
 import { BoardName } from '@/app/lib/types';
-import AuthModal from '../auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import { themeTokens } from '@/app/theme/theme-config';
 
 type FavoriteButtonProps = {
@@ -34,15 +34,18 @@ export default function FavoriteButton({
     climbUuid,
   });
   const { showMessage } = useSnackbar();
-
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
 
     if (!isAuthenticated) {
-      setShowAuthModal(true);
+      openAuthModal({
+        title: "Sign in to save favorites",
+        description: climbName ? `Sign in to save "${climbName}" to your favorites.` : 'Sign in to save climbs to your favorites.',
+        onSuccess: handleAuthSuccess,
+      });
       return;
     }
 
@@ -105,30 +108,20 @@ export default function FavoriteButton({
   );
 
   return (
-    <>
-      <Tooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
-        <span
-          onClick={handleClick}
-          className={className}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            cursor: isLoading ? 'wait' : 'pointer',
-          }}
-          role="button"
-          aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-        >
-          {content}
-        </span>
-      </Tooltip>
-
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
-        title="Sign in to save favorites"
-        description={climbName ? `Sign in to save "${climbName}" to your favorites.` : 'Sign in to save climbs to your favorites.'}
-      />
-    </>
+    <Tooltip title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
+      <span
+        onClick={handleClick}
+        className={className}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          cursor: isLoading ? 'wait' : 'pointer',
+        }}
+        role="button"
+        aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+      >
+        {content}
+      </span>
+    </Tooltip>
   );
 }

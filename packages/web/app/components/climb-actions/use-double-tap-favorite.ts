@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useFavorite } from './use-favorite';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 
 interface UseDoubleTapFavoriteOptions {
   climbUuid: string;
@@ -13,8 +14,6 @@ interface UseDoubleTapFavoriteReturn {
   dismissHeart: () => void;
   isFavorited: boolean;
   toggleFavorite: () => Promise<boolean>;
-  showAuthModal: boolean;
-  setShowAuthModal: (v: boolean) => void;
 }
 
 /**
@@ -29,11 +28,14 @@ interface UseDoubleTapFavoriteReturn {
 export function useDoubleTapFavorite({ climbUuid }: UseDoubleTapFavoriteOptions): UseDoubleTapFavoriteReturn {
   const { isFavorited, toggleFavorite, isAuthenticated } = useFavorite({ climbUuid });
   const [showHeart, setShowHeart] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
 
   const handleDoubleTap = useCallback(() => {
     if (!isAuthenticated) {
-      setShowAuthModal(true);
+      openAuthModal({
+        title: "Sign in to like climbs",
+        description: "Save your favorite climbs so you can find them later.",
+      });
       return;
     }
 
@@ -44,7 +46,7 @@ export function useDoubleTapFavorite({ climbUuid }: UseDoubleTapFavoriteOptions)
     if (!isFavorited) {
       toggleFavorite();
     }
-  }, [isAuthenticated, isFavorited, toggleFavorite]);
+  }, [isAuthenticated, isFavorited, toggleFavorite, openAuthModal]);
 
   const dismissHeart = useCallback(() => {
     setShowHeart(false);
@@ -56,7 +58,5 @@ export function useDoubleTapFavorite({ climbUuid }: UseDoubleTapFavoriteOptions)
     dismissHeart,
     isFavorited,
     toggleFavorite,
-    showAuthModal,
-    setShowAuthModal,
   };
 }

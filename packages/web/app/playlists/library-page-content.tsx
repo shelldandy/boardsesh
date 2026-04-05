@@ -29,7 +29,7 @@ import { useQueueBridgeBoardInfo } from '@/app/components/queue-control/queue-br
 import { constructBoardSlugPlaylistsUrl } from '@/app/lib/url-utils';
 import { findMatchingBoard } from '@/app/lib/find-matching-board';
 import type { UserBoard } from '@boardsesh/shared-schema';
-import AuthModal from '@/app/components/auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import PlaylistCardGrid from '@/app/components/library/playlist-card-grid';
 import PlaylistScrollSection from '@/app/components/library/playlist-scroll-section';
 import PlaylistCard from '@/app/components/library/playlist-card';
@@ -70,7 +70,7 @@ export default function LibraryPageContent({
   const [selectedBoard, setSelectedBoard] = useState<UserBoard | null>(
     () => findMatchingBoard(initialMyBoards, boardSlug),
   );
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const defaultBoardAppliedRef = useRef(!!selectedBoard);
 
   // Fetch user's boards for the board selector (with SSR initial data)
@@ -322,7 +322,7 @@ export default function LibraryPageContent({
           <MuiButton
             variant="contained"
             size="small"
-            onClick={() => setShowAuthModal(true)}
+            onClick={() => openAuthModal({ title: 'Sign in to Boardsesh', description: 'Sign in to create and manage your climb playlists.' })}
           >
             Sign In
           </MuiButton>
@@ -387,12 +387,6 @@ export default function LibraryPageContent({
         </PlaylistScrollSection>
       )}
 
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to Boardsesh"
-        description="Sign in to create and manage your climb playlists."
-      />
     </>
   );
 }

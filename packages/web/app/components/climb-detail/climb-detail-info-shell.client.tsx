@@ -6,7 +6,6 @@ import ClimbDetailShellClient from './climb-detail-shell.client';
 import { useBuildClimbDetailSections } from './build-climb-detail-sections';
 import { useDoubleTapFavorite } from '@/app/components/climb-actions/use-double-tap-favorite';
 import HeartAnimationOverlay from '@/app/components/climb-card/heart-animation-overlay';
-import AuthModal from '@/app/components/auth/auth-modal';
 import type { BetaLink } from '@/app/lib/api-wrappers/sync-api-types';
 import type { BoardDetails, Climb } from '@/app/lib/types';
 
@@ -45,31 +44,21 @@ export default function ClimbDetailInfoShellClient({
     handleDoubleTap,
     showHeart,
     dismissHeart,
-    showAuthModal,
-    setShowAuthModal,
   } = useDoubleTapFavorite({ climbUuid: climb.uuid });
 
   return (
-    <>
-      <ClimbDetailShellClient
-        mode="info"
-        aboveFold={
-          <ClimbCard
-            climb={climb}
-            boardDetails={boardDetails}
-            actions={[]}
-            onCoverDoubleClick={handleDoubleTap}
-            expandedContent={<HeartAnimationOverlay visible={showHeart} onAnimationEnd={dismissHeart} />}
-          />
-        }
-        sections={sections}
-      />
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to like climbs"
-        description="Save your favorite climbs so you can find them later."
-      />
-    </>
+    <ClimbDetailShellClient
+      mode="info"
+      aboveFold={
+        <ClimbCard
+          climb={climb}
+          boardDetails={boardDetails}
+          actions={[]}
+          onCoverDoubleClick={handleDoubleTap}
+          expandedContent={<HeartAnimationOverlay visible={showHeart} onAnimationEnd={dismissHeart} />}
+        />
+      }
+      sections={sections}
+    />
   );
 }

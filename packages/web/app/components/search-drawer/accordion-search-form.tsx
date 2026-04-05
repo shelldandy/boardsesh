@@ -21,7 +21,7 @@ import SetterNameSelect from './setter-name-select';
 import ClimbHoldSearchForm from './climb-hold-search-form';
 import { BoardDetails } from '@/app/lib/types';
 import { buildGradeRangeUpdate } from './grade-range-utils';
-import AuthModal from '@/app/components/auth/auth-modal';
+import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
 import {
   getClimbPanelSummary,
   getQualityPanelSummary,
@@ -49,7 +49,7 @@ const AccordionSearchForm: React.FC<AccordionSearchFormProps> = ({
   const { uiSearchParams, updateFilters } = useUISearchParams();
   const { isAuthenticated } = useBoardProvider();
   const grades = TENSION_KILTER_GRADES;
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { openAuthModal } = useAuthModal();
   const [showSort, setShowSort] = useState(false);
 
   const isKilterHomewall = boardDetails.board_name === 'kilter' && boardDetails.layout_id === KILTER_HOMEWALL_LAYOUT_ID;
@@ -269,7 +269,7 @@ const AccordionSearchForm: React.FC<AccordionSearchFormProps> = ({
                   size="small"
                   variant="contained"
                   startIcon={<LoginOutlined />}
-                  onClick={() => setShowAuthModal(true)}
+                  onClick={() => openAuthModal({ title: 'Sign in to Boardsesh', description: 'Create an account to filter by your climbing progress and save favorites.' })}
                 >
                   Sign In
                 </MuiButton>
@@ -349,18 +349,10 @@ const AccordionSearchForm: React.FC<AccordionSearchFormProps> = ({
   ];
 
   return (
-    <>
-      <CollapsibleSection
-        sections={sections}
-        defaultActiveKey={defaultActiveKey[0] || 'climb'}
-      />
-      <AuthModal
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        title="Sign in to Boardsesh"
-        description="Create an account to filter by your climbing progress and save favorites."
-      />
-    </>
+    <CollapsibleSection
+      sections={sections}
+      defaultActiveKey={defaultActiveKey[0] || 'climb'}
+    />
   );
 };
 

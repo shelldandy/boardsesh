@@ -9,6 +9,7 @@ import QueryClientProvider from './components/providers/query-client-provider';
 import { NavigationLoadingProvider } from './components/providers/navigation-loading-provider';
 import PersistentSessionWrapper from './components/providers/persistent-session-wrapper';
 import { SnackbarProvider } from './components/providers/snackbar-provider';
+import { AuthModalProvider } from './components/providers/auth-modal-provider';
 import { NotificationSubscriptionManager } from './components/providers/notification-subscription-manager';
 import { VercelToolbar } from '@vercel/toolbar/next';
 import { getAllBoardConfigs } from './lib/server-board-configs';
@@ -58,6 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <AppRouterCacheProvider>
               <ColorModeProvider>
                 <SnackbarProvider>
+                  <AuthModalProvider>
                   <FeatureFlagsProvider flags={EMPTY_FEATURE_FLAGS}>
                     <PersistentSessionWrapper boardConfigs={boardConfigs}>
                       <NavigationLoadingProvider>
@@ -65,6 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       </NavigationLoadingProvider>
                     </PersistentSessionWrapper>
                   </FeatureFlagsProvider>
+                  </AuthModalProvider>
                 </SnackbarProvider>
               </ColorModeProvider>
             </AppRouterCacheProvider>

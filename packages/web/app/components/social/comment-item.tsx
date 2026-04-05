@@ -282,6 +282,7 @@ export default function CommentItem({
                   >
                     <EditOutlined sx={{ fontSize: 16 }} />
                   </IconButton>
+                  {/* TODO: Consider lifting ConfirmPopover to parent to avoid per-comment instances */}
                   <ConfirmPopover
                     title="Delete comment"
                     description="Are you sure you want to delete this comment? This cannot be undone."

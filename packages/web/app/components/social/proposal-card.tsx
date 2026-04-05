@@ -351,6 +351,7 @@ export default function ProposalCard({ proposal, isAdminOrLeader, onUpdate, onDe
         </CardContent>
       </Card>
 
+      {/* TODO: Lift delete Dialog to parent (proposal-section/proposal-feed) to avoid N Dialog instances in lists */}
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
         <DialogTitle>Delete Accepted Proposal</DialogTitle>
         <DialogContent>
@@ -369,6 +370,7 @@ export default function ProposalCard({ proposal, isAdminOrLeader, onUpdate, onDe
         </DialogActions>
       </Dialog>
 
+      {/* TODO: Replace local Snackbar with useSnackbar() from SnackbarProvider */}
       <Snackbar
         open={!!snackbar}
         autoHideDuration={3000}
