@@ -68,6 +68,11 @@ vi.mock('@/app/components/queue-control/queue-bridge-context', () => ({
   }),
 }));
 
+const mockClearClimbSessionCookie = vi.fn();
+vi.mock('@/app/lib/climb-session-cookie', () => ({
+  clearClimbSessionCookie: (...args: unknown[]) => mockClearClimbSessionCookie(...args),
+}));
+
 vi.mock('@/app/hooks/use-ws-auth-token', () => ({
   useWsAuthToken: () => ({ token: null }),
 }));
@@ -232,12 +237,13 @@ describe('SeshSettingsDrawer', () => {
   });
 
   describe('handleStopSession', () => {
-    it('calls deactivateSession but does not close the drawer', () => {
+    it('calls deactivateSession, clears cookie, but does not close the drawer', () => {
       const onClose = vi.fn();
       render(<SeshSettingsDrawer open={true} onClose={onClose} />);
 
       fireEvent.click(screen.getByText('Stop Session'));
       expect(mockDeactivateSession).toHaveBeenCalled();
+      expect(mockClearClimbSessionCookie).toHaveBeenCalled();
       expect(onClose).not.toHaveBeenCalled();
     });
 
