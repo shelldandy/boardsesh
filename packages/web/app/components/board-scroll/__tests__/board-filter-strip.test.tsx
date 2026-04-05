@@ -79,10 +79,10 @@ const tensionBoard = makeBoard({
 });
 
 describe('BoardFilterStrip', () => {
-  let onBoardSelect: ReturnType<typeof vi.fn>;
+  let onBoardSelect: ReturnType<typeof vi.fn<(board: UserBoard | null) => void>>;
 
   beforeEach(() => {
-    onBoardSelect = vi.fn();
+    onBoardSelect = vi.fn<(board: UserBoard | null) => void>();
   });
 
   it('renders "All Boards" card and all board cards', () => {
