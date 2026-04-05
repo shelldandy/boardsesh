@@ -218,30 +218,28 @@ describe('ClimbListItem', () => {
   });
 
   describe('swipe action overrides', () => {
-    it('renders override icons instead of defaults when swipeLeftAction and swipeRightAction are provided', () => {
+    it('renders override icon instead of default when swipeRightAction is provided', () => {
       render(
         <ClimbListItem
           climb={makeClimb()}
           boardDetails={makeBoardDetails()}
-          swipeLeftAction={{ icon: <span data-testid="custom-left-icon" />, color: 'green', onAction: vi.fn() }}
           swipeRightAction={{ icon: <span data-testid="custom-right-icon" />, color: 'red', onAction: vi.fn() }}
         />,
       );
 
-      // Custom icons should be present
-      expect(screen.getByTestId('custom-left-icon')).toBeTruthy();
+      // Custom right icon should be present
       expect(screen.getByTestId('custom-right-icon')).toBeTruthy();
-      // Default icons should NOT be present
-      expect(screen.queryByTestId('LocalOfferOutlinedIcon')).toBeNull();
+      // Default add-to-queue icon should NOT be present
       expect(screen.queryByTestId('AddOutlinedIcon')).toBeNull();
+      // Default left action (playlist/actions) should still be present
+      expect(screen.getByTestId('LocalOfferOutlinedIcon')).toBeTruthy();
     });
 
-    it('uses simple swipe thresholds when overrides are provided', () => {
+    it('uses simple swipe thresholds when swipeRightAction is provided', () => {
       render(
         <ClimbListItem
           climb={makeClimb()}
           boardDetails={makeBoardDetails()}
-          swipeLeftAction={{ icon: <span />, color: 'green', onAction: vi.fn() }}
           swipeRightAction={{ icon: <span />, color: 'red', onAction: vi.fn() }}
         />,
       );
@@ -250,7 +248,6 @@ describe('ClimbListItem', () => {
       expect(capturedSwipeOptions?.swipeThreshold).toBe(100);
       expect(capturedSwipeOptions?.maxSwipe).toBe(120);
       expect(capturedSwipeOptions?.longSwipeRightThreshold).toBeUndefined();
-      expect(capturedSwipeOptions?.onSwipeRightLong).toBeUndefined();
     });
 
     it('calls swipeRightAction.onAction on swipe left', () => {
@@ -266,22 +263,6 @@ describe('ClimbListItem', () => {
       // The hook's onSwipeLeft should call swipeRightAction.onAction
       const swipeLeftHandler = capturedSwipeOptions?.onSwipeLeft as () => void;
       swipeLeftHandler();
-      expect(onAction).toHaveBeenCalledOnce();
-    });
-
-    it('calls swipeLeftAction.onAction on swipe right', () => {
-      const onAction = vi.fn();
-      render(
-        <ClimbListItem
-          climb={makeClimb()}
-          boardDetails={makeBoardDetails()}
-          swipeLeftAction={{ icon: <span />, color: 'green', onAction }}
-        />,
-      );
-
-      // The hook's onSwipeRight should call swipeLeftAction.onAction
-      const swipeRightHandler = capturedSwipeOptions?.onSwipeRight as () => void;
-      swipeRightHandler();
       expect(onAction).toHaveBeenCalledOnce();
     });
   });
@@ -303,49 +284,6 @@ describe('ClimbListItem', () => {
     it('does not render afterTitleSlot when not provided', () => {
       render(<ClimbListItem climb={makeClimb()} boardDetails={makeBoardDetails()} />);
       expect(screen.queryByTestId('after-title-content')).toBeNull();
-    });
-  });
-
-  describe('menuSlot', () => {
-    it('renders custom menuSlot instead of default ellipsis button', () => {
-      render(
-        <ClimbListItem
-          climb={makeClimb()}
-          boardDetails={makeBoardDetails()}
-          menuSlot={<button data-testid="custom-menu">Menu</button>}
-        />,
-      );
-
-      expect(screen.getByTestId('custom-menu')).toBeTruthy();
-      // Default ellipsis button should not be present (icon may still exist in swipe action layer)
-      expect(screen.queryByRole('button', { name: /more/i })).toBeNull();
-    });
-
-    it('does not render actions drawers when menuSlot is provided', () => {
-      render(
-        <ClimbListItem
-          climb={makeClimb()}
-          boardDetails={makeBoardDetails()}
-          menuSlot={<button data-testid="custom-menu">Menu</button>}
-        />,
-      );
-
-      // SwipeableDrawer should not be rendered at all
-      expect(screen.queryByTestId('swipeable-drawer')).toBeNull();
-    });
-
-    it('renders null menuSlot (hides menu entirely)', () => {
-      render(
-        <ClimbListItem
-          climb={makeClimb()}
-          boardDetails={makeBoardDetails()}
-          menuSlot={null}
-        />,
-      );
-
-      // No menu button rendered (icon may still exist in swipe action layer)
-      const buttons = screen.queryAllByRole('button');
-      expect(buttons.length).toBe(0);
     });
   });
 
