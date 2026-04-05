@@ -311,7 +311,9 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       }
     }, [disableSwipe, swipeHandlers, contentRef]);
 
-    // Thumbnail click handler — uses ref to avoid stale closure
+    // Thumbnail click handler — uses ref to avoid stale closure.
+    // Always attached (not conditional) because onThumbnailClick is excluded from
+    // the memo comparator; a render-time conditional would go stale.
     const handleThumbnailClick = useCallback((e: React.MouseEvent) => {
       if (!onThumbnailClickRef.current) return;
       e.stopPropagation();
@@ -439,7 +441,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
             <div
               ref={doubleTapRef}
               style={thumbnailStyle}
-              onClick={onThumbnailClickRef.current ? handleThumbnailClick : undefined}
+              onClick={handleThumbnailClick}
               onDoubleClick={handleThumbnailDoubleClick}
             >
               <ClimbThumbnail
