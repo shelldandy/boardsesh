@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { BoardName, ClimbUuid } from '@/app/lib/types';
 import { SaveClimbOptions } from '@/app/lib/api-wrappers/aurora/types';
 import { useSession } from 'next-auth/react';
@@ -65,17 +65,23 @@ export function BoardProvider({ boardName, children }: { boardName: BoardName; c
     return saveClimbMutation.mutateAsync(options);
   }, [saveClimbMutation]);
 
-  const value: BoardContextType = {
-    boardName,
-    isAuthenticated: sessionStatus === 'authenticated',
-    isLoading: sessionStatus === 'loading',
-    error: null,
-    isInitialized,
-    logbook,
-    getLogbook,
-    saveTick,
-    saveClimb,
-  };
+  const isAuthenticated = sessionStatus === 'authenticated';
+  const isLoading = sessionStatus === 'loading';
+
+  const value = useMemo<BoardContextType>(
+    () => ({
+      boardName,
+      isAuthenticated,
+      isLoading,
+      error: null,
+      isInitialized,
+      logbook,
+      getLogbook,
+      saveTick,
+      saveClimb,
+    }),
+    [boardName, isAuthenticated, isLoading, isInitialized, logbook, getLogbook, saveTick, saveClimb],
+  );
 
   return <BoardContext.Provider value={value}>{children}</BoardContext.Provider>;
 }

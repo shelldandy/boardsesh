@@ -55,7 +55,7 @@ describe('useQueueStorageSync', () => {
         baseBoardPath: '/kilter/1/1/1',
         boardDetails: mockBoardDetails,
         isDisconnected: false,
-        persistentSession: { setLocalQueueState: mockSetLocalQueueState },
+        persistentSession: { persistToStorageOnly: mockSetLocalQueueState },
       }),
     );
 
@@ -73,7 +73,7 @@ describe('useQueueStorageSync', () => {
         baseBoardPath: '/kilter/1/1/1',
         boardDetails: mockBoardDetails,
         isDisconnected: false,
-        persistentSession: { setLocalQueueState: mockSetLocalQueueState },
+        persistentSession: { persistToStorageOnly: mockSetLocalQueueState },
       }),
     );
 
@@ -96,7 +96,7 @@ describe('useQueueStorageSync', () => {
         baseBoardPath: '/kilter/1/1/1',
         boardDetails: mockBoardDetails,
         isDisconnected: false,
-        persistentSession: { setLocalQueueState: mockSetLocalQueueState },
+        persistentSession: { persistToStorageOnly: mockSetLocalQueueState },
       }),
     );
 
@@ -114,7 +114,7 @@ describe('useQueueStorageSync', () => {
         baseBoardPath: '/kilter/1/1/1',
         boardDetails: mockBoardDetails,
         isDisconnected: true,
-        persistentSession: { setLocalQueueState: mockSetLocalQueueState },
+        persistentSession: { persistToStorageOnly: mockSetLocalQueueState },
       }),
     );
 
@@ -139,7 +139,7 @@ describe('useQueueStorageSync', () => {
           baseBoardPath: '/kilter/1/1/1',
           boardDetails: mockBoardDetails,
           isDisconnected: true,
-          persistentSession: { setLocalQueueState: mockSetLocalQueueState },
+          persistentSession: { persistToStorageOnly: mockSetLocalQueueState },
         },
       },
     );
@@ -156,7 +156,7 @@ describe('useQueueStorageSync', () => {
       baseBoardPath: '/kilter/1/1/1',
       boardDetails: mockBoardDetails,
       isDisconnected: false,
-      persistentSession: { setLocalQueueState: mockSetLocalQueueState },
+      persistentSession: { persistToStorageOnly: mockSetLocalQueueState },
     });
 
     expect(mockSetLocalQueueState).not.toHaveBeenCalled();

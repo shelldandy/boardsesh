@@ -26,6 +26,15 @@ export interface QueueStorageActions {
     boardPath: string,
     boardDetails: BoardDetails,
   ) => void;
+  /** Write to IndexedDB only (debounced), without triggering React state updates.
+   *  Used by useQueueStorageSync on board pages to avoid cascading re-renders
+   *  through the PersistentSessionProvider tree. */
+  persistToStorageOnly: (
+    queue: LocalClimbQueueItem[],
+    currentItem: LocalClimbQueueItem | null,
+    boardPath: string,
+    boardDetails: BoardDetails,
+  ) => void;
   clearLocalQueue: () => void;
   loadStoredQueue: (boardPath: string) => Promise<StoredQueueState | null>;
 }
@@ -141,6 +150,22 @@ export function useQueueStorage({ activeSession, setActiveSession }: UseQueueSto
     [activeSession, debouncedSaveToIndexedDB],
   );
 
+  // Storage-only persistence: schedules debounced IndexedDB write without
+  // triggering React state updates. Used by useQueueStorageSync on board pages
+  // to avoid a cascading re-render through the PersistentSessionProvider tree.
+  const persistToStorageOnly = useCallback(
+    (
+      newQueue: LocalClimbQueueItem[],
+      newCurrentItem: LocalClimbQueueItem | null,
+      boardPath: string,
+      boardDetails: BoardDetails,
+    ) => {
+      if (activeSession) return;
+      debouncedSaveToIndexedDB(newQueue, newCurrentItem, boardPath, boardDetails);
+    },
+    [activeSession, debouncedSaveToIndexedDB],
+  );
+
   const clearLocalQueue = useCallback(() => {
     if (DEBUG) console.log('[PersistentSession] Clearing local queue');
     setLocalQueue([]);
@@ -186,6 +211,7 @@ export function useQueueStorage({ activeSession, setActiveSession }: UseQueueSto
     localBoardDetails,
     isLocalQueueLoaded,
     setLocalQueueState,
+    persistToStorageOnly,
     clearLocalQueue,
     loadStoredQueue,
   };
