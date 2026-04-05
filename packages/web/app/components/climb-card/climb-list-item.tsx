@@ -192,6 +192,8 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       swipeThreshold: hasSwipeOverrides ? SIMPLE_SWIPE_THRESHOLD : SHORT_SWIPE_THRESHOLD,
       longSwipeRightThreshold: hasSwipeOverrides ? undefined : LONG_SWIPE_THRESHOLD,
       maxSwipe: hasSwipeOverrides ? SIMPLE_MAX_SWIPE : MAX_GESTURE_SWIPE,
+      // Cap left swipe (queue action) at the panel width — no long-swipe left exists
+      maxSwipeLeft: hasSwipeOverrides ? undefined : SHORT_ACTION_WIDTH,
       disabled: disableSwipe,
     });
 

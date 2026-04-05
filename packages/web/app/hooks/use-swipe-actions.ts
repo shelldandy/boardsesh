@@ -32,6 +32,10 @@ export interface UseSwipeActionsOptions {
   onSwipeOffsetChange?: (offset: number) => void;
   /** Maximum swipe distance in pixels (default: 120) */
   maxSwipe?: number;
+  /** Maximum left swipe distance in pixels (overrides maxSwipe for left direction) */
+  maxSwipeLeft?: number;
+  /** Maximum right swipe distance in pixels (overrides maxSwipe for right direction) */
+  maxSwipeRight?: number;
   /** Whether swipe is disabled (e.g. in edit mode) */
   disabled?: boolean;
   /** Duration of the completion animation in ms (default: 200) */
@@ -70,6 +74,8 @@ export function useSwipeActions({
   onSwipeZoneChange,
   onSwipeOffsetChange,
   maxSwipe = DEFAULT_MAX_SWIPE,
+  maxSwipeLeft,
+  maxSwipeRight,
   disabled = false,
   completionAnimationMs = 200,
 }: UseSwipeActionsOptions): UseSwipeActionsReturn {
@@ -194,7 +200,9 @@ export function useSwipeActions({
         event.preventDefault();
       }
 
-      const clampedOffset = Math.max(-maxSwipe, Math.min(maxSwipe, deltaX));
+      const maxLeft = maxSwipeLeft ?? maxSwipe;
+      const maxRight = maxSwipeRight ?? maxSwipe;
+      const clampedOffset = Math.max(-maxLeft, Math.min(maxRight, deltaX));
       applyOffset(clampedOffset);
 
       const absOffset = Math.abs(clampedOffset);
