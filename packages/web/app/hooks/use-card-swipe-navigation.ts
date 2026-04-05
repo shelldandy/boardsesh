@@ -16,6 +16,7 @@ export interface UseCardSwipeNavigationOptions {
   canSwipePrevious: boolean;
   threshold?: number;
   delayNavigation?: boolean;
+  enabled?: boolean;
 }
 
 export interface UseCardSwipeNavigationReturn {
@@ -35,6 +36,7 @@ export function useCardSwipeNavigation({
   canSwipePrevious,
   threshold = 80,
   delayNavigation = false,
+  enabled = true,
 }: UseCardSwipeNavigationOptions): UseCardSwipeNavigationReturn {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -109,7 +111,7 @@ export function useCardSwipeNavigation({
 
   const swipeHandlers = useSwipeable({
     onSwiping: (eventData) => {
-      if (animatingRef.current) return;
+      if (!enabled || animatingRef.current) return;
 
       const { deltaX, deltaY } = eventData;
 
@@ -129,7 +131,7 @@ export function useCardSwipeNavigation({
     },
     onSwipedLeft: (eventData) => {
       resetDirection();
-      if (animatingRef.current) return;
+      if (!enabled || animatingRef.current) return;
 
       if (canSwipeNext && Math.abs(eventData.deltaX) >= threshold) {
         triggerSwipeComplete('left');
@@ -139,7 +141,7 @@ export function useCardSwipeNavigation({
     },
     onSwipedRight: (eventData) => {
       resetDirection();
-      if (animatingRef.current) return;
+      if (!enabled || animatingRef.current) return;
 
       if (canSwipePrevious && Math.abs(eventData.deltaX) >= threshold) {
         triggerSwipeComplete('right');
