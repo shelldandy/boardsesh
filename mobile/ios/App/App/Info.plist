@@ -38,6 +38,17 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.boardsesh.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.boardsesh.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Boardsesh uses Bluetooth to connect to your climbing training board and illuminate routes.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
