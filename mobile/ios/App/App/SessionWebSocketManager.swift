@@ -222,6 +222,7 @@ final class SessionWebSocketManager {
 
     private var queueItems: [SharedQueueItem] = []
     private var currentIndex: Int = 0
+    private var pendingMutationIndex: Int?  // index before optimistic navigation
 
     // MARK: - Darwin Notification
 
@@ -476,10 +477,10 @@ final class SessionWebSocketManager {
             handleNextMessage(msg)
 
         case .error:
-            break
+            handleMutationError(msg)
 
         case .complete:
-            break
+            handleMutationComplete(msg)
 
         default:
             break
@@ -642,22 +643,44 @@ final class SessionWebSocketManager {
         case "next":
             let nextIndex = currentIndex + 1
             guard nextIndex < queueItems.count else { return }
+            let previousIndex = currentIndex
             currentIndex = nextIndex
             let item = queueItems[nextIndex]
+            pendingMutationIndex = previousIndex
             persistAndNotify()
             sendSetCurrentClimb(item: item)
 
         case "previous":
             let prevIndex = currentIndex - 1
             guard prevIndex >= 0 else { return }
+            let previousIndex = currentIndex
             currentIndex = prevIndex
             let item = queueItems[prevIndex]
+            pendingMutationIndex = previousIndex
             persistAndNotify()
             sendSetCurrentClimb(item: item)
 
         default:
             break
         }
+    }
+
+    // MARK: - Mutation Response Handling
+
+    private func handleMutationError(_ msg: GQLMessage) {
+        guard let id = msg.id, id.hasPrefix("mutation-") else { return }
+        // Server rejected the navigation — revert to the index before the optimistic update
+        if let previousIndex = pendingMutationIndex {
+            currentIndex = previousIndex
+            pendingMutationIndex = nil
+            persistAndNotify()
+        }
+    }
+
+    private func handleMutationComplete(_ msg: GQLMessage) {
+        guard let id = msg.id, id.hasPrefix("mutation-") else { return }
+        // Mutation succeeded — clear the pending state
+        pendingMutationIndex = nil
     }
 
     // MARK: - Transport Helpers

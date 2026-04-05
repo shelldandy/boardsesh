@@ -320,10 +320,8 @@ describe('useLiveActivity', () => {
 
     await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
 
-    // When availability check returns false, startSession may still be called
-    // on the first render (before the async check completes), but the hook
-    // should not crash. The key assertion is no uncaught error.
-    expect(true).toBe(true);
+    // When availability resolves to false, startSession should not be called
+    expect(mockStartLiveActivitySession).not.toHaveBeenCalled();
 
     await hook.unmount();
   });

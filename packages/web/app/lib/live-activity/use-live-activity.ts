@@ -57,6 +57,10 @@ export function useLiveActivity({
     if (shouldBeActive && !isActiveRef.current) {
       const serverUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
+      // Set flag optimistically before the async call to prevent duplicate starts
+      // if React re-renders before the promise resolves.
+      isActiveRef.current = true;
+
       startLiveActivitySession({
         sessionId: sessionId ?? `local-${Date.now()}`,
         serverUrl,
@@ -93,7 +97,6 @@ export function useLiveActivity({
           })),
         });
       });
-      isActiveRef.current = true;
     } else if (!shouldBeActive && isActiveRef.current) {
       endLiveActivitySession();
       isActiveRef.current = false;
