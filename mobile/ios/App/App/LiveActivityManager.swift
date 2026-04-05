@@ -78,7 +78,10 @@ final class LiveActivityManager {
             return
         }
 
-        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(120))
+        // Stale date set to 4 hours — the activity is kept alive by periodic
+        // updates from the JS side or the native WebSocket. iOS shows the stale
+        // view ("Session ended") only if no update arrives before this deadline.
+        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(4 * 60 * 60))
         await activity.update(content)
         logger.info("Updated Live Activity: \(state.climbName, privacy: .public) (\(state.currentIndex + 1)/\(state.totalClimbs))")
 
@@ -93,6 +96,16 @@ final class LiveActivityManager {
                 currentIndex: currentIndex
             )
         }
+    }
+
+    // MARK: - Refresh Stale Date
+
+    /// Pushes the stale deadline forward without changing the displayed content.
+    /// Call this periodically (e.g. on WebSocket ping) to keep the activity alive.
+    func refreshStaleDate() async {
+        guard let activity = currentActivity else { return }
+        let content = ActivityContent(state: activity.content.state, staleDate: Date().addingTimeInterval(4 * 60 * 60))
+        await activity.update(content)
     }
 
     // MARK: - End

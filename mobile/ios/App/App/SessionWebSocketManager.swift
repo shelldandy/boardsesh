@@ -794,6 +794,14 @@ final class SessionWebSocketManager {
                 if elapsed > self.pingTimeout {
                     print("[SessionWS] Ping timeout — no message for \(Int(elapsed))s, reconnecting")
                     self.webSocketTask?.cancel(with: .goingAway, reason: nil)
+                } else {
+                    // Connection is healthy — push the Live Activity stale
+                    // deadline forward so it doesn't show "Session ended".
+                    if #available(iOS 16.1, *) {
+                        Task {
+                            await LiveActivityManager.shared.refreshStaleDate()
+                        }
+                    }
                 }
             }
             timer.resume()
