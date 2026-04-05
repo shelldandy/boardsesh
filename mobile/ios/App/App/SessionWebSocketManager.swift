@@ -207,7 +207,7 @@ final class SessionWebSocketManager {
 
     private var urlSession: URLSession
     private var webSocketTask: URLSessionWebSocketTask?
-    private var isConnected = false
+    private(set) var isConnected = false
     private var subscriptionId: String = "1"
     private var lastSequence: Int = -1
 
