@@ -11,7 +11,6 @@ import { Climb, BoardDetails } from '@/app/lib/types';
 import ClimbThumbnail from './climb-thumbnail';
 import ClimbTitle, { type ClimbTitleProps } from './climb-title';
 import DrawerClimbHeader from './drawer-climb-header';
-import DrawerFavoriteButton from './drawer-favorite-button';
 import { AscentStatus } from './ascent-status';
 import { ClimbActions } from '../climb-actions';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
@@ -492,7 +491,6 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
 
             <SwipeableDrawer
               title={<DrawerClimbHeader climb={climb} boardDetails={boardDetails} />}
-              extra={<DrawerFavoriteButton climbUuid={climb.uuid} />}
               placement="bottom"
               open={isPlaylistSelectorOpen}
               onClose={() => setIsPlaylistSelectorOpen(false)}

@@ -21,7 +21,6 @@ import ClimbCard from '@/app/components/climb-card/climb-card';
 import ClimbListItem from '@/app/components/climb-card/climb-list-item';
 import SwipeableDrawer from '@/app/components/swipeable-drawer/swipeable-drawer';
 import DrawerClimbHeader from '@/app/components/climb-card/drawer-climb-header';
-import DrawerFavoriteButton from '@/app/components/climb-card/drawer-favorite-button';
 import { ClimbActions } from '@/app/components/climb-actions';
 import PlaylistSelectionContent from '@/app/components/climb-actions/playlist-selection-content';
 import { ClimbCardSkeleton } from '@/app/components/board-page/board-page-skeleton';
@@ -345,7 +344,6 @@ export default function LikedClimbsList({
 
       <SwipeableDrawer
         title={activeDrawerClimb ? <DrawerClimbHeader climb={activeDrawerClimb} boardDetails={boardDetails} /> : undefined}
-        extra={activeDrawerClimb ? <DrawerFavoriteButton climbUuid={activeDrawerClimb.uuid} /> : undefined}
         placement="bottom"
         open={drawerMode === 'playlist'}
         onClose={handleCloseDrawer}
