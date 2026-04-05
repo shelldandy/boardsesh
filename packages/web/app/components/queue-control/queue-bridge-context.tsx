@@ -8,6 +8,7 @@ import { getBaseBoardPath } from '@/app/lib/url-utils';
 import { DEFAULT_SEARCH_PARAMS } from '@/app/lib/url-utils';
 import type { BoardDetails, Angle, Climb, SearchRequestPagination } from '@/app/lib/types';
 import type { ClimbQueueItem } from './types';
+import { useLiveActivity } from '@/app/lib/live-activity/use-live-activity';
 
 // -------------------------------------------------------------------
 // Board info context (for the root-level bottom bar to know what board is active)
@@ -294,6 +295,15 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
   const [contextVersion, setContextVersion] = useState(0);
 
   const adapter = usePersistentSessionQueueAdapter();
+
+  // Sync queue state to iOS Live Activity (no-op on non-iOS platforms)
+  useLiveActivity({
+    queue: adapter.context.queue,
+    currentClimbQueueItem: adapter.context.currentClimbQueueItem,
+    boardDetails: adapter.boardDetails,
+    sessionId: adapter.context.sessionId,
+    isSessionActive: adapter.context.isSessionActive,
+  });
 
   // When a board route is active (isInjected), use the injected context.
   // Otherwise, fall back to the PersistentSession adapter.

@@ -15,4 +15,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didDiscardSceneSessions sceneSessions: Set<UISceneSession>) {}
+
+    func applicationWillTerminate(_ application: UIApplication) {
+        // End Live Activity and disconnect WebSocket on app termination
+        SessionWebSocketManager.shared.disconnect()
+        if #available(iOS 16.1, *) {
+            LiveActivityManager.shared.endAllActivities()
+        }
+    }
 }
