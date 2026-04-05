@@ -149,7 +149,7 @@ final class LiveActivityManager {
 
         return ClimbSessionAttributes.ContentState(
             climbName: item.climbName,
-            climbDifficulty: item.difficulty,
+            climbDifficulty: VGradeFormatter.formatVGrade(item.difficulty),
             angle: item.angle,
             currentIndex: currentIndex,
             totalClimbs: items.count,

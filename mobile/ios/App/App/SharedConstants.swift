@@ -97,3 +97,46 @@ enum SharedQueueState {
         return components?.url
     }
 }
+
+// MARK: - V-Grade Formatting
+
+enum VGradeFormatter {
+    /// V-grades that map from more than one Font grade.
+    /// When the Font grade has "+", these V-grades get a "+" suffix for disambiguation.
+    /// Derived from BOULDER_GRADES in packages/web/app/lib/board-data.ts:
+    ///   V0 (4a,4b,4c), V1 (5a,5b), V3 (6a,6a+), V4 (6b,6b+), V5 (6c,6c+), V8 (7b,7b+)
+    private static let vGradesWithMultipleFontGrades: Set<String> = [
+        "V0", "V1", "V3", "V4", "V5", "V8"
+    ]
+
+    private static let vGradeRegex = try! NSRegularExpression(pattern: "V\\d+", options: .caseInsensitive)
+
+    /// Format a raw difficulty string to a V-grade display label.
+    ///
+    /// Examples:
+    /// - "6c+/V5" -> "V5+"  (V5 has multiple font grades, font part has "+")
+    /// - "7a+/V7" -> "V7"   (V7 has only one font grade)
+    /// - "6c/V5"  -> "V5"   (font part has no "+")
+    /// - "V3"     -> "V3"   (bare V-grade)
+    /// - ""       -> ""     (empty input)
+    static func formatVGrade(_ difficulty: String) -> String {
+        guard !difficulty.isEmpty else { return "" }
+
+        let nsRange = NSRange(difficulty.startIndex..<difficulty.endIndex, in: difficulty)
+        guard let match = vGradeRegex.firstMatch(in: difficulty, range: nsRange),
+              let range = Range(match.range, in: difficulty)
+        else {
+            return difficulty
+        }
+        let vGrade = String(difficulty[range]).uppercased()
+
+        if let slashIndex = difficulty.firstIndex(of: "/"), slashIndex > difficulty.startIndex {
+            let fontPart = String(difficulty[difficulty.startIndex..<slashIndex])
+            if fontPart.hasSuffix("+") && vGradesWithMultipleFontGrades.contains(vGrade) {
+                return "\(vGrade)+"
+            }
+        }
+
+        return vGrade
+    }
+}

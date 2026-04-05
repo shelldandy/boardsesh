@@ -25,7 +25,7 @@ struct PreviousClimbIntent: LiveActivityIntent {
         let prevItem = items[prevIndex]
         let newState = ClimbSessionAttributes.ContentState(
             climbName: prevItem.climbName,
-            climbDifficulty: prevItem.difficulty,
+            climbDifficulty: VGradeFormatter.formatVGrade(prevItem.difficulty),
             angle: prevItem.angle,
             currentIndex: prevIndex,
             totalClimbs: items.count,

@@ -147,4 +147,30 @@ final class LiveActivityManagerTests: XCTestCase {
         XCTAssertEqual(state?.currentIndex, 0)
         XCTAssertEqual(state?.totalClimbs, 1)
     }
+
+    func testBuildContentStateFormatsVGradeFromCombinedDifficulty() {
+        let item = makeQueueItem(
+            climbName: "Font Grade Climb",
+            difficulty: "6c+/V5",
+            angle: 40
+        )
+
+        let state = LiveActivityManager.buildContentState(items: [item], currentIndex: 0)
+
+        XCTAssertNotNil(state)
+        XCTAssertEqual(state?.climbDifficulty, "V5+")
+    }
+
+    func testBuildContentStateFormatsVGradeNoPlusForSingleFontGrade() {
+        let item = makeQueueItem(
+            climbName: "Single Font Grade",
+            difficulty: "7a+/V7",
+            angle: 40
+        )
+
+        let state = LiveActivityManager.buildContentState(items: [item], currentIndex: 0)
+
+        XCTAssertNotNil(state)
+        XCTAssertEqual(state?.climbDifficulty, "V7")
+    }
 }

@@ -261,7 +261,7 @@ public class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         // Build and push the new content state to the Live Activity.
         let state = ClimbSessionAttributes.ContentState(
             climbName: climbName,
-            climbDifficulty: climbDifficulty,
+            climbDifficulty: VGradeFormatter.formatVGrade(climbDifficulty),
             angle: angle,
             currentIndex: currentIndex,
             totalClimbs: totalClimbs,
