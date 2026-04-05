@@ -25,6 +25,7 @@ import {
   buildWeeklyBars,
   buildAggregatedFlashRedpointBars,
   buildStatisticsSummary,
+  buildVPointsTimeline,
 } from '../utils/chart-data-builders';
 
 export function useProfileData(userId: string) {
@@ -180,6 +181,11 @@ export function useProfileData(userId: string) {
     [profileStats],
   );
 
+  const vPointsTimeline = useMemo(
+    () => buildVPointsTimeline(allBoardsTicks, aggregatedTimeframe),
+    [allBoardsTicks, aggregatedTimeframe],
+  );
+
   return {
     // Profile state
     loading,
@@ -219,6 +225,9 @@ export function useProfileData(userId: string) {
     // Profile stats summary
     loadingProfileStats,
     statisticsSummary,
+
+    // V-Points timeline
+    vPointsTimeline,
 
     // Tabs
     activeTab,

@@ -39,6 +39,7 @@ export default function ProfilePageContent({ userId }: { userId: string }) {
     setToDate,
     weeklyBars,
     aggregatedFlashRedpointBars,
+    vPointsTimeline,
     weeklyFromDate,
     setWeeklyFromDate,
     weeklyToDate,
@@ -104,6 +105,7 @@ export default function ProfilePageContent({ userId }: { userId: string }) {
             loadingAggregated={loadingAggregated}
             aggregatedStackedBars={aggregatedStackedBars}
             aggregatedFlashRedpointBars={aggregatedFlashRedpointBars}
+            vPointsTimeline={vPointsTimeline}
           />
         )}
 

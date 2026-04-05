@@ -19,7 +19,8 @@ import type { CssBarChartBar, BarSegment, GroupedBar } from '@/app/components/ch
 import { EmptyState } from '@/app/components/ui/empty-state';
 import type { UserProfile } from '../utils/profile-constants';
 import { type AggregatedTimeframeType, aggregatedTimeframeOptions } from '../utils/profile-constants';
-import type { LayoutPercentage, LayoutLegendEntry } from '../utils/chart-data-builders';
+import type { LayoutPercentage, LayoutLegendEntry, VPointsDataPoint } from '../utils/chart-data-builders';
+import VPointsChart from './v-points-chart';
 import styles from '../profile-page.module.css';
 
 interface ProfileHeaderProps {
@@ -37,6 +38,7 @@ interface ProfileHeaderProps {
   loadingAggregated: boolean;
   aggregatedStackedBars: { bars: CssBarChartBar[]; legendEntries: LayoutLegendEntry[] } | null;
   aggregatedFlashRedpointBars: GroupedBar[] | null;
+  vPointsTimeline: VPointsDataPoint[] | null;
 }
 
 export default function ProfileHeader({
@@ -51,6 +53,7 @@ export default function ProfileHeader({
   loadingAggregated,
   aggregatedStackedBars,
   aggregatedFlashRedpointBars,
+  vPointsTimeline,
 }: ProfileHeaderProps) {
   const displayName = profile.profile?.displayName || profile.name || 'Crusher';
   const avatarUrl = profile.profile?.avatarUrl || profile.image;
@@ -267,6 +270,13 @@ export default function ProfileHeader({
                 gap={2}
                 ariaLabel="Flash vs redpoint by grade"
               />
+            </div>
+          )}
+
+          {/* V-Points Timeline */}
+          {vPointsTimeline && !loadingAggregated && (
+            <div className={styles.flashRedpointSection}>
+              <VPointsChart data={vPointsTimeline} />
             </div>
           )}
         </CardContent></MuiCard>
