@@ -24,6 +24,13 @@ import AuthModal from '../auth/auth-modal';
 import styles from './queue-list.module.css';
 
 
+/** Memoized wrapper so the menuSlot reference stays stable per climb, preserving ClimbListItem's React.memo. */
+const SuggestedAddButton = React.memo(({ climb, addToQueue }: { climb: Climb; addToQueue: (climb: Climb) => void }) => {
+  const handleClick = useCallback(() => addToQueue(climb), [climb, addToQueue]);
+  return <IconButton onClick={handleClick}><AddOutlined /></IconButton>;
+});
+SuggestedAddButton.displayName = 'SuggestedAddButton';
+
 export type QueueListHandle = {
   scrollToCurrentClimb: () => void;
 };
@@ -306,7 +313,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                 boardDetails={boardDetails}
                 disableSwipe
                 titleProps={suggestedTitleProps}
-                menuSlot={<IconButton onClick={() => addToQueue(climb)}><AddOutlined /></IconButton>}
+                menuSlot={<SuggestedAddButton climb={climb} addToQueue={addToQueue} />}
                 onNavigate={onClimbNavigate}
               />
             ))}
