@@ -22,7 +22,7 @@ import { usePathname } from 'next/navigation';
 import { useQueueContext } from '../graphql-queue';
 import { useFavorite, ClimbActions } from '../climb-actions';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
-import DrawerFavoriteButton from '../climb-card/drawer-favorite-button';
+import DrawerClimbHeader from '../climb-card/drawer-climb-header';
 import { ShareBoardButton } from '../board-page/share-button';
 import { useBoardProvider } from '../board-provider/board-provider-context';
 import QueueList, { QueueListHandle } from '../queue-control/queue-list';
@@ -403,7 +403,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         {/* Climb actions drawer */}
         {currentClimb && (
           <SwipeableDrawer
-            title={currentClimb.name}
+            title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
             open={isActionsOpen}
             onClose={() => setIsActionsOpen(false)}
@@ -411,6 +411,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             styles={{
               wrapper: { height: 'auto' },
               body: { padding: `${themeTokens.spacing[2]}px 0` },
+              header: { paddingLeft: `${themeTokens.spacing[3]}px`, paddingRight: `${themeTokens.spacing[3]}px` },
             }}
           >
             <ClimbActions
@@ -431,8 +432,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         {/* Playlist selector drawer */}
         {currentClimb && (
           <SwipeableDrawer
-            title={currentClimb.name}
-            extra={<DrawerFavoriteButton climbUuid={currentClimb.uuid} />}
+            title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
             open={isPlaylistSelectorOpen}
             onClose={() => setIsPlaylistSelectorOpen(false)}
@@ -440,6 +440,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             styles={{
               wrapper: { height: 'auto', maxHeight: '70vh' },
               body: { padding: 0 },
+              header: { paddingLeft: `${themeTokens.spacing[3]}px`, paddingRight: `${themeTokens.spacing[3]}px` },
             }}
           >
             <PlaylistSelectionContent

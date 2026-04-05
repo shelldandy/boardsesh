@@ -29,10 +29,6 @@ vi.mock('../../climb-actions', () => ({
   }),
 }));
 
-vi.mock('../drawer-favorite-button', () => ({
-  default: () => <span data-testid="drawer-favorite-button" />,
-}));
-
 vi.mock('@/app/hooks/use-swipe-actions', () => ({
   useSwipeActions: (options: { disabled?: boolean }) => {
     capturedSwipeOptions = options;
