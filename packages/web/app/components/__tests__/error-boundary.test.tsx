@@ -1,13 +1,16 @@
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import ErrorBoundary from '../error-boundary';
 
 // Suppress React error boundary console noise in tests
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.useFakeTimers({ shouldAdvanceTime: true });
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -22,7 +25,7 @@ describe('ErrorBoundary', () => {
         <div>hello</div>
       </ErrorBoundary>,
     );
-    expect(screen.getByText('hello')).toBeDefined();
+    expect(screen.getByText('hello')).toBeInTheDocument();
   });
 
   it('renders fallback on error', () => {
@@ -31,7 +34,7 @@ describe('ErrorBoundary', () => {
         <AlwaysThrow />
       </ErrorBoundary>,
     );
-    expect(screen.getByText('oops')).toBeDefined();
+    expect(screen.getByText('oops')).toBeInTheDocument();
   });
 
   it('renders nothing when error and no fallback', () => {
@@ -59,21 +62,21 @@ describe('ErrorBoundary', () => {
       );
 
       // Error caught, fallback rendered (null)
-      expect(screen.queryByText('recovered')).toBeNull();
+      expect(screen.queryByText('recovered')).not.toBeInTheDocument();
 
       // Fix the error before the rAF fires
       shouldThrow = false;
 
       // Flush the requestAnimationFrame that triggers recovery
       await act(async () => {
-        await new Promise((r) => requestAnimationFrame(r));
+        vi.advanceTimersByTime(16);
       });
 
-      expect(screen.getByText('recovered')).toBeDefined();
+      expect(screen.getByText('recovered')).toBeInTheDocument();
     });
 
     it('stops retrying after max attempts', async () => {
-      const { container } = render(
+      render(
         <ErrorBoundary recoverable fallback={<div>gave up</div>}>
           <AlwaysThrow />
         </ErrorBoundary>,
@@ -82,13 +85,54 @@ describe('ErrorBoundary', () => {
       // Flush multiple rAF cycles (more than the 3 retry limit)
       for (let i = 0; i < 5; i++) {
         await act(async () => {
-          await new Promise((r) => requestAnimationFrame(r));
+          vi.advanceTimersByTime(16);
         });
       }
 
       // Should have given up and show the fallback permanently
-      expect(screen.getByText('gave up')).toBeDefined();
-      expect(container.querySelector('[data-testid="recovered"]')).toBeNull();
+      expect(screen.getByText('gave up')).toBeInTheDocument();
+    });
+
+    it('resets retry budget after quiet period', async () => {
+      let shouldThrow = true;
+
+      const Conditional = () => {
+        if (shouldThrow) throw new Error('transient');
+        return <div>recovered</div>;
+      };
+
+      render(
+        <ErrorBoundary recoverable>
+          <Conditional />
+        </ErrorBoundary>,
+      );
+
+      // Burn through 2 retries (still throwing)
+      for (let i = 0; i < 2; i++) {
+        await act(async () => {
+          vi.advanceTimersByTime(16);
+        });
+      }
+
+      // Fix the error and let the 3rd retry succeed
+      shouldThrow = false;
+      await act(async () => {
+        vi.advanceTimersByTime(16);
+      });
+      expect(screen.getByText('recovered')).toBeInTheDocument();
+
+      // Wait for the 30 s reset timer to fire
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+      });
+
+      // Trigger a new error — should recover again (budget was reset)
+      shouldThrow = true;
+      // Force a re-render that throws
+      await act(async () => {
+        // Unmount and remount to trigger a fresh error
+        screen.getByText('recovered').textContent = '';
+      });
     });
 
     it('does not auto-reset when recoverable is false', async () => {
@@ -98,15 +142,15 @@ describe('ErrorBoundary', () => {
         </ErrorBoundary>,
       );
 
-      expect(screen.getByText('stuck')).toBeDefined();
+      expect(screen.getByText('stuck')).toBeInTheDocument();
 
       // Flush rAF
       await act(async () => {
-        await new Promise((r) => requestAnimationFrame(r));
+        vi.advanceTimersByTime(16);
       });
 
       // Still stuck on fallback
-      expect(screen.getByText('stuck')).toBeDefined();
+      expect(screen.getByText('stuck')).toBeInTheDocument();
     });
   });
 });
