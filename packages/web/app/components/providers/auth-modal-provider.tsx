@@ -32,7 +32,6 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
 
   const handleClose = useCallback(() => {
     setOpen(false);
-    onSuccessRef.current = undefined;
   }, []);
 
   const handleSuccess = useCallback(() => {

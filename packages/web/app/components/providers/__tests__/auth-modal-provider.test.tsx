@@ -107,6 +107,25 @@ describe('AuthModalProvider', () => {
     expect(lastAuthModalProps().open).toBe(false);
   });
 
+  it('onSuccess still fires even if onClose is called first (AuthModal calls onClose before onSuccess)', () => {
+    const onSuccess = vi.fn();
+    const { result } = renderHook(() => useAuthModal(), { wrapper });
+
+    act(() => {
+      result.current.openAuthModal({ title: 'Test', onSuccess });
+    });
+
+    // AuthModal internally calls onClose() then onSuccess?.() on successful login
+    act(() => {
+      lastAuthModalProps().onClose();
+    });
+    act(() => {
+      lastAuthModalProps().onSuccess();
+    });
+
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+  });
+
   it('latest openAuthModal call wins when called multiple times', () => {
     const { result } = renderHook(() => useAuthModal(), { wrapper });
 
