@@ -32,7 +32,7 @@ export function useLiveActivity({
 
   // Stabilize boardDetails by value so reference changes don't restart the session
   const boardKey = boardDetails
-    ? `${boardDetails.board_name}:${boardDetails.layout_id}:${boardDetails.size_id}:${boardDetails.set_ids.join(',')}`
+    ? `${boardDetails.board_name}:${boardDetails.layout_id}:${boardDetails.size_id}:${Array.isArray(boardDetails.set_ids) ? boardDetails.set_ids.join(',') : boardDetails.set_ids}`
     : null;
   const stableBoardDetails = useMemo(() => boardDetails, [boardKey]);
 
@@ -68,7 +68,7 @@ export function useLiveActivity({
         boardName: stableBoardDetails.board_name,
         layoutId: stableBoardDetails.layout_id,
         sizeId: stableBoardDetails.size_id,
-        setIds: stableBoardDetails.set_ids.join(','),
+        setIds: Array.isArray(stableBoardDetails.set_ids) ? stableBoardDetails.set_ids.join(',') : String(stableBoardDetails.set_ids),
       }).then(() => {
         // Send an initial update immediately after start so the widget
         // doesn't stay on "Loading...". Skip in party mode — WebSocket handles updates.
