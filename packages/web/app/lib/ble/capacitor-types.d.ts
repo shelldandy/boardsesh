@@ -52,6 +52,7 @@ interface CapacitorGlobal {
       startSession(options: Record<string, unknown>): Promise<void>;
       endSession(): Promise<void>;
       updateActivity(options: Record<string, unknown>): Promise<void>;
+      addListener(eventName: string, callback: (data: Record<string, unknown>) => void): Promise<{ remove: () => void }>;
     };
     [key: string]: unknown;
   };

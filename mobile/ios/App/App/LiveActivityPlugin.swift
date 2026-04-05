@@ -14,6 +14,58 @@ public class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     private let logger = Logger(subsystem: "com.boardsesh.app", category: "LiveActivityPlugin")
+    private var observingDarwinNotification = false
+
+    // MARK: - Darwin Notification (Widget → JS bridge)
+
+    /// Start observing Darwin notifications from the widget's Next/Previous intents.
+    /// When the widget navigates, we forward the action to the JS side so it can
+    /// send the server mutation via its GraphQL connection.
+    private func startDarwinObservation() {
+        guard !observingDarwinNotification else { return }
+        observingDarwinNotification = true
+
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        let name = CFNotificationName(SharedConstants.queueNavigateNotification as CFString)
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+
+        CFNotificationCenterAddObserver(
+            center,
+            observer,
+            { (_, observer, _, _, _) in
+                guard let observer = observer else { return }
+                let plugin = Unmanaged<LiveActivityPlugin>.fromOpaque(observer).takeUnretainedValue()
+                plugin.handleQueueNavigateFromWidget()
+            },
+            name.rawValue,
+            nil,
+            .deliverImmediately
+        )
+    }
+
+    private func stopDarwinObservation() {
+        guard observingDarwinNotification else { return }
+        observingDarwinNotification = false
+
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterRemoveObserver(center, observer, nil, nil)
+    }
+
+    private func handleQueueNavigateFromWidget() {
+        guard let defaults = SharedConstants.sharedDefaults else { return }
+        guard let action = defaults.string(forKey: SharedConstants.pendingActionKey) else { return }
+        defaults.removeObject(forKey: SharedConstants.pendingActionKey)
+
+        // Read the updated index that the widget intent already saved.
+        let (_, currentIndex) = SharedQueueState.load(from: defaults)
+
+        // Notify the JS side so it can send the mutation to the server.
+        notifyListeners("queueNavigate", data: [
+            "action": action,
+            "currentIndex": currentIndex,
+        ])
+    }
 
     // MARK: - isAvailable
 
@@ -90,6 +142,9 @@ public class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         // Connect after callback is set to ensure no events are missed.
         wsManager.connect(serverUrl: serverUrl, sessionId: sessionId, authToken: authToken, wsUrl: wsUrl)
 
+        // Observe widget navigation intents and forward to JS.
+        startDarwinObservation()
+
         // Start the Live Activity with an initial "Loading..." state.
         let initialState = ClimbSessionAttributes.ContentState(
             climbName: "Loading...",
@@ -121,6 +176,8 @@ public class LiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - endSession
 
     @objc func endSession(_ call: CAPPluginCall) {
+        stopDarwinObservation()
+
         let wsManager = SessionWebSocketManager.shared
         wsManager.onQueueStateChanged = nil
         wsManager.disconnect()

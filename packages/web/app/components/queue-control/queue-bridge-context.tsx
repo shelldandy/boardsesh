@@ -366,6 +366,7 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
             boardDetails={adapter.boardDetails}
             sessionId={adapter.context.sessionId}
             isSessionActive={adapter.context.isSessionActive}
+            onSetCurrentClimb={adapter.context.setCurrentClimbQueueItem}
           />
           {children}
         </QueueContext.Provider>
