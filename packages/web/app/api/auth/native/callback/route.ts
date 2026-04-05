@@ -8,12 +8,34 @@ const sanitizeNextPath = (nextPath: string | null): string =>
   nextPath && nextPath.startsWith('/') ? nextPath : '/';
 
 /**
- * Use a plain Response with a Location header for custom-scheme redirects.
- * NextResponse.redirect() validates the URL as HTTP(S) in some Next.js versions,
- * which rejects deep-link schemes like com.boardsesh.app://.
+ * Redirect to a custom URL scheme using an HTML page with JavaScript.
+ *
+ * iOS SFSafariViewController (used by Capacitor's Browser plugin) does not
+ * reliably follow HTTP 302 redirects to custom URL schemes — it shows
+ * "Safari cannot open the page because the URL is invalid."
+ *
+ * An HTML page that triggers the redirect via JavaScript + meta refresh
+ * works consistently across iOS and Android.
  */
+const escapeHtmlAttr = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 const deepLinkRedirect = (url: string) =>
-  new Response(null, { status: 302, headers: { Location: url } });
+  new Response(
+    `<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="refresh" content="0;url=${escapeHtmlAttr(url)}">
+</head>
+<body>
+<script>window.location.href=${JSON.stringify(url)};</script>
+</body>
+</html>`,
+    {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    },
+  );
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);

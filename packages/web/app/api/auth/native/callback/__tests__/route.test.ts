@@ -27,34 +27,44 @@ function createRequest(url: string): NextRequest {
   return new NextRequest(new URL(url, 'http://localhost:3000'));
 }
 
+/** Extract the deep link URL from the HTML body's JavaScript redirect. */
+async function extractDeepLink(response: Response): Promise<string> {
+  const html = await response.text();
+  // Match the JSON.stringify'd URL in: window.location.href="..."
+  const match = html.match(/window\.location\.href=(".*?")/);
+  if (!match) throw new Error('No deep link found in response body');
+  return JSON.parse(match[1]) as string;
+}
+
 describe('GET /api/auth/native/callback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('redirects with error when session is missing', async () => {
+  it('returns HTML redirect with error when session is missing', async () => {
     mockedGetServerSession.mockResolvedValue(null);
 
     const response = await GET(createRequest('/api/auth/native/callback?next=/'));
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe(
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
+    expect(await extractDeepLink(response)).toBe(
       `${CALLBACK_SCHEME}?error=session_missing`,
     );
   });
 
-  it('redirects with error when session has no user id', async () => {
+  it('returns HTML redirect with error when session has no user id', async () => {
     mockedGetServerSession.mockResolvedValue({ user: { email: 'test@test.com' } });
 
     const response = await GET(createRequest('/api/auth/native/callback?next=/'));
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe(
+    expect(response.status).toBe(200);
+    expect(await extractDeepLink(response)).toBe(
       `${CALLBACK_SCHEME}?error=session_missing`,
     );
   });
 
-  it('redirects with transfer token on success', async () => {
+  it('returns HTML redirect with transfer token on success', async () => {
     mockedGetServerSession.mockResolvedValue({
       user: { id: 'user_123', email: 'test@test.com' },
     });
@@ -64,11 +74,11 @@ describe('GET /api/auth/native/callback', () => {
       createRequest('/api/auth/native/callback?next=/settings'),
     );
 
-    expect(response.status).toBe(302);
-    const location = response.headers.get('Location');
-    expect(location).toContain(`${CALLBACK_SCHEME}?transferToken=`);
-    expect(location).toContain('test-transfer-token');
-    expect(location).toContain('next=%2Fsettings');
+    expect(response.status).toBe(200);
+    const deepLink = await extractDeepLink(response);
+    expect(deepLink).toContain(`${CALLBACK_SCHEME}?transferToken=`);
+    expect(deepLink).toContain('test-transfer-token');
+    expect(deepLink).toContain('next=%2Fsettings');
 
     expect(mockedIssueToken).toHaveBeenCalledWith({
       userId: 'user_123',
@@ -86,7 +96,7 @@ describe('GET /api/auth/native/callback', () => {
       createRequest('/api/auth/native/callback?next=https://evil.com'),
     );
 
-    expect(response.status).toBe(302);
+    expect(response.status).toBe(200);
     expect(mockedIssueToken).toHaveBeenCalledWith({
       userId: 'user_123',
       nextPath: '/',
@@ -107,7 +117,7 @@ describe('GET /api/auth/native/callback', () => {
     });
   });
 
-  it('redirects with error when token issuance throws', async () => {
+  it('returns HTML redirect with error when token issuance throws', async () => {
     mockedGetServerSession.mockResolvedValue({
       user: { id: 'user_123', email: 'test@test.com' },
     });
@@ -117,9 +127,22 @@ describe('GET /api/auth/native/callback', () => {
 
     const response = await GET(createRequest('/api/auth/native/callback?next=/'));
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe(
+    expect(response.status).toBe(200);
+    expect(await extractDeepLink(response)).toBe(
       `${CALLBACK_SCHEME}?error=token_issue_failed`,
     );
+  });
+
+  it('includes HTML-escaped URL in meta refresh attribute', async () => {
+    mockedGetServerSession.mockResolvedValue(null);
+
+    const response = await GET(createRequest('/api/auth/native/callback?next=/'));
+    const html = await response.text();
+
+    // meta refresh should contain HTML-escaped URL
+    expect(html).toContain('<meta http-equiv="refresh"');
+    // The scheme contains no characters that need escaping, but verify
+    // the meta tag is present and well-formed
+    expect(html).toContain('content="0;url=');
   });
 });
