@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useContext } from 'react';
+import React, { useState, useCallback, useContext, useMemo } from 'react';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import MuiButton from '@mui/material/Button';
 import Box from '@mui/material/Box';
@@ -34,6 +34,7 @@ import { useUnreadNotificationCount } from '@/app/hooks/use-unread-notification-
 import { useClimbActionsData } from '@/app/hooks/use-climb-actions-data';
 import type { StoredBoardConfig } from '@/app/lib/saved-boards-db';
 import { isValidHexColor } from '@/app/lib/color-utils';
+import { getPlatform } from '@/app/lib/ble/capacitor-utils';
 
 type Tab = 'home' | 'climbs' | 'library' | 'feed' | 'create' | 'notifications';
 type PendingCreateAction = 'climb' | 'playlist' | null;
@@ -138,6 +139,9 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
 
   // Hide playlists for moonboard (not yet supported)
   const isMoonboard = playlistBoardName === 'moonboard';
+
+  // Hide feed tab in iOS native app (pending block/report functionality for app store compliance)
+  const isIOSNativeApp = useMemo(() => getPlatform() === 'ios', []);
 
   // Determine active tab from pathname
   const activeTabFromPath = getActiveTab(pathname);
@@ -465,12 +469,14 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
           value="library"
           sx={actionSx}
         />
-        <BottomNavigationAction
-          label="Feed"
-          icon={<DynamicFeedOutlined sx={{ fontSize: 20 }} />}
-          value="feed"
-          sx={actionSx}
-        />
+        {!isIOSNativeApp && (
+          <BottomNavigationAction
+            label="Feed"
+            icon={<DynamicFeedOutlined sx={{ fontSize: 20 }} />}
+            value="feed"
+            sx={actionSx}
+          />
+        )}
         <BottomNavigationAction
           label="Create"
           icon={<AddOutlined sx={{ fontSize: 20 }} />}
