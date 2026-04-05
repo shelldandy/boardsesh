@@ -87,18 +87,11 @@ type ClimbListItemProps = {
   /** When true, swipe gestures (favorite/queue) are disabled */
   disableSwipe?: boolean;
   onSelect?: () => void;
-  /**
-   * @deprecated Do not use. Left here to prevent reintroduction. All climb lists should use the
-   * default swipe-right behavior (playlist selector / actions menu) for consistency.
-   */
-  swipeLeftAction?: SwipeActionOverride;
   /** Override the right swipe action (revealed on swipe left). Default: add to queue.
    *  Only used by queue items to replace add-to-queue with tick. */
   swipeRightAction?: SwipeActionOverride;
   /** Content rendered between the title and menu button (e.g., avatar) */
   afterTitleSlot?: React.ReactNode;
-  /** Replace the default menu button + actions drawer with custom content */
-  menuSlot?: React.ReactNode;
   /** Override ClimbTitle props. When provided, replaces the defaults entirely. */
   titleProps?: Partial<ClimbTitleProps>;
   /** Override background color of the swipeable content */
@@ -127,10 +120,8 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     unsupported,
     disableSwipe,
     onSelect,
-    swipeLeftAction,
     swipeRightAction,
     afterTitleSlot,
-    menuSlot,
     titleProps,
     backgroundColor,
     contentOpacity,
@@ -154,8 +145,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     const addToQueue = queueContext?.addToQueue;
     const { isFavorited } = useFavorite({ climbUuid: climb.uuid });
 
-    // Per-direction override flags
-    const hasLeftOverride = Boolean(swipeLeftAction);
+    // Per-direction override flag
     const hasRightOverride = Boolean(swipeRightAction);
 
     // Default swipe handlers
@@ -184,34 +174,24 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       }
     }, [onOpenActions, climb]);
 
-    // Resolve per-direction: override or default
+    // Override handler for right swipe action (e.g., tick in queue)
     const handleOverrideSwipeLeft = useCallback(() => {
       swipeRightAction?.onAction();
     }, [swipeRightAction]);
 
-    const handleOverrideSwipeRight = useCallback(() => {
-      swipeLeftAction?.onAction();
-    }, [swipeLeftAction]);
-
     const resolvedSwipeLeft = hasRightOverride ? handleOverrideSwipeLeft : handleDefaultSwipeLeft;
-    const resolvedSwipeRight = hasLeftOverride ? handleOverrideSwipeRight : handleDefaultSwipeRight;
 
-    // Long swipe right only available when left action uses default (playlist → actions)
-    const resolvedSwipeRightLong = hasLeftOverride ? undefined : handleDefaultSwipeRightLong;
-
-    // Use default thresholds when left action is default (needs long-swipe support),
-    // simple thresholds only when both directions are overridden
-    const useSimpleSwipe = hasLeftOverride && hasRightOverride;
+    // Use simple thresholds when right action is overridden (no long-swipe needed for left action)
+    const useSimpleSwipe = hasRightOverride;
 
     const { swipeHandlers, isSwipeComplete, contentRef, leftActionRef, rightActionRef } = useSwipeActions({
       onSwipeLeft: resolvedSwipeLeft,
-      onSwipeRight: resolvedSwipeRight,
-      onSwipeRightLong: resolvedSwipeRightLong,
+      onSwipeRight: handleDefaultSwipeRight,
+      onSwipeRightLong: useSimpleSwipe ? undefined : handleDefaultSwipeRightLong,
       onSwipeOffsetChange: useSimpleSwipe ? undefined : setSwipeOffset,
       swipeThreshold: useSimpleSwipe ? SIMPLE_SWIPE_THRESHOLD : SHORT_SWIPE_THRESHOLD,
       longSwipeRightThreshold: useSimpleSwipe ? undefined : LONG_SWIPE_THRESHOLD,
       maxSwipe: useSimpleSwipe ? SIMPLE_MAX_SWIPE : MAX_GESTURE_SWIPE,
-      // Cap left swipe (queue action) at the panel width — no long-swipe left exists
       maxSwipeLeft: useSimpleSwipe ? undefined : SHORT_ACTION_WIDTH,
       disabled: disableSwipe,
     });
@@ -319,25 +299,6 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       [leftSwipeOpacity],
     );
 
-    // Simple swipe action styles (used when overrides are provided)
-    const simpleLeftActionStyle = useMemo(
-      () => ({
-        position: 'absolute' as const,
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: SIMPLE_MAX_SWIPE,
-        backgroundColor: swipeLeftAction?.color ?? themeTokens.colors.success,
-        display: 'flex' as const,
-        alignItems: 'center' as const,
-        justifyContent: 'flex-start' as const,
-        paddingLeft: themeTokens.spacing[4],
-        opacity: 0,
-        visibility: 'hidden' as const,
-      }),
-      [swipeLeftAction?.color],
-    );
-
     const simpleRightActionStyle = useMemo(
       () => ({
         position: 'absolute' as const,
@@ -392,20 +353,16 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
           {!disableSwipe && (
             <>
               {/* Left action (revealed on swipe right) */}
-              {hasLeftOverride ? (
-                <div ref={leftActionRef} style={simpleLeftActionStyle}>
-                  {swipeLeftAction?.icon ?? null}
+              <div ref={leftActionRef} style={defaultLeftActionStyle}>
+                <div style={shortSwipeLayerStyle}>
+                  <LocalOfferOutlined style={iconStyle} />
                 </div>
-              ) : (
-                <div ref={leftActionRef} style={defaultLeftActionStyle}>
-                  <div style={shortSwipeLayerStyle}>
-                    <LocalOfferOutlined style={iconStyle} />
-                  </div>
+                {!useSimpleSwipe && (
                   <div style={longSwipeLayerStyle}>
                     <MoreHorizOutlined style={iconStyle} />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Right action (revealed on swipe left) */}
               {hasRightOverride ? (
@@ -463,33 +420,29 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
             {/* After-title slot (e.g., avatar) */}
             {afterTitleSlot}
 
-            {/* Menu: custom slot or default ellipsis button (hidden on mobile — replaced by far left swipe) */}
-            {menuSlot !== undefined ? (
-              menuSlot
-            ) : (
-              <IconButton
-                className={styles.menuButton}
-                size="small"
-                aria-label="More actions"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onOpenActions) {
-                    onOpenActions(climb);
-                  } else {
-                    setIsPlaylistSelectorOpen(false);
-                    setIsActionsOpen(true);
-                  }
-                }}
-                style={iconButtonStyle}
-              >
-                <MoreHorizOutlined />
-              </IconButton>
-            )}
+            {/* Menu: ellipsis button (hidden on mobile — replaced by far left swipe) */}
+            <IconButton
+              className={styles.menuButton}
+              size="small"
+              aria-label="More actions"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenActions) {
+                  onOpenActions(climb);
+                } else {
+                  setIsPlaylistSelectorOpen(false);
+                  setIsActionsOpen(true);
+                }
+              }}
+              style={iconButtonStyle}
+            >
+              <MoreHorizOutlined />
+            </IconButton>
           </div>
         </div>
 
-        {/* Default actions drawers - only rendered when no menuSlot override and no parent drawer callbacks */}
-        {menuSlot === undefined && !hasParentDrawers && (
+        {/* Default actions drawers - only rendered when no parent drawer callbacks */}
+        {!hasParentDrawers && (
           <>
             <SwipeableDrawer
               title={<DrawerClimbHeader climb={climb} boardDetails={boardDetails} />}
@@ -543,10 +496,8 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       prev.unsupported === next.unsupported &&
       prev.disableSwipe === next.disableSwipe &&
       prev.boardDetails === next.boardDetails &&
-      prev.swipeLeftAction === next.swipeLeftAction &&
       prev.swipeRightAction === next.swipeRightAction &&
       prev.afterTitleSlot === next.afterTitleSlot &&
-      prev.menuSlot === next.menuSlot &&
       prev.titleProps === next.titleProps &&
       prev.backgroundColor === next.backgroundColor &&
       prev.contentOpacity === next.contentOpacity &&

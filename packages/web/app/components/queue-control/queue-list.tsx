@@ -49,7 +49,6 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
     setCurrentClimbQueueItem,
     setQueue,
     addToQueue,
-    removeFromQueue,
   } = useQueueContext();
 
   const isAuthenticated = useOptionalBoardProvider()?.isAuthenticated ?? false;
@@ -224,9 +223,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                     isHistory={true}
                     boardDetails={boardDetails}
                     setCurrentClimbQueueItem={setCurrentClimbQueueItem}
-                    removeFromQueue={removeFromQueue}
                     onTickClick={handleTickClick}
-                    onClimbNavigate={onClimbNavigate}
                     isEditMode={isEditMode}
                     isSelected={selectedItems?.has(climbQueueItem.uuid) ?? false}
                     onToggleSelect={onToggleSelect}
@@ -248,9 +245,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
               isHistory={false}
               boardDetails={boardDetails}
               setCurrentClimbQueueItem={setCurrentClimbQueueItem}
-              removeFromQueue={removeFromQueue}
               onTickClick={handleTickClick}
-              onClimbNavigate={onClimbNavigate}
               isEditMode={isEditMode}
               isSelected={selectedItems?.has(currentClimbQueueItem.uuid) ?? false}
               onToggleSelect={onToggleSelect}
@@ -275,9 +270,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                 isHistory={false}
                 boardDetails={boardDetails}
                 setCurrentClimbQueueItem={setCurrentClimbQueueItem}
-                removeFromQueue={removeFromQueue}
                 onTickClick={handleTickClick}
-                onClimbNavigate={onClimbNavigate}
                 isEditMode={isEditMode}
                 isSelected={selectedItems?.has(climbQueueItem.uuid) ?? false}
                 onToggleSelect={onToggleSelect}

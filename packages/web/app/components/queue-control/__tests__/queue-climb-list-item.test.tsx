@@ -83,11 +83,6 @@ vi.mock('../../climb-card/ascent-status', () => ({
   AscentStatus: () => <span data-testid="ascent-status" />,
 }));
 
-vi.mock('@/app/lib/url-utils', () => ({
-  constructClimbInfoUrl: () => 'https://example.com/climb',
-  getContextAwareClimbViewUrl: () => '/kilter/original/12x12/default/40/view/climb-1',
-}));
-
 // Mock drag-and-drop
 vi.mock('@atlaskit/pragmatic-drag-and-drop/element/adapter', () => ({
   draggable: () => () => {},
@@ -174,7 +169,6 @@ const defaultProps = () => ({
   isHistory: false,
   boardDetails: makeBoardDetails(),
   setCurrentClimbQueueItem: vi.fn(),
-  removeFromQueue: vi.fn(),
   onTickClick: vi.fn(),
 });
 
@@ -200,10 +194,6 @@ describe('QueueClimbListItem', () => {
       expect(screen.getByTestId('climb-thumbnail')).toBeTruthy();
     });
 
-    it('renders context menu button', () => {
-      render(<QueueClimbListItem {...defaultProps()} />);
-      expect(screen.getByTestId('MoreVertOutlinedIcon')).toBeTruthy();
-    });
   });
 
   describe('addedBy avatar', () => {
@@ -228,14 +218,14 @@ describe('QueueClimbListItem', () => {
   });
 
   describe('swipe actions', () => {
-    it('uses default swipe thresholds with long-swipe support for playlist/actions', () => {
+    it('uses simple swipe thresholds since swipeRightAction is overridden (tick)', () => {
       render(<QueueClimbListItem {...defaultProps()} />);
 
       expect(capturedSwipeOptions).not.toBeNull();
-      // Only swipeRightAction is overridden (tick), so default thresholds apply
-      expect(capturedSwipeOptions?.swipeThreshold).toBe(90);
-      expect(capturedSwipeOptions?.maxSwipe).toBe(180);
-      expect(capturedSwipeOptions?.longSwipeRightThreshold).toBe(150);
+      // swipeRightAction is overridden (tick), so simple thresholds apply
+      expect(capturedSwipeOptions?.swipeThreshold).toBe(100);
+      expect(capturedSwipeOptions?.maxSwipe).toBe(120);
+      expect(capturedSwipeOptions?.longSwipeRightThreshold).toBeUndefined();
     });
 
     it('calls onTickClick when swiped left (tick action)', () => {
@@ -248,59 +238,18 @@ describe('QueueClimbListItem', () => {
       expect(props.onTickClick).toHaveBeenCalledWith(props.item.climb);
     });
 
-    it('uses default playlist/actions behavior on swipe right', () => {
+    it('uses default playlist behavior on swipe right, no long-swipe in simple mode', () => {
       render(<QueueClimbListItem {...defaultProps()} />);
 
-      // Swipe right uses default behavior (playlist selector / actions menu)
-      // since swipeLeftAction is not overridden
+      // Swipe right uses default behavior (playlist selector)
       expect(capturedSwipeOptions?.onSwipeRight).toBeDefined();
-      expect(capturedSwipeOptions?.onSwipeRightLong).toBeDefined();
+      // Long-swipe is disabled in simple swipe mode (swipeRightAction overridden)
+      expect(capturedSwipeOptions?.onSwipeRightLong).toBeUndefined();
     });
 
     it('disables swipe in edit mode', () => {
       render(<QueueClimbListItem {...defaultProps()} isEditMode />);
       expect(capturedSwipeOptions?.disabled).toBe(true);
-    });
-  });
-
-  describe('context menu', () => {
-    it('opens menu on click', () => {
-      render(<QueueClimbListItem {...defaultProps()} />);
-
-      const menuButton = screen.getByTestId('MoreVertOutlinedIcon').closest('button')!;
-      fireEvent.click(menuButton);
-
-      expect(screen.getByText('View Climb')).toBeTruthy();
-      expect(screen.getByText('Tick Climb')).toBeTruthy();
-      expect(screen.getByText('Open in App')).toBeTruthy();
-      expect(screen.getByText('Remove from Queue')).toBeTruthy();
-    });
-
-    it('calls removeFromQueue when Remove from Queue is clicked', () => {
-      const props = defaultProps();
-      render(<QueueClimbListItem {...props} />);
-
-      const menuButton = screen.getByTestId('MoreVertOutlinedIcon').closest('button')!;
-      fireEvent.click(menuButton);
-
-      fireEvent.click(screen.getByText('Remove from Queue'));
-      expect(props.removeFromQueue).toHaveBeenCalledWith(props.item);
-    });
-
-    it('calls onTickClick when Tick Climb is clicked', () => {
-      const props = defaultProps();
-      render(<QueueClimbListItem {...props} />);
-
-      const menuButton = screen.getByTestId('MoreVertOutlinedIcon').closest('button')!;
-      fireEvent.click(menuButton);
-
-      fireEvent.click(screen.getByText('Tick Climb'));
-      expect(props.onTickClick).toHaveBeenCalledWith(props.item.climb);
-    });
-
-    it('hides menu button in edit mode', () => {
-      render(<QueueClimbListItem {...defaultProps()} isEditMode />);
-      expect(screen.queryByTestId('MoreVertOutlinedIcon')).toBeNull();
     });
   });
 

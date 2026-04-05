@@ -1,21 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
 import MuiTooltip from '@mui/material/Tooltip';
 import MuiAvatar from '@mui/material/Avatar';
 import MuiCheckbox from '@mui/material/Checkbox';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import IconButton from '@mui/material/IconButton';
 import CheckOutlined from '@mui/icons-material/CheckOutlined';
-import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import PersonOutlined from '@mui/icons-material/PersonOutlined';
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined';
-import InfoOutlined from '@mui/icons-material/InfoOutlined';
-import AppsOutlined from '@mui/icons-material/AppsOutlined';
 import { BoardDetails, Climb } from '@/app/lib/types';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { DropIndicator } from '@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box';
@@ -28,8 +18,6 @@ import ClimbListItem, { type SwipeActionOverride } from '../climb-card/climb-lis
 import { useColorMode } from '@/app/hooks/use-color-mode';
 import { themeTokens } from '@/app/theme/theme-config';
 import { getGradeTintColor } from '@/app/lib/grade-colors';
-import { constructClimbInfoUrl, getContextAwareClimbViewUrl } from '@/app/lib/url-utils';
-import { openExternalUrl } from '@/app/lib/open-external-url';
 
 type QueueClimbListItemProps = {
   item: ClimbQueueItem;
@@ -38,9 +26,7 @@ type QueueClimbListItemProps = {
   isHistory: boolean;
   boardDetails: BoardDetails;
   setCurrentClimbQueueItem: (item: ClimbQueueItem) => void;
-  removeFromQueue: (item: ClimbQueueItem) => void;
   onTickClick: (climb: Climb) => void;
-  onClimbNavigate?: () => void;
   isEditMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (uuid: string) => void;
@@ -53,44 +39,15 @@ const QueueClimbListItem: React.FC<QueueClimbListItemProps> = ({
   isHistory,
   boardDetails,
   setCurrentClimbQueueItem,
-  removeFromQueue,
   onTickClick,
-  onClimbNavigate,
   isEditMode = false,
   isSelected = false,
   onToggleSelect,
 }) => {
-  const router = useRouter();
-  const pathname = usePathname();
   const { mode } = useColorMode();
   const isDark = mode === 'dark';
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
-  const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
   const itemRef = useRef<HTMLDivElement>(null);
-
-  // Navigation handlers
-  const handleViewClimb = useCallback(() => {
-    const climbViewUrl = getContextAwareClimbViewUrl(
-      pathname,
-      boardDetails,
-      item.climb.angle,
-      item.climb.uuid,
-      item.climb.name,
-    );
-    onClimbNavigate?.();
-    router.push(climbViewUrl);
-  }, [item.climb, pathname, boardDetails, onClimbNavigate, router]);
-
-  // URL for opening in the Aurora app (null for Kilter as app URL is no longer accessible)
-  const openInAppUrl = useMemo(
-    () => constructClimbInfoUrl(boardDetails, item.climb.uuid),
-    [boardDetails, item.climb.uuid]
-  );
-
-  const handleOpenInApp = useCallback(() => {
-    if (!openInAppUrl) return;
-    openExternalUrl(openInAppUrl);
-  }, [openInAppUrl]);
 
   // Only override swipe-left (right action) to tick instead of the default add-to-queue,
   // since these items are already in the queue. Swipe-right uses the default playlist/actions.
@@ -134,26 +91,6 @@ const QueueClimbListItem: React.FC<QueueClimbListItemProps> = ({
       </MuiTooltip>
     );
   }, [item.addedByUser]);
-
-  // Menu slot
-  const menuSlot = useMemo(() => {
-    if (isEditMode) return null;
-
-    return (
-      <div style={{ flexShrink: 0 }}>
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuAnchorEl(e.currentTarget);
-          }}
-          style={{ color: 'var(--neutral-400)' }}
-        >
-          <MoreVertOutlined />
-        </IconButton>
-      </div>
-    );
-  }, [isEditMode]);
 
   // onSelect handler — double-tap sets current climb
   const handleSelect = useCallback(() => {
@@ -220,7 +157,6 @@ const QueueClimbListItem: React.FC<QueueClimbListItemProps> = ({
       onSelect={isEditMode ? () => onToggleSelect?.(item.uuid) : handleSelect}
       swipeRightAction={swipeRightAction}
       afterTitleSlot={afterTitleSlot}
-      menuSlot={menuSlot}
       backgroundColor={backgroundColor}
       contentOpacity={isHistory ? 0.6 : 1}
     />
@@ -246,36 +182,6 @@ const QueueClimbListItem: React.FC<QueueClimbListItemProps> = ({
         content
       )}
       {closestEdge && <DropIndicator edge={closestEdge} gap="1px" />}
-
-      {/* Context menu (rendered outside to avoid layout issues) */}
-      {menuAnchorEl && (
-        <Menu
-          anchorEl={menuAnchorEl}
-          open={Boolean(menuAnchorEl)}
-          onClose={() => setMenuAnchorEl(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <MenuItem onClick={() => { setMenuAnchorEl(null); handleViewClimb(); }}>
-            <ListItemIcon><InfoOutlined /></ListItemIcon>
-            <ListItemText>View Climb</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={() => { setMenuAnchorEl(null); onTickClick(item.climb); }}>
-            <ListItemIcon><CheckOutlined /></ListItemIcon>
-            <ListItemText>Tick Climb</ListItemText>
-          </MenuItem>
-          {openInAppUrl && (
-            <MenuItem onClick={() => { setMenuAnchorEl(null); handleOpenInApp(); }}>
-              <ListItemIcon><AppsOutlined /></ListItemIcon>
-              <ListItemText>Open in App</ListItemText>
-            </MenuItem>
-          )}
-          <MenuItem onClick={() => { setMenuAnchorEl(null); removeFromQueue(item); }} sx={{ color: 'error.main' }}>
-            <ListItemIcon><DeleteOutlined color="error" /></ListItemIcon>
-            <ListItemText>Remove from Queue</ListItemText>
-          </MenuItem>
-        </Menu>
-      )}
     </div>
   );
 };
