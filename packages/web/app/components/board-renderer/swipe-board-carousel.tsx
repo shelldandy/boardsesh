@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import BoardImageLayers from './board-image-layers';
 import BoardCanvasRenderer from './board-canvas-renderer';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/app/hooks/use-card-swipe-navigation';
 import type { BoardDetails } from '@/app/lib/types';
 import { useCanvasRendererReady } from '@/app/lib/board-render-worker/worker-manager';
+import { useDoubleTap } from '@/app/lib/hooks/use-double-tap';
 import styles from './swipe-board-carousel.module.css';
 
 interface ClimbBoardData {
@@ -30,6 +31,8 @@ export interface SwipeBoardCarouselProps {
   className?: string;
   boardContainerClassName?: string;
   fillContainer?: boolean;
+  onDoubleTap?: () => void;
+  overlay?: React.ReactNode;
 }
 
 const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
@@ -44,6 +47,8 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
   className,
   boardContainerClassName,
   fillContainer,
+  onDoubleTap,
+  overlay,
 }) => {
   const enterFallbackRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -90,6 +95,19 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
 
   const transition = getSwipeTransition();
   const canvasReady = useCanvasRendererReady();
+  const { ref: doubleTapRef, onDoubleClick: handleDoubleTapClick } = useDoubleTap(onDoubleTap);
+
+  // Merge swipe ref and double-tap ref into one callback ref
+  const mergedRef = useCallback(
+    (node: HTMLElement | null) => {
+      doubleTapRef(node);
+      if (swipeHandlers.ref) {
+        // react-swipeable ref callback
+        (swipeHandlers.ref as React.RefCallback<HTMLElement>)(node);
+      }
+    },
+    [doubleTapRef, swipeHandlers.ref],
+  );
 
   const renderBoard = (climb: ClimbBoardData) => {
     if (canvasReady) {
@@ -119,6 +137,8 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
       className={`${styles.carouselContainer} ${className ?? ''}`}
       style={fillContainer ? undefined : { aspectRatio: `${boardDetails.boardWidth} / ${boardDetails.boardHeight}` }}
       {...swipeHandlers}
+      ref={mergedRef}
+      onDoubleClick={handleDoubleTapClick}
     >
       <div
         className={boardContainerClassName}
@@ -129,6 +149,7 @@ const SwipeBoardCarousel: React.FC<SwipeBoardCarouselProps> = ({
       >
         {renderBoard(currentClimb)}
       </div>
+      {overlay}
       {showPeek && peekClimb && (
         <div
           className={styles.peekBoardContainer}

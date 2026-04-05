@@ -13,6 +13,7 @@ import ClimbTitle, { type ClimbTitleProps } from './climb-title';
 import DrawerClimbHeader from './drawer-climb-header';
 import { AscentStatus } from './ascent-status';
 import { ClimbActions } from '../climb-actions';
+import { useFavorite } from '../climb-actions/use-favorite';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
 import { useOptionalQueueContext } from '../graphql-queue';
 import { useSwipeActions } from '@/app/hooks/use-swipe-actions';
@@ -151,6 +152,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
     const [swipeOffset, setSwipeOffset] = useState(0);
     const queueContext = useOptionalQueueContext();
     const addToQueue = queueContext?.addToQueue;
+    const { isFavorited } = useFavorite({ climbUuid: climb.uuid });
 
     // Per-direction override flags
     const hasLeftOverride = Boolean(swipeLeftAction);
@@ -381,6 +383,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       showSetterInfo: true,
       titleFontSize: themeTokens.typography.fontSize.xl,
       rightAddon: <AscentStatus climbUuid={climb.uuid} fontSize={20} />,
+      favorited: isFavorited,
     };
 
     return (

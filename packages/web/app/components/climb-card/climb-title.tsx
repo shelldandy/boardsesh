@@ -44,6 +44,8 @@ export type ClimbTitleProps = {
   /** Grade position: 'inline' (default) keeps grade in subtitle, 'right' floats colorized grade to the far right.
    *  When 'right', renders name + stars/setter on left and large colorized V-grade on right. Overrides layout prop. */
   gradePosition?: 'inline' | 'right';
+  /** When true, shows a heart indicator in the byline */
+  favorited?: boolean;
 };
 
 /**
@@ -62,6 +64,7 @@ const ClimbTitle: React.FC<ClimbTitleProps> = ({
   centered = false,
   titleFontSize,
   gradePosition = 'inline',
+  favorited = false,
 }) => {
   const isDark = useIsDarkMode();
 
@@ -199,6 +202,10 @@ const ClimbTitle: React.FC<ClimbTitleProps> = ({
     }
     if (showSetterInfo && climb.setter_username) {
       subtitleParts.push(climb.setter_username);
+    }
+
+    if (favorited) {
+      subtitleParts.push('\u2665');
     }
 
     const subtitleContent = subtitleParts.length > 0
