@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useCallback, useState, useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import { FormatListBulletedOutlined, AppsOutlined } from '@mui/icons-material';
@@ -30,6 +30,7 @@ import { useInfiniteScroll } from '@/app/hooks/use-infinite-scroll';
 import { getExcludedClimbActions } from '@/app/lib/climb-action-utils';
 import { themeTokens } from '@/app/theme/theme-config';
 import styles from '@/app/components/library/playlist-view.module.css';
+import listStyles from '@/app/components/board-page/climbs-list.module.css';
 
 type ViewMode = 'grid' | 'list';
 
@@ -45,6 +46,91 @@ const sharedPlaylistDrawerStyles = {
   body: { padding: 0 },
   header: { paddingLeft: `${themeTokens.spacing[3]}px`, paddingRight: `${themeTokens.spacing[3]}px` },
 } as const;
+
+// --- Shared drawers extracted to isolate state from list re-renders ---
+type LikedDrawerHandle = {
+  openActions: (climb: Climb) => void;
+  openPlaylistSelector: (climb: Climb) => void;
+};
+
+type LikedDrawersProps = {
+  boardDetails: BoardDetails;
+};
+
+const LikedDrawers = forwardRef<LikedDrawerHandle, LikedDrawersProps>(
+  ({ boardDetails }, ref) => {
+    const pathname = usePathname();
+    const [activeDrawerClimb, setActiveDrawerClimb] = useState<Climb | null>(null);
+    const [drawerMode, setDrawerMode] = useState<'actions' | 'playlist' | null>(null);
+
+    useImperativeHandle(ref, () => ({
+      openActions: (climb: Climb) => {
+        setActiveDrawerClimb(climb);
+        setDrawerMode('actions');
+      },
+      openPlaylistSelector: (climb: Climb) => {
+        setActiveDrawerClimb(climb);
+        setDrawerMode('playlist');
+      },
+    }), []);
+
+    const handleCloseDrawer = useCallback(() => setDrawerMode(null), []);
+    const handleSwitchToPlaylist = useCallback(() => setDrawerMode('playlist'), []);
+    const handleDrawerTransitionEnd = useCallback((open: boolean) => {
+      if (!open) setActiveDrawerClimb(null);
+    }, []);
+
+    const excludeActions = useMemo(
+      () => getExcludedClimbActions(boardDetails.board_name, 'list'),
+      [boardDetails.board_name],
+    );
+
+    return (
+      <>
+        <SwipeableDrawer
+          title={activeDrawerClimb ? <DrawerClimbHeader climb={activeDrawerClimb} boardDetails={boardDetails} /> : undefined}
+          placement="bottom"
+          open={drawerMode === 'actions'}
+          onClose={handleCloseDrawer}
+          onTransitionEnd={handleDrawerTransitionEnd}
+          styles={sharedDrawerStyles}
+        >
+          {activeDrawerClimb && (
+            <ClimbActions
+              climb={activeDrawerClimb}
+              boardDetails={boardDetails}
+              angle={activeDrawerClimb.angle}
+              currentPathname={pathname}
+              viewMode="list"
+              exclude={excludeActions}
+              onOpenPlaylistSelector={handleSwitchToPlaylist}
+              onActionComplete={handleCloseDrawer}
+            />
+          )}
+        </SwipeableDrawer>
+
+        <SwipeableDrawer
+          title={activeDrawerClimb ? <DrawerClimbHeader climb={activeDrawerClimb} boardDetails={boardDetails} /> : undefined}
+          placement="bottom"
+          open={drawerMode === 'playlist'}
+          onClose={handleCloseDrawer}
+          onTransitionEnd={handleDrawerTransitionEnd}
+          styles={sharedPlaylistDrawerStyles}
+        >
+          {activeDrawerClimb && (
+            <PlaylistSelectionContent
+              climbUuid={activeDrawerClimb.uuid}
+              boardDetails={boardDetails}
+              angle={activeDrawerClimb.angle}
+              onDone={handleCloseDrawer}
+            />
+          )}
+        </SwipeableDrawer>
+      </>
+    );
+  },
+);
+LikedDrawers.displayName = 'LikedDrawers';
 
 type LikedClimbsListProps = {
   boardDetails: BoardDetails;
@@ -190,37 +276,16 @@ export default function LikedClimbsList({
 
   const aspectRatio = boardDetails.boardWidth / boardDetails.boardHeight;
 
-  // --- Shared drawer state (one pair for all list items) ---
-  const pathname = usePathname();
-  const [activeDrawerClimb, setActiveDrawerClimb] = useState<Climb | null>(null);
-  const [drawerMode, setDrawerMode] = useState<'actions' | 'playlist' | null>(null);
+  // --- Shared drawers via imperative handle (state lives in LikedDrawers, not here) ---
+  const drawerRef = useRef<LikedDrawerHandle>(null);
 
   const handleOpenActions = useCallback((climb: Climb) => {
-    setActiveDrawerClimb(climb);
-    setDrawerMode('actions');
+    drawerRef.current?.openActions(climb);
   }, []);
 
   const handleOpenPlaylistSelector = useCallback((climb: Climb) => {
-    setActiveDrawerClimb(climb);
-    setDrawerMode('playlist');
+    drawerRef.current?.openPlaylistSelector(climb);
   }, []);
-
-  const handleCloseDrawer = useCallback(() => {
-    setDrawerMode(null);
-  }, []);
-
-  const handleSwitchToPlaylist = useCallback(() => {
-    setDrawerMode('playlist');
-  }, []);
-
-  const handleDrawerTransitionEnd = useCallback((open: boolean) => {
-    if (!open) setActiveDrawerClimb(null);
-  }, []);
-
-  const excludeActions = useMemo(
-    () => getExcludedClimbActions(boardDetails.board_name, 'list'),
-    [boardDetails.board_name],
-  );
 
   if ((isLoading || tokenLoading) && allClimbs.length === 0) {
     return (
@@ -274,7 +339,7 @@ export default function LikedClimbsList({
       {viewMode === 'grid' ? (
         <Box sx={gridContainerSx}>
           {visibleClimbs.map((climb) => (
-            <Box sx={cardBoxSx} key={climb.uuid}>
+            <Box sx={cardBoxSx} key={climb.uuid} className={listStyles.gridItem}>
               <ClimbCard
                 climb={climb}
                 boardDetails={boardDetails}
@@ -290,8 +355,8 @@ export default function LikedClimbsList({
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           {visibleClimbs.map((climb) => (
+            <div key={climb.uuid} className={listStyles.listItem}>
             <ClimbListItem
-              key={climb.uuid}
               climb={climb}
               boardDetails={boardDetails}
               selected={selectedClimbUuid === climb.uuid}
@@ -302,6 +367,7 @@ export default function LikedClimbsList({
               onOpenPlaylistSelector={handleOpenPlaylistSelector}
               addToQueue={addToQueue}
             />
+            </div>
           ))}
         </Box>
       )}
@@ -320,46 +386,8 @@ export default function LikedClimbsList({
         )}
       </div>
 
-      {/* Shared drawers for all list items */}
-      <SwipeableDrawer
-        title={activeDrawerClimb ? <DrawerClimbHeader climb={activeDrawerClimb} boardDetails={boardDetails} /> : undefined}
-        placement="bottom"
-        open={drawerMode === 'actions'}
-        onClose={handleCloseDrawer}
-        onTransitionEnd={handleDrawerTransitionEnd}
-        styles={sharedDrawerStyles}
-      >
-        {activeDrawerClimb && (
-          <ClimbActions
-            climb={activeDrawerClimb}
-            boardDetails={boardDetails}
-            angle={activeDrawerClimb.angle}
-            currentPathname={pathname}
-            viewMode="list"
-            exclude={excludeActions}
-            onOpenPlaylistSelector={handleSwitchToPlaylist}
-            onActionComplete={handleCloseDrawer}
-          />
-        )}
-      </SwipeableDrawer>
-
-      <SwipeableDrawer
-        title={activeDrawerClimb ? <DrawerClimbHeader climb={activeDrawerClimb} boardDetails={boardDetails} /> : undefined}
-        placement="bottom"
-        open={drawerMode === 'playlist'}
-        onClose={handleCloseDrawer}
-        onTransitionEnd={handleDrawerTransitionEnd}
-        styles={sharedPlaylistDrawerStyles}
-      >
-        {activeDrawerClimb && (
-          <PlaylistSelectionContent
-            climbUuid={activeDrawerClimb.uuid}
-            boardDetails={boardDetails}
-            angle={activeDrawerClimb.angle}
-            onDone={handleCloseDrawer}
-          />
-        )}
-      </SwipeableDrawer>
+      {/* Shared drawers — owns its own state so open/close doesn't re-render the list */}
+      <LikedDrawers ref={drawerRef} boardDetails={boardDetails} />
     </div>
   );
 }

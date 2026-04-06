@@ -1,0 +1,14 @@
+/* Native browser paint-skipping for off-screen list items.
+ * content-visibility: auto tells the browser to skip layout & paint
+ * for items outside the viewport. contain-intrinsic-size provides a
+ * placeholder height so the scrollbar stays stable. */
+
+.listItem {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+
+.gridItem {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}

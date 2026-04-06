@@ -51,7 +51,12 @@ const BoardPageClimbsList = ({
   const prevClimbsRef = useRef<Climb[]>([]);
   const climbs = useMemo(() => {
     const rawClimbs = !hasDoneFirstFetch ? initialClimbs : climbSearchResults || [];
-    const deduped = rawClimbs.filter((climb, index, self) => index === self.findIndex((c) => c.uuid === climb.uuid));
+    const seen = new Set<string>();
+    const deduped = rawClimbs.filter((climb) => {
+      if (seen.has(climb.uuid)) return false;
+      seen.add(climb.uuid);
+      return true;
+    });
 
     // Return the previous reference when content hasn't changed to avoid
     // triggering downstream progressive rendering during SSR→client handoff.

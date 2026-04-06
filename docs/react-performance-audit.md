@@ -1,0 +1,152 @@
+# React Performance Audit: Core Experience
+
+Audit of queue control bar, climb list, and play view drawer — April 2026.
+
+---
+
+## 1. Queue Control Bar
+
+### Unstable adapter context object
+**File:** `packages/web/app/components/queue-control/queue-bridge-context.tsx:204-281`
+**Status:** Open
+
+The `usePersistentSessionQueueAdapter()` creates a context object with 20+ properties. Even though it's wrapped in `useMemo`, the dependency array includes derived values (`parsedParams`, `queue`, `currentClimbQueueItem`) that change frequently. Every change recreates the entire context object, causing all consumers to re-render.
+
+**Fix:** Split the adapter context into stable (actions) and volatile (data) parts, matching the split already done in `QueueContext.tsx`.
+
+### Overly broad context subscription
+**File:** `packages/web/app/components/queue-control/queue-control-bar.tsx:96-111`
+**Status:** Open
+
+The bar calls `useQueueContext()` which subscribes to the combined context (data + actions). The codebase already has split hooks (`useQueueData()` + `useQueueActions()` in `QueueContext.tsx:467-489`), but the control bar doesn't use them. Any data change (connection state, suggested climbs, user list) triggers a full bar re-render even when only action callbacks are needed.
+
+**Fix:** Migrate to `useQueueData()` + `useQueueActions()` in queue-control-bar and other consumers.
+
+### Color mode coupling
+**File:** `packages/web/app/components/queue-control/queue-control-bar.tsx:124-126`
+**Status:** Open
+
+`useColorMode()` subscribes to theme changes, causing the entire bar to re-render on dark/light toggle.
+
+### URL callback instability
+**File:** `packages/web/app/components/queue-control/queue-control-bar.tsx:137-184`
+**Status:** Open
+
+`buildClimbUrl` depends on `boardDetails` and `params` which may not be referentially stable across renders.
+
+### Inline style recreation
+**File:** `packages/web/app/components/queue-control/queue-control-bar.tsx:452-455`
+**Status:** Open
+
+Dynamic style objects created every render. Should be memoized or moved to CSS.
+
+---
+
+## 2. Climb List
+
+### No list virtualization / native paint skipping
+**Files:** `packages/web/app/components/board-page/climbs-list.tsx:368-419`
+**Status:** Fixed
+
+Both grid and list modes used `.map()` directly — all items rendered to DOM at once. With infinite scroll, lists can grow to 200+ items.
+
+**Fix applied:** Added `content-visibility: auto` with `contain-intrinsic-size` via CSS classes on each list/grid item wrapper. The browser natively skips layout and paint for off-screen items while keeping them in the DOM for native scroll feel.
+
+### O(n^2) deduplication
+**File:** `packages/web/app/components/board-page/board-page-climbs-list.tsx:54`
+**Status:** Fixed
+
+Used `findIndex` inside `filter` — quadratic complexity. Replaced with a `Set`-based O(n) approach.
+
+### Shared drawer state causes full list re-renders
+**Files:** `packages/web/app/components/board-page/climbs-list.tsx`, `liked-climbs-list.tsx`
+**Status:** Fixed
+
+`activeDrawerClimb` and `drawerMode` state lived in the list parent. Opening/closing any item's action drawer re-rendered the entire list (200+ items). Extracted drawers into a separate `SharedDrawers` component with an imperative handle (`useImperativeHandle`). Drawer state now lives in the sibling component, so open/close never triggers a list re-render.
+
+### Handler map recreation
+**File:** `packages/web/app/components/board-page/climbs-list.tsx:197-203`
+**Status:** Analyzed — low impact
+
+Creates a new `Map` of click handlers for every climb on each `climbs` change (100+ closures). However, `ClimbListItem`'s custom memo comparator (line 560-578) does not check `onSelect`, and uses a ref pattern for callbacks. The map changing doesn't actually cause child re-renders. Cost is O(n) closure allocation only — not a bottleneck.
+
+### Canvas thumbnails for most items
+**Files:** `packages/web/app/components/climb-card/climb-thumbnail.tsx`, `climbs-list.tsx:377,402`
+**Status:** Open
+
+Only first N items use image layers; the rest use expensive canvas rendering. With `content-visibility: auto`, off-screen canvas items are now skipped by the browser, which mitigates the impact. Further optimization: consider lazy-loading canvas renderers only when items enter the viewport.
+
+### ClimbsList component not memoized
+**File:** `packages/web/app/components/board-page/climbs-list.tsx`
+**Status:** Open
+
+The `ClimbsList` component itself is not wrapped in `React.memo`. Parent re-renders cascade through to all children. The `content-visibility` CSS fix mitigates the DOM cost, but React still reconciles the full VDOM.
+
+---
+
+## 3. Play View Drawer
+
+### keepMounted with heavy children
+**File:** `packages/web/app/components/play-view/play-view-drawer.tsx:273`
+**Status:** Open
+
+The main drawer uses `keepMounted={true}`, meaning `SwipeBoardCarousel` (canvas rendering), `ClimbDetailShellClient`, and API queries (beta videos, logbook) all run continuously even when the drawer is closed.
+
+**Fix:** Either conditionally render content based on `isOpen`, or add visibility gating so queries and canvas rendering pause when the drawer is not visible.
+
+### PlayDrawerContent not memoized
+**File:** `packages/web/app/components/play-view/play-view-drawer.tsx:55-66`
+**Status:** Open
+
+Called on every render without `React.memo`. `useBuildClimbDetailSections` re-evaluates unconditionally, triggering section queries and CollapsibleSection rebuilds.
+
+### SwipeBoardCarousel receives fresh callback props
+**File:** `packages/web/app/components/play-view/play-view-drawer.tsx:302-318`
+**Status:** Open
+
+Not wrapped in `React.memo`. Receives callback props (`onSwipeNext`, `onDoubleTap`) that are new references on parent re-render, potentially causing canvas re-initialization.
+
+### Queue drawer height state cascade
+**File:** `packages/web/app/components/play-view/play-view-drawer.tsx:90,183-194,501`
+**Status:** Open
+
+`queueDrawerHeight` state updates during drag gestures trigger parent re-renders, which cascade to the canvas renderer. Should use a ref + CSS variable instead of state.
+
+### Beta API queries fire unconditionally
+**File:** `packages/web/app/components/play-view/play-view-beta-slider.tsx:36-45`
+**Status:** Open
+
+No visibility gating — queries run even when the section is collapsed or the drawer is closed.
+
+### Logbook filtering not memoized
+**File:** `packages/web/app/components/play-view/play-view-comments.tsx:24-26`
+**Status:** Open
+
+Refilters and resorts the logbook array on every parent re-render. Should be wrapped in `useMemo`.
+
+### Unused dynamic import
+**File:** `packages/web/app/components/play-view/play-view-drawer.tsx:20`
+**Status:** Open
+
+`import dynamic from 'next/dynamic'` is imported but never used — dead code.
+
+---
+
+## Priority Summary
+
+| Priority | Issue | Component | Status |
+|----------|-------|-----------|--------|
+| P0 | CSS content-visibility for paint skipping | Climb List | **Fixed** |
+| P0 | keepMounted with canvas | Play View Drawer | Open |
+| P0 | Unstable bridge context | Queue Control Bar | Open |
+| P1 | Combined context subscription | Queue Control Bar | Open |
+| P1 | Shared drawer state re-renders | Climb List | **Fixed** |
+| P1 | O(n^2) dedup filter | Climb List | **Fixed** |
+| P1 | Unmemoized PlayDrawerContent | Play View Drawer | Open |
+| P2 | Queue height via state | Play View Drawer | Open |
+| P2 | Canvas thumbnails for all items | Climb List | Mitigated |
+| P2 | Beta API queries unconditional | Play View Drawer | Open |
+| P2 | Logbook filtering no memo | Play View Drawer | Open |
+| P3 | Color mode coupling | Queue Control Bar | Open |
+| P3 | Inline style recreation | Queue Control Bar | Open |
+| P3 | Unused dynamic import | Play View Drawer | Open |
