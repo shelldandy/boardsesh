@@ -114,11 +114,7 @@ vi.mock('@/app/components/persistent-session', () => ({
     localBoardDetails: null,
     localCurrentClimbQueueItem: null,
   }),
-  usePersistentSessionActions: () => ({
-    activeSession: null,
-    localBoardDetails: null,
-    localCurrentClimbQueueItem: null,
-  }),
+  usePersistentSessionActions: () => ({}),
 }));
 
 vi.mock('@/app/components/board-bluetooth-control/bluetooth-context', () => ({

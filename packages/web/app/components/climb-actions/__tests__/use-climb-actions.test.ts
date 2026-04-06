@@ -176,7 +176,7 @@ describe('useClimbActions', () => {
 
     expect(mockAddToQueue).toHaveBeenCalledWith(mockClimb);
     expect(mockTrack).toHaveBeenCalledWith('Add to Queue', expect.objectContaining({
-      queueLength: 1,
+      boardLayout: 'Original',
     }));
     expect(defaultOptions.onActionComplete).toHaveBeenCalledWith('queue');
   });
