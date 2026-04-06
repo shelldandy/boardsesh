@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { getBaseBoardPath } from '@/app/lib/url-utils';
@@ -63,6 +63,21 @@ export function useSessionIdManagement({
     if (!isOffBoardMode) return;
     setActiveSessionId(persistentSessionId);
   }, [isOffBoardMode, persistentSessionId]);
+
+  // Sync when persistent session is deactivated externally (e.g. sesh-settings-drawer
+  // calling deactivateSession() directly). We track the previous persistentSessionId
+  // so we only clear on an active→inactive transition, not on initial mount where
+  // persistentSessionId starts null before IndexedDB loads.
+  const prevPersistentSessionIdRef = useRef(persistentSessionId);
+  useEffect(() => {
+    const prev = prevPersistentSessionIdRef.current;
+    prevPersistentSessionIdRef.current = persistentSessionId;
+
+    if (prev && !persistentSessionId) {
+      clearClimbSessionCookie();
+      setActiveSessionId(null);
+    }
+  }, [persistentSessionId]);
 
   const sessionId = activeSessionId;
 
