@@ -528,8 +528,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         )}
       </div>
 
-        {/* Climb actions drawer */}
-        {currentClimb && (
+        {/* Climb actions drawer — only mount when play drawer is open AND actions requested */}
+        {isOpen && currentClimb && isActionsOpen && (
           <SwipeableDrawer
             title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
@@ -557,8 +557,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
           </SwipeableDrawer>
         )}
 
-        {/* Playlist selector drawer */}
-        {currentClimb && (
+        {/* Playlist selector drawer — only mount when play drawer is open */}
+        {isOpen && currentClimb && isPlaylistSelectorOpen && (
           <SwipeableDrawer
             title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
@@ -580,8 +580,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
           </SwipeableDrawer>
         )}
 
-        {/* Tick / Log Ascent drawer */}
-        {currentClimb && (
+        {/* Tick / Log Ascent drawer — only mount when play drawer is open */}
+        {isOpen && currentClimb && isTickDrawerOpen && (
           <LogAscentDrawer
             open={isTickDrawerOpen}
             onClose={() => setIsTickDrawerOpen(false)}
@@ -591,8 +591,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         )}
       </>) : null}
 
-        {/* Queue list drawer */}
-        <SwipeableDrawer
+        {/* Queue list drawer — only mount when play drawer is open */}
+        {isOpen && <SwipeableDrawer
           placement="bottom"
           height="60%"
           paperRef={queuePaperRef}
@@ -698,10 +698,10 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
               </div>
             )}
           </div>
-        </SwipeableDrawer>
+        </SwipeableDrawer>}
     </SwipeableDrawer>
     </>
   );
 };
 
-export default PlayViewDrawer;
+export default React.memo(PlayViewDrawer);
