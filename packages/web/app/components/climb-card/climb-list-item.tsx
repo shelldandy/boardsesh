@@ -30,8 +30,9 @@ const SwipeableDrawer = dynamic(() => import('../swipeable-drawer/swipeable-draw
 // Keep swipe visuals aligned with gesture max distance
 const MAX_GESTURE_SWIPE = 180;
 const SHORT_ACTION_WIDTH = 120;
+const RIGHT_ACTION_WIDTH = 80;
 const LONG_SWIPE_ACTION_WIDTH = MAX_GESTURE_SWIPE;
-const SHORT_SWIPE_THRESHOLD = 90;
+const SHORT_SWIPE_THRESHOLD = 60;
 const TRANSITION_START = 115;
 const LONG_SWIPE_THRESHOLD = 150;
 
@@ -105,7 +106,7 @@ const defaultRightActionStyle: React.CSSProperties = {
   right: 0,
   top: 0,
   bottom: 0,
-  width: SHORT_ACTION_WIDTH,
+  width: RIGHT_ACTION_WIDTH,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'flex-end',
@@ -311,7 +312,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       swipeThreshold: useSimpleSwipe ? SIMPLE_SWIPE_THRESHOLD : SHORT_SWIPE_THRESHOLD,
       longSwipeRightThreshold: useSimpleSwipe ? undefined : LONG_SWIPE_THRESHOLD,
       maxSwipe: useSimpleSwipe ? SIMPLE_MAX_SWIPE : MAX_GESTURE_SWIPE,
-      maxSwipeLeft: useSimpleSwipe ? undefined : SHORT_ACTION_WIDTH,
+      maxSwipeLeft: useSimpleSwipe ? undefined : RIGHT_ACTION_WIDTH,
       disabled: disableSwipe,
     });
 
