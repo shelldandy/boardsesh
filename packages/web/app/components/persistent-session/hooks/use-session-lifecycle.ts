@@ -128,8 +128,8 @@ export function useSessionLifecycle({
   }, [setSessionExternal]);
 
   // Keep refs in sync
-  useEffect(() => { sessionRef.current = session; }, [session, sessionRef]);
-  useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession, activeSessionRef]);
+  useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
 
   // Session lifecycle functions
   const activateSession = useCallback((info: ActiveSessionInfo) => {
@@ -183,7 +183,7 @@ export function useSessionLifecycle({
           console.error('[PersistentSession] Failed to get session summary:', err);
         });
     }
-  }, [activeSessionRef, deactivateSession, wsAuthTokenRef]);
+  }, [deactivateSession]);
 
   // Connect to session when activeSession changes
   useEffect(() => {
