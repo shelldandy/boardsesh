@@ -63,7 +63,7 @@ enum SharedQueueState {
         if let data = try? JSONEncoder().encode(items) {
             defaults.set(data, forKey: SharedConstants.queueItemsKey)
         }
-        defaults.set(currentIndex, forKey: SharedConstants.currentIndexKey)
+        saveCurrentIndex(currentIndex, to: defaults)
     }
 
     /// Write only the current index without re-encoding the items array.
