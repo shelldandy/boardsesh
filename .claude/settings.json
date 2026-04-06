@@ -2,8 +2,12 @@
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "bash .claude/setup.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/setup.sh"
+          }
+        ]
       }
     ]
   }
