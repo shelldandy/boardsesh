@@ -45,6 +45,12 @@ import { renderBoard } from '@/app/lib/board-render-worker/worker-manager';
 
 
 
+/** Window with optional requestIdleCallback (not available in all browsers). */
+interface WindowWithIdleCallback extends Window {
+  requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  cancelIdleCallback?: (id: number) => void;
+}
+
 const QUEUE_DRAWER_STYLES = {
   wrapper: {
     touchAction: 'pan-y' as const,
@@ -308,7 +314,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
       setContentReady(true);
       hasBeenMountedRef.current = true;
     };
-    const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    const w = window as WindowWithIdleCallback;
     if (w.requestIdleCallback) {
       const id = w.requestIdleCallback(setReady, { timeout: 2000 });
       return () => w.cancelIdleCallback?.(id);
@@ -356,8 +362,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   // cost. When the drawer opens, BoardCanvasRenderer gets an instant cache hit.
   useEffect(() => {
     if (currentClimb) {
-      renderBoard({ boardDetails, frames: currentClimb.frames, mirrored: !!currentClimb.mirrored }).catch(() => {
-        // Pre-warm is best-effort; ignore errors
+      renderBoard({ boardDetails, frames: currentClimb.frames, mirrored: !!currentClimb.mirrored }).catch((e: unknown) => {
+        if (process.env.NODE_ENV === 'development') console.debug('Pre-warm render failed:', e);
       });
     }
   }, [currentClimb?.frames, currentClimb?.mirrored, boardDetails]);
