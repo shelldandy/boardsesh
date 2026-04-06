@@ -19,6 +19,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
     })
   );
 }
@@ -30,6 +31,7 @@ if (process.env.APPLE_ID && process.env.APPLE_SECRET) {
       clientId: process.env.APPLE_ID,
       clientSecret: process.env.APPLE_SECRET,
       checks: ["pkce"],
+      allowDangerousEmailAccountLinking: true,
     })
   );
 }
@@ -40,6 +42,7 @@ if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
     FacebookProvider({
       clientId: process.env.FACEBOOK_CLIENT_ID,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
     })
   );
 }
@@ -200,6 +203,14 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       // OAuth providers - allow sign in (emails are pre-verified by provider)
       if (account?.provider !== "credentials") {
+        // Auto-verify email for OAuth users (provider already verified it)
+        if (user.id) {
+          const db = getDb();
+          await db
+            .update(schema.users)
+            .set({ emailVerified: new Date() })
+            .where(eq(schema.users.id, user.id));
+        }
         return true;
       }
 
