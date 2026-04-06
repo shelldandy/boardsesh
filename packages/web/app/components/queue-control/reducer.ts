@@ -181,7 +181,6 @@ export function queueReducer(state: QueueState, action: QueueAction): QueueState
       const {
         item,
         shouldAddToQueue,
-        insertAfterCurrent,
         isServerEvent,
         eventClientId,
         myClientId,
@@ -230,20 +229,7 @@ export function queueReducer(state: QueueState, action: QueueAction): QueueState
       // Check by item.uuid for idempotency - the same climb CAN appear multiple times
       // (e.g., user adds it again after completing it)
       if (item && item.climb && shouldAddToQueue && !state.queue.find(qItem => qItem?.uuid === item.uuid)) {
-        if (insertAfterCurrent && state.currentClimbQueueItem) {
-          const currentIndex = state.queue.findIndex(q => q.uuid === state.currentClimbQueueItem?.uuid);
-          if (currentIndex >= 0) {
-            newQueue = [
-              ...state.queue.slice(0, currentIndex + 1),
-              item,
-              ...state.queue.slice(currentIndex + 1),
-            ];
-          } else {
-            newQueue = [...state.queue, item];
-          }
-        } else {
-          newQueue = [...state.queue, item];
-        }
+        newQueue = [...state.queue, item];
       }
 
       // For local updates, track correlation ID (no timestamp!)
