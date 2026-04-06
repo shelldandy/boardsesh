@@ -280,10 +280,16 @@ export default function LikedClimbsList({
   const drawerRef = useRef<LikedDrawerHandle>(null);
 
   const handleOpenActions = useCallback((climb: Climb) => {
+    if (process.env.NODE_ENV !== 'production' && !drawerRef.current) {
+      console.warn('LikedDrawers ref not attached — openActions is a no-op');
+    }
     drawerRef.current?.openActions(climb);
   }, []);
 
   const handleOpenPlaylistSelector = useCallback((climb: Climb) => {
+    if (process.env.NODE_ENV !== 'production' && !drawerRef.current) {
+      console.warn('LikedDrawers ref not attached — openPlaylistSelector is a no-op');
+    }
     drawerRef.current?.openPlaylistSelector(climb);
   }, []);
 

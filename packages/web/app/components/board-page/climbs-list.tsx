@@ -318,10 +318,16 @@ const ClimbsList = ({
   const drawerRef = useRef<SharedDrawerHandle>(null);
 
   const handleOpenActions = useCallback((climb: Climb) => {
+    if (process.env.NODE_ENV !== 'production' && !drawerRef.current) {
+      console.warn('SharedDrawers ref not attached — openActions is a no-op');
+    }
     drawerRef.current?.openActions(climb);
   }, []);
 
   const handleOpenPlaylistSelector = useCallback((climb: Climb) => {
+    if (process.env.NODE_ENV !== 'production' && !drawerRef.current) {
+      console.warn('SharedDrawers ref not attached — openPlaylistSelector is a no-op');
+    }
     drawerRef.current?.openPlaylistSelector(climb);
   }, []);
 

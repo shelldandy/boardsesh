@@ -1,14 +1,22 @@
 /* Native browser paint-skipping for off-screen list items.
  * content-visibility: auto tells the browser to skip layout & paint
  * for items outside the viewport. contain-intrinsic-size provides a
- * placeholder height so the scrollbar stays stable. */
+ * placeholder height so the scrollbar stays stable.
+ *
+ * The "auto" keyword tells the browser to remember the real rendered
+ * height once an item has been visible, and only fall back to the
+ * estimate for items that haven't been laid out yet. */
 
 .listItem {
   content-visibility: auto;
+  /* 72px ≈ thumbnail (10vh capped ~40px) + 2×8px padding + 1px border.
+   * Matches the typical rendered height of a ClimbListItem row. */
   contain-intrinsic-size: auto 72px;
 }
 
 .gridItem {
   content-visibility: auto;
+  /* 300px ≈ board image at ~4:5 aspect ratio on a mobile viewport
+   * plus card header/actions. Matches typical ClimbCard height. */
   contain-intrinsic-size: auto 300px;
 }
