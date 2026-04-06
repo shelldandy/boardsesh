@@ -10,12 +10,12 @@ export {
   useQueueData, useOptionalQueueData,
   QueueContext, QueueActionsContext, QueueDataContext,
   // Fine-grained hooks for targeted subscriptions
-  useCurrentClimb, useOptionalCurrentClimb,
+  useCurrentClimb, useOptionalCurrentClimb, useCurrentClimbUuid,
   useQueueList,
   useSearchData,
   useSessionData, useOptionalSessionData,
   // Fine-grained context objects
-  CurrentClimbContext, QueueListContext, SearchContext, SessionContext,
+  CurrentClimbContext, CurrentClimbUuidContext, QueueListContext, SearchContext, SessionContext,
 } from './QueueContext';
 export type { GraphQLQueueContextType, GraphQLQueueActionsType, GraphQLQueueDataType } from './types';
 export type { CurrentClimbDataType, QueueListDataType, SearchDataType, SessionDataType } from './types';

@@ -27,6 +27,8 @@ type QueueClimbListItemProps = {
   boardDetails: BoardDetails;
   setCurrentClimbQueueItem: (item: ClimbQueueItem) => void;
   onTickClick: (climb: Climb) => void;
+  onOpenActions?: (climb: Climb) => void;
+  onOpenPlaylistSelector?: (climb: Climb) => void;
   isEditMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (uuid: string) => void;
@@ -40,6 +42,8 @@ const QueueClimbListItem: React.FC<QueueClimbListItemProps> = ({
   boardDetails,
   setCurrentClimbQueueItem,
   onTickClick,
+  onOpenActions,
+  onOpenPlaylistSelector,
   isEditMode = false,
   isSelected = false,
   onToggleSelect,
@@ -159,6 +163,8 @@ const QueueClimbListItem: React.FC<QueueClimbListItemProps> = ({
       afterTitleSlot={afterTitleSlot}
       backgroundColor={backgroundColor}
       contentOpacity={isHistory ? 0.6 : 1}
+      onOpenActions={onOpenActions}
+      onOpenPlaylistSelector={onOpenPlaylistSelector}
     />
   );
 

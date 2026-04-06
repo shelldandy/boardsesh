@@ -55,6 +55,10 @@ export const QueueContext = createContext<GraphQLQueueContextType | undefined>(u
 
 // Fine-grained contexts for targeted subscriptions (reduces re-render cascade)
 export const CurrentClimbContext = createContext<CurrentClimbDataType | undefined>(undefined);
+// Ultra-narrow context: only the UUID string of the current climb.
+// Components that only need to know *which* climb is current (not the full object)
+// can subscribe here and avoid re-renders when unrelated fields change.
+export const CurrentClimbUuidContext = createContext<string | null>(null);
 export const QueueListContext = createContext<QueueListDataType | undefined>(undefined);
 export const SearchContext = createContext<SearchDataType | undefined>(undefined);
 export const SessionContext = createContext<SessionDataType | undefined>(undefined);
@@ -508,6 +512,8 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
   );
 
   // --- Fine-grained context values (each only changes when its specific fields change) ---
+  const currentClimbUuid = state.currentClimbQueueItem?.uuid ?? null;
+
   const currentClimbValue: CurrentClimbDataType = useMemo(() => ({
     currentClimbQueueItem: state.currentClimbQueueItem,
     currentClimb: state.currentClimbQueueItem?.climb || null,
@@ -550,6 +556,7 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
       <QueueDataContext.Provider value={dataValue}>
         <QueueContext.Provider value={contextValue}>
           <CurrentClimbContext.Provider value={currentClimbValue}>
+            <CurrentClimbUuidContext.Provider value={currentClimbUuid}>
             <QueueListContext.Provider value={queueListValue}>
               <SearchContext.Provider value={searchValue}>
                 <SessionContext.Provider value={sessionValue}>
@@ -562,6 +569,7 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
                 </SessionContext.Provider>
               </SearchContext.Provider>
             </QueueListContext.Provider>
+            </CurrentClimbUuidContext.Provider>
           </CurrentClimbContext.Provider>
         </QueueContext.Provider>
       </QueueDataContext.Provider>
@@ -624,6 +632,13 @@ export const useCurrentClimb = (): CurrentClimbDataType => {
 
 export const useOptionalCurrentClimb = (): CurrentClimbDataType | null => {
   return useContext(CurrentClimbContext) ?? null;
+};
+
+/** Ultra-narrow hook: returns only the UUID of the current climb.
+ *  Use this when you only need to know *which* item is current (e.g. for index lookups)
+ *  without subscribing to the full CurrentClimbContext object. */
+export const useCurrentClimbUuid = (): string | null => {
+  return useContext(CurrentClimbUuidContext);
 };
 
 export const useQueueList = (): QueueListDataType => {
