@@ -164,18 +164,18 @@ export const authOptions: NextAuthOptions = {
       name: `${useSecureCookies ? "__Secure-" : ""}next-auth.state`,
       options: {
         httpOnly: true,
-        sameSite: "none",
+        sameSite: useSecureCookies ? "none" : "lax",
         path: "/",
-        secure: true,
+        secure: useSecureCookies,
       },
     },
     nonce: {
       name: `${useSecureCookies ? "__Secure-" : ""}next-auth.nonce`,
       options: {
         httpOnly: true,
-        sameSite: "none",
+        sameSite: useSecureCookies ? "none" : "lax",
         path: "/",
-        secure: true,
+        secure: useSecureCookies,
       },
     },
   },
