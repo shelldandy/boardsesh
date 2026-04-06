@@ -27,8 +27,12 @@ vi.mock('../../persistent-session', () => ({
 vi.mock('../../graphql-queue/QueueContext', () => {
   const React = require('react');
   const ctx = React.createContext(undefined);
+  const actionsCtx = React.createContext(undefined);
+  const dataCtx = React.createContext(undefined);
   return {
     QueueContext: ctx,
+    QueueActionsContext: actionsCtx,
+    QueueDataContext: dataCtx,
     __esModule: true,
   };
 });

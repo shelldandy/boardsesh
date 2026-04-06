@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useLayoutEffect, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { QueueContext, type GraphQLQueueContextType } from '../graphql-queue/QueueContext';
+import { QueueContext, QueueActionsContext, QueueDataContext, type GraphQLQueueContextType, type GraphQLQueueActionsType, type GraphQLQueueDataType } from '../graphql-queue/QueueContext';
 import { usePersistentSession } from '../persistent-session';
 import { getBaseBoardPath } from '@/app/lib/url-utils';
 import { DEFAULT_SEARCH_PARAMS } from '@/app/lib/url-utils';
@@ -320,6 +320,56 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
     ? true // If injected, a board route is active — always show bar
     : adapter.hasActiveQueue;
 
+  // Derive split context values from the effective (combined) context so narrow hooks
+  // (useQueueActions / useQueueData) work both inside GraphQLQueueProvider and the bridge.
+  const effectiveActionsContext = useMemo<GraphQLQueueActionsType>(() => ({
+    addToQueue: effectiveContext.addToQueue,
+    removeFromQueue: effectiveContext.removeFromQueue,
+    setCurrentClimb: effectiveContext.setCurrentClimb,
+    setCurrentClimbQueueItem: effectiveContext.setCurrentClimbQueueItem,
+    setClimbSearchParams: effectiveContext.setClimbSearchParams,
+    setCountSearchParams: effectiveContext.setCountSearchParams,
+    mirrorClimb: effectiveContext.mirrorClimb,
+    fetchMoreClimbs: effectiveContext.fetchMoreClimbs,
+    getNextClimbQueueItem: effectiveContext.getNextClimbQueueItem,
+    getPreviousClimbQueueItem: effectiveContext.getPreviousClimbQueueItem,
+    setQueue: effectiveContext.setQueue,
+    disconnect: effectiveContext.disconnect,
+    startSession: effectiveContext.startSession,
+    joinSession: effectiveContext.joinSession,
+    endSession: effectiveContext.endSession,
+    dismissSessionSummary: effectiveContext.dismissSessionSummary,
+  }), [effectiveContext]);
+
+  const effectiveDataContext = useMemo<GraphQLQueueDataType>(() => ({
+    queue: effectiveContext.queue,
+    currentClimbQueueItem: effectiveContext.currentClimbQueueItem,
+    currentClimb: effectiveContext.currentClimb,
+    climbSearchParams: effectiveContext.climbSearchParams,
+    climbSearchResults: effectiveContext.climbSearchResults,
+    suggestedClimbs: effectiveContext.suggestedClimbs,
+    totalSearchResultCount: effectiveContext.totalSearchResultCount,
+    hasMoreResults: effectiveContext.hasMoreResults,
+    isFetchingClimbs: effectiveContext.isFetchingClimbs,
+    isFetchingNextPage: effectiveContext.isFetchingNextPage,
+    hasDoneFirstFetch: effectiveContext.hasDoneFirstFetch,
+    viewOnlyMode: effectiveContext.viewOnlyMode,
+    parsedParams: effectiveContext.parsedParams,
+    connectionState: effectiveContext.connectionState,
+    canMutate: effectiveContext.canMutate,
+    users: effectiveContext.users,
+    clientId: effectiveContext.clientId,
+    isLeader: effectiveContext.isLeader,
+    isBackendMode: effectiveContext.isBackendMode,
+    hasConnected: effectiveContext.hasConnected,
+    connectionError: effectiveContext.connectionError,
+    isDisconnected: effectiveContext.isDisconnected,
+    isSessionActive: effectiveContext.isSessionActive,
+    sessionId: effectiveContext.sessionId,
+    sessionSummary: effectiveContext.sessionSummary,
+    sessionGoal: effectiveContext.sessionGoal,
+  }), [effectiveContext]);
+
   const boardInfo = useMemo<QueueBridgeBoardInfo>(
     () => ({
       boardDetails: effectiveBoardDetails,
@@ -358,18 +408,22 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
   return (
     <QueueBridgeSetterContext.Provider value={setters}>
       <QueueBridgeBoardInfoContext.Provider value={boardInfo}>
-        <QueueContext.Provider value={effectiveContext}>
-          {/* Sync queue state to iOS Live Activity (code-split, no-op on non-iOS) */}
-          <LiveActivityBridge
-            queue={adapter.context.queue}
-            currentClimbQueueItem={adapter.context.currentClimbQueueItem}
-            boardDetails={adapter.boardDetails}
-            sessionId={adapter.context.sessionId}
-            isSessionActive={adapter.context.isSessionActive}
-            onSetCurrentClimb={adapter.context.setCurrentClimbQueueItem}
-          />
-          {children}
-        </QueueContext.Provider>
+        <QueueActionsContext.Provider value={effectiveActionsContext}>
+          <QueueDataContext.Provider value={effectiveDataContext}>
+            <QueueContext.Provider value={effectiveContext}>
+              {/* Sync queue state to iOS Live Activity (code-split, no-op on non-iOS) */}
+              <LiveActivityBridge
+                queue={adapter.context.queue}
+                currentClimbQueueItem={adapter.context.currentClimbQueueItem}
+                boardDetails={adapter.boardDetails}
+                sessionId={adapter.context.sessionId}
+                isSessionActive={adapter.context.isSessionActive}
+                onSetCurrentClimb={adapter.context.setCurrentClimbQueueItem}
+              />
+              {children}
+            </QueueContext.Provider>
+          </QueueDataContext.Provider>
+        </QueueActionsContext.Provider>
       </QueueBridgeBoardInfoContext.Provider>
     </QueueBridgeSetterContext.Provider>
   );
