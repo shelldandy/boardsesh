@@ -168,6 +168,7 @@ export default function BoardDetail({ boardUuid, open, onClose, onDeleted, ancho
           <Box sx={{ px: 2, pb: 2, overflow: 'auto', flex: 1 }}>
             <EditBoardForm
               board={board}
+              totalAscents={board.totalAscents}
               onSuccess={handleEditSuccess}
               onCancel={() => setIsEditing(false)}
             />

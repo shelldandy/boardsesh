@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import { useEntityMutation } from '@/app/hooks/use-entity-mutation';
 import {
@@ -11,15 +11,17 @@ import {
 import type { UserBoard } from '@boardsesh/shared-schema';
 import type { BoardName } from '@/app/lib/types';
 import { ANGLES } from '@/app/lib/board-data';
+import { getBoardSelectorOptions } from '@/app/lib/__generated__/product-sizes-data';
 import BoardForm from './board-form';
 
 interface EditBoardFormProps {
   board: UserBoard;
+  totalAscents?: number;
   onSuccess?: (board: UserBoard) => void;
   onCancel?: () => void;
 }
 
-export default function EditBoardForm({ board, onSuccess, onCancel }: EditBoardFormProps) {
+export default function EditBoardForm({ board, totalAscents, onSuccess, onCancel }: EditBoardFormProps) {
   const { showMessage } = useSnackbar();
 
   const availableAngles = ANGLES[board.boardType as BoardName] ?? [];
@@ -32,8 +34,17 @@ export default function EditBoardForm({ board, onSuccess, onCancel }: EditBoardF
     },
   );
 
+  const configEditable = useMemo(() => {
+    if (totalAscents !== 0) return undefined;
+    const options = getBoardSelectorOptions();
+    const boardType = board.boardType as BoardName;
+    const layouts = options.layouts[boardType] ?? [];
+    if (layouts.length === 0) return undefined;
+    return { boardType, layouts, sizes: options.sizes, sets: options.sets };
+  }, [totalAscents, board.boardType]);
+
   const handleSubmit = useCallback(
-    async (values: { name: string; slug?: string; description: string; locationName: string; isPublic: boolean; isOwned: boolean; angle?: number; isAngleAdjustable?: boolean }) => {
+    async (values: { name: string; slug?: string; description: string; locationName: string; isPublic: boolean; isOwned: boolean; angle?: number; isAngleAdjustable?: boolean; layoutId?: number; sizeId?: number; setIds?: string }) => {
       if (!values.name) {
         showMessage('Board name is required', 'error');
         return;
@@ -50,6 +61,11 @@ export default function EditBoardForm({ board, onSuccess, onCancel }: EditBoardF
           isOwned: values.isOwned,
           angle: values.angle,
           isAngleAdjustable: values.isAngleAdjustable,
+          ...(configEditable ? {
+            layoutId: values.layoutId,
+            sizeId: values.sizeId,
+            setIds: values.setIds,
+          } : {}),
         },
       });
 
@@ -57,7 +73,7 @@ export default function EditBoardForm({ board, onSuccess, onCancel }: EditBoardF
         onSuccess?.(data.updateBoard);
       }
     },
-    [execute, board.uuid, showMessage, onSuccess],
+    [execute, board.uuid, showMessage, onSuccess, configEditable],
   );
 
   return (
@@ -73,9 +89,13 @@ export default function EditBoardForm({ board, onSuccess, onCancel }: EditBoardF
         isOwned: board.isOwned,
         angle: board.angle,
         isAngleAdjustable: board.isAngleAdjustable,
+        layoutId: board.layoutId,
+        sizeId: board.sizeId,
+        setIds: board.setIds,
       }}
       showSlugField
       availableAngles={availableAngles}
+      configEditable={configEditable}
       onSubmit={handleSubmit}
       onCancel={onCancel}
     />

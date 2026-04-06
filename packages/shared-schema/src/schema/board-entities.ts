@@ -183,6 +183,12 @@ export const boardEntitiesTypeDefs = /* GraphQL */ `
     angle: Int
     "New angle adjustable flag"
     isAngleAdjustable: Boolean
+    "New layout ID (only allowed when board has zero ticks)"
+    layoutId: Int
+    "New size ID (only allowed when board has zero ticks)"
+    sizeId: Int
+    "New set IDs (only allowed when board has zero ticks)"
+    setIds: String
   }
 
   """

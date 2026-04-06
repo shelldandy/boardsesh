@@ -36,6 +36,9 @@ export const UpdateBoardInputSchema = z.object({
   isOwned: z.boolean().optional(),
   angle: z.number().int().min(0).max(70).optional(),
   isAngleAdjustable: z.boolean().optional(),
+  layoutId: z.number().int().positive('Layout ID must be positive').optional(),
+  sizeId: z.number().int().positive('Size ID must be positive').optional(),
+  setIds: z.string().min(1, 'Set IDs cannot be empty').optional(),
 });
 
 /**

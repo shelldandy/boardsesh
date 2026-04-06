@@ -1112,6 +1112,53 @@ export const socialBoardMutations = {
     if (validatedInput.angle !== undefined) updateValues.angle = validatedInput.angle;
     if (validatedInput.isAngleAdjustable !== undefined) updateValues.isAngleAdjustable = validatedInput.isAngleAdjustable;
 
+    // Handle config field changes (layoutId, sizeId, setIds) — only allowed on boards with zero ticks
+    const hasConfigChange = validatedInput.layoutId !== undefined
+      || validatedInput.sizeId !== undefined
+      || validatedInput.setIds !== undefined;
+
+    if (hasConfigChange) {
+      const [tickCount] = await db
+        .select({ total: count() })
+        .from(dbSchema.boardseshTicks)
+        .where(eq(dbSchema.boardseshTicks.boardId, board.id));
+
+      if (Number(tickCount?.total || 0) > 0) {
+        throw new Error(
+          'Cannot change board configuration because this board has logged climbs. Delete the board and create a new one instead.'
+        );
+      }
+
+      // Check unique constraint: no other active board with same config for this user
+      const newLayoutId = validatedInput.layoutId ?? board.layoutId;
+      const newSizeId = validatedInput.sizeId ?? board.sizeId;
+      const newSetIds = validatedInput.setIds ?? board.setIds;
+
+      const [configConflict] = await db
+        .select({ id: dbSchema.userBoards.id })
+        .from(dbSchema.userBoards)
+        .where(
+          and(
+            eq(dbSchema.userBoards.ownerId, userId),
+            eq(dbSchema.userBoards.boardType, board.boardType),
+            eq(dbSchema.userBoards.layoutId, newLayoutId),
+            eq(dbSchema.userBoards.sizeId, newSizeId),
+            eq(dbSchema.userBoards.setIds, newSetIds),
+            isNull(dbSchema.userBoards.deletedAt),
+            sql`${dbSchema.userBoards.id} != ${board.id}`,
+          )
+        )
+        .limit(1);
+
+      if (configConflict) {
+        throw new Error('You already have a board with this configuration');
+      }
+
+      if (validatedInput.layoutId !== undefined) updateValues.layoutId = validatedInput.layoutId;
+      if (validatedInput.sizeId !== undefined) updateValues.sizeId = validatedInput.sizeId;
+      if (validatedInput.setIds !== undefined) updateValues.setIds = validatedInput.setIds;
+    }
+
     // Handle slug update
     if (validatedInput.slug !== undefined) {
       // Check slug uniqueness

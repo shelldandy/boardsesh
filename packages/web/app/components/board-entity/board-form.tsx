@@ -9,6 +9,13 @@ import MuiButton from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import MuiTypography from '@mui/material/Typography';
 import MenuItem from '@mui/material/MenuItem';
+import Alert from '@mui/material/Alert';
+import Checkbox from '@mui/material/Checkbox';
+import ListItemText from '@mui/material/ListItemText';
+import MuiSelect from '@mui/material/Select';
+import type { SelectChangeEvent } from '@mui/material/Select';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 
 interface BoardFormFieldValues {
   name: string;
@@ -19,6 +26,9 @@ interface BoardFormFieldValues {
   isOwned: boolean;
   angle?: number;
   isAngleAdjustable?: boolean;
+  layoutId?: number;
+  sizeId?: number;
+  setIds?: string;
 }
 
 interface BoardFormProps {
@@ -40,6 +50,13 @@ interface BoardFormProps {
   locationPlaceholder?: string;
   /** Available angles for this board type */
   availableAngles?: number[];
+  /** Config editing: show layout/size/set selectors */
+  configEditable?: {
+    boardType: string;
+    layouts: { id: number; name: string }[];
+    sizes: Record<string, { id: number; name: string; description: string }[]>;
+    sets: Record<string, { id: number; name: string }[]>;
+  };
   /** Called with form values on submit. Should throw on failure. */
   onSubmit: (values: BoardFormFieldValues) => Promise<void>;
   /** Optional cancel handler */
@@ -60,6 +77,7 @@ export default function BoardForm({
   descriptionPlaceholder = 'Optional description',
   locationPlaceholder,
   availableAngles,
+  configEditable,
   onSubmit,
   onCancel,
 }: BoardFormProps) {
@@ -72,6 +90,20 @@ export default function BoardForm({
   const [angle, setAngle] = useState(initialValues.angle ?? 40);
   const [isAngleAdjustable, setIsAngleAdjustable] = useState(initialValues.isAngleAdjustable ?? true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Config editing state
+  const [layoutId, setLayoutId] = useState(initialValues.layoutId);
+  const [sizeId, setSizeId] = useState(initialValues.sizeId);
+  const [selectedSets, setSelectedSets] = useState<number[]>(
+    initialValues.setIds ? initialValues.setIds.split(',').map(Number) : [],
+  );
+
+  const availableSizes = configEditable && layoutId
+    ? configEditable.sizes[`${configEditable.boardType}-${layoutId}`] ?? []
+    : [];
+  const availableSets = configEditable && layoutId && sizeId
+    ? configEditable.sets[`${configEditable.boardType}-${layoutId}-${sizeId}`] ?? []
+    : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +119,11 @@ export default function BoardForm({
         isOwned,
         angle,
         isAngleAdjustable,
+        ...(configEditable ? {
+          layoutId,
+          sizeId,
+          setIds: selectedSets.length > 0 ? selectedSets.sort((a, b) => a - b).join(',') : undefined,
+        } : {}),
       });
     } finally {
       setIsSubmitting(false);
@@ -96,6 +133,80 @@ export default function BoardForm({
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <MuiTypography variant="h6">{title}</MuiTypography>
+
+      {configEditable && (
+        <>
+          <Alert severity="info" sx={{ fontSize: '0.8rem' }}>
+            You can change the board layout because no climbs have been logged yet.
+          </Alert>
+
+          <FormControl size="small" fullWidth>
+            <InputLabel>Layout</InputLabel>
+            <MuiSelect
+              value={layoutId ?? ''}
+              label="Layout"
+              onChange={(e: SelectChangeEvent<number | string>) => {
+                const newLayout = e.target.value as number;
+                setLayoutId(newLayout);
+                // Reset dependent fields
+                const newSizes = configEditable.sizes[`${configEditable.boardType}-${newLayout}`] ?? [];
+                setSizeId(newSizes.length > 0 ? newSizes[0].id : undefined);
+                setSelectedSets([]);
+              }}
+            >
+              {configEditable.layouts.map(({ id, name: layoutName }) => (
+                <MenuItem key={id} value={id}>{layoutName}</MenuItem>
+              ))}
+            </MuiSelect>
+          </FormControl>
+
+          {availableSizes.length > 0 && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>Size</InputLabel>
+              <MuiSelect
+                value={sizeId ?? ''}
+                label="Size"
+                onChange={(e: SelectChangeEvent<number | string>) => {
+                  setSizeId(e.target.value as number);
+                  setSelectedSets([]);
+                }}
+              >
+                {availableSizes.map(({ id, name: sizeName, description: sizeDesc }) => (
+                  <MenuItem key={id} value={id}>{`${sizeName} ${sizeDesc}`}</MenuItem>
+                ))}
+              </MuiSelect>
+            </FormControl>
+          )}
+
+          {availableSets.length > 0 && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>Hold Sets</InputLabel>
+              <MuiSelect
+                multiple
+                value={selectedSets}
+                label="Hold Sets"
+                onChange={(e) => {
+                  const val = e.target.value as unknown as number[];
+                  setSelectedSets(val);
+                }}
+                renderValue={() =>
+                  availableSets
+                    .filter((s) => selectedSets.includes(s.id))
+                    .map((s) => s.name)
+                    .join(', ')
+                }
+              >
+                {availableSets.map(({ id, name: setName }) => (
+                  <MenuItem key={id} value={id}>
+                    <Checkbox checked={selectedSets.includes(id)} />
+                    <ListItemText primary={setName} />
+                  </MenuItem>
+                ))}
+              </MuiSelect>
+            </FormControl>
+          )}
+        </>
+      )}
 
       <TextField
         label="Board Name"

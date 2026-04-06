@@ -89,6 +89,9 @@ export type UpdateBoardInput = {
   isOwned?: boolean;
   angle?: number;
   isAngleAdjustable?: boolean;
+  layoutId?: number;
+  sizeId?: number;
+  setIds?: string;
 };
 
 export type BoardLeaderboardInput = {
