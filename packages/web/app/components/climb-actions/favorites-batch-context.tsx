@@ -6,8 +6,6 @@ import { favoritesStore } from './favorites-store';
 
 interface FavoritesContextValue {
   toggleFavorite: (uuid: string) => Promise<boolean>;
-  isLoading: boolean;
-  isAuthenticated: boolean;
 }
 
 const [FavoritesCtx, useFavoritesContext] = createTypedContext<FavoritesContextValue>('Favorites');
@@ -36,16 +34,19 @@ export function FavoritesProvider({
     favoritesStore.setFavorites(favorites);
   }, [favorites]);
 
-  // Context now only carries callbacks and auth state — these references
-  // are stable so the context value rarely changes, preventing cascade
-  // re-renders in all consumers.
+  // Sync loading/auth state to the external store so consumers can read
+  // via useSyncExternalStore without subscribing to this context.
+  useLayoutEffect(() => {
+    favoritesStore.setMeta(isLoading, isAuthenticated);
+  }, [isLoading, isAuthenticated]);
+
+  // Context only carries toggleFavorite — stable callback, so the context
+  // value never changes during normal operation. isLoading/isAuthenticated
+  // are read from the external store via useSyncExternalStore, avoiding
+  // the "all consumers re-render" cascade when loading state flips.
   const value = useMemo<FavoritesContextValue>(
-    () => ({
-      toggleFavorite,
-      isLoading,
-      isAuthenticated,
-    }),
-    [toggleFavorite, isLoading, isAuthenticated]
+    () => ({ toggleFavorite }),
+    [toggleFavorite]
   );
 
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>;

@@ -17,8 +17,6 @@ describe('useFavorite', () => {
 
   const defaultContext = {
     toggleFavorite: mockToggleFavorite,
-    isLoading: false,
-    isAuthenticated: true,
   };
 
   beforeEach(() => {
@@ -26,6 +24,7 @@ describe('useFavorite', () => {
     mockToggleFavorite.mockResolvedValue(true);
     // Reset the store to empty before each test
     favoritesStore.setFavorites(new Set());
+    favoritesStore.setMeta(false, true); // isLoading=false, isAuthenticated=true
   });
 
   describe('with FavoritesProvider', () => {
@@ -51,7 +50,7 @@ describe('useFavorite', () => {
       expect(mockToggleFavorite).toHaveBeenCalledWith('climb-123');
     });
 
-    it('returns isLoading from context', () => {
+    it('returns isLoading from the external store', () => {
       const { result } = renderHook(() => useFavorite({ climbUuid: 'climb-123' }), {
         wrapper: createWrapper(defaultContext),
       });
@@ -59,7 +58,7 @@ describe('useFavorite', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    it('returns isAuthenticated from context', () => {
+    it('returns isAuthenticated from the external store', () => {
       const { result } = renderHook(() => useFavorite({ climbUuid: 'climb-123' }), {
         wrapper: createWrapper(defaultContext),
       });

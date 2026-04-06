@@ -37,6 +37,20 @@ export function useFavorite({ climbUuid }: UseFavoriteOptions): UseFavoriteRetur
     () => false, // server snapshot
   );
 
+  // Read loading/auth from external store — components only re-render when
+  // the specific value they read changes, not when any context field changes.
+  const isLoading = useSyncExternalStore(
+    favoritesStore.subscribe,
+    favoritesStore.getIsLoading,
+    () => false,
+  );
+
+  const isAuthenticated = useSyncExternalStore(
+    favoritesStore.subscribe,
+    favoritesStore.getIsAuthenticated,
+    () => false,
+  );
+
   const handleToggle = useCallback(async (): Promise<boolean> => {
     if (!context) return false;
     return context.toggleFavorite(climbUuid);
@@ -53,8 +67,8 @@ export function useFavorite({ climbUuid }: UseFavoriteOptions): UseFavoriteRetur
 
   return {
     isFavorited,
-    isLoading: context.isLoading,
+    isLoading,
     toggleFavorite: handleToggle,
-    isAuthenticated: context.isAuthenticated,
+    isAuthenticated,
   };
 }

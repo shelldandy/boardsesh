@@ -398,7 +398,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             climb={currentClimb}
             boardType={boardDetails.board_name}
             angle={currentAngle}
-            sectionsEnabled={sectionsEverEnabled}
+            sectionsEnabled={sectionsEverEnabled && isOpen}
             aboveFold={
             <>
               {/* Header: Grade | Name | Angle Selector */}
@@ -433,7 +433,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
                   />
                 )}
 
-                {/* Floating Tick FAB - Spotify style */}
+                {/* Floating Tick FAB - only when drawer is open */}
+                {isOpen && (
                 <div className={styles.tickFabContainer}>
                   <button
                     className={`${styles.tickFab} ${hasSuccessfulAscent ? styles.tickFabSuccess : ''}`}
@@ -446,8 +447,12 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
                     )}
                   </button>
                 </div>
+                )}
               </div>
 
+              {/* Action bar - only rendered when drawer is open. When closed, only
+                  the header and board renderer update (for pre-warming). */}
+              {isOpen && (
               <div className={styles.actionBar}>
             <IconButton
               disabled={!canSwipePrevious}
@@ -520,6 +525,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
               <SkipNextOutlined />
             </IconButton>
               </div>
+              )}
             </>
             }
           />
@@ -528,8 +534,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         )}
       </div>
 
-        {/* Climb actions drawer */}
-        {currentClimb && (
+        {/* Climb actions drawer — only mount when play drawer is open AND actions requested */}
+        {isOpen && currentClimb && isActionsOpen && (
           <SwipeableDrawer
             title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
@@ -557,8 +563,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
           </SwipeableDrawer>
         )}
 
-        {/* Playlist selector drawer */}
-        {currentClimb && (
+        {/* Playlist selector drawer — only mount when play drawer is open */}
+        {isOpen && currentClimb && isPlaylistSelectorOpen && (
           <SwipeableDrawer
             title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
@@ -580,8 +586,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
           </SwipeableDrawer>
         )}
 
-        {/* Tick / Log Ascent drawer */}
-        {currentClimb && (
+        {/* Tick / Log Ascent drawer — only mount when play drawer is open */}
+        {isOpen && currentClimb && isTickDrawerOpen && (
           <LogAscentDrawer
             open={isTickDrawerOpen}
             onClose={() => setIsTickDrawerOpen(false)}
@@ -591,8 +597,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         )}
       </>) : null}
 
-        {/* Queue list drawer */}
-        <SwipeableDrawer
+        {/* Queue list drawer — only mount when play drawer is open */}
+        {isOpen && <SwipeableDrawer
           placement="bottom"
           height="60%"
           paperRef={queuePaperRef}
@@ -698,10 +704,10 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
               </div>
             )}
           </div>
-        </SwipeableDrawer>
+        </SwipeableDrawer>}
     </SwipeableDrawer>
     </>
   );
 };
 
-export default PlayViewDrawer;
+export default React.memo(PlayViewDrawer);

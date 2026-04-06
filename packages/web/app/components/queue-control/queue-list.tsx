@@ -7,13 +7,18 @@ import Stack from '@mui/material/Stack';
 import MuiDivider from '@mui/material/Divider';
 import SwipeableDrawer from '../swipeable-drawer/swipeable-drawer';
 import LoginOutlined from '@mui/icons-material/LoginOutlined';
-import { useQueueActions, useCurrentClimb, useQueueList, useSearchData, useSessionData } from '../graphql-queue';
+import { useQueueActions, useCurrentClimbUuid, useQueueList, useSearchData, useSessionData } from '../graphql-queue';
 import { Climb, BoardDetails } from '@/app/lib/types';
 import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import { reorder } from '@atlaskit/pragmatic-drag-and-drop/reorder';
+import { usePathname } from 'next/navigation';
 import QueueClimbListItem from './queue-climb-list-item';
 import ClimbListItem from '../climb-card/climb-list-item';
+import DrawerClimbHeader from '../climb-card/drawer-climb-header';
+import { ClimbActions } from '../climb-actions';
+import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
+import { getExcludedClimbActions } from '@/app/lib/climb-action-utils';
 import { themeTokens } from '@/app/theme/theme-config';
 import { SUGGESTIONS_THRESHOLD } from '../board-page/constants';
 import { useOptionalBoardProvider } from '../board-provider/board-provider-context';
@@ -34,10 +39,13 @@ type QueueListProps = {
   selectedItems?: Set<string>;
   onToggleSelect?: (uuid: string) => void;
   scrollContainer?: HTMLElement | null;
+  /** When false, suggested climbs and infinite scroll are not rendered.
+   *  Use this when QueueList is inside a closed keepMounted drawer. */
+  active?: boolean;
 };
 
-const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, onClimbNavigate, isEditMode = false, showHistory = false, selectedItems, onToggleSelect, scrollContainer }, ref) => {
-  const { currentClimbQueueItem } = useCurrentClimb();
+const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, onClimbNavigate, isEditMode = false, showHistory = false, selectedItems, onToggleSelect, scrollContainer, active = true }, ref) => {
+  const currentClimbUuid = useCurrentClimbUuid();
   const { queue, suggestedClimbs } = useQueueList();
   const { hasMoreResults, isFetchingClimbs, isFetchingNextPage } = useSearchData();
   const { viewOnlyMode } = useSessionData();
@@ -47,6 +55,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
     setQueue,
     addToQueue,
   } = useQueueActions();
+  const pathname = usePathname();
 
   const isAuthenticated = useOptionalBoardProvider()?.isAuthenticated ?? false;
 
@@ -54,6 +63,39 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
   const [tickDrawerVisible, setTickDrawerVisible] = useState(false);
   const [tickClimb, setTickClimb] = useState<Climb | null>(null);
   const { openAuthModal } = useAuthModal();
+
+  // Shared drawer state — one actions drawer and one playlist drawer for all items.
+  // This replaces the per-ClimbListItem drawers (previously 100+ drawer trees).
+  const [actionsClimb, setActionsClimb] = useState<Climb | null>(null);
+  const [playlistClimb, setPlaylistClimb] = useState<Climb | null>(null);
+
+  const handleOpenActions = useCallback((climb: Climb) => {
+    setPlaylistClimb(null);
+    setActionsClimb(climb);
+  }, []);
+  const handleOpenPlaylistSelector = useCallback((climb: Climb) => {
+    setActionsClimb(null);
+    setPlaylistClimb(climb);
+  }, []);
+  const handleCloseActions = useCallback(() => setActionsClimb(null), []);
+  const handleOpenPlaylistFromActions = useCallback((climb: Climb) => {
+    setActionsClimb(null);
+    setPlaylistClimb(climb);
+  }, []);
+  const handleClosePlaylist = useCallback(() => setPlaylistClimb(null), []);
+
+  // Stabilize onClimbNavigate via ref to prevent suggested ClimbListItems from
+  // re-rendering when the parent passes a new function reference.
+  const onClimbNavigateRef = useRef(onClimbNavigate);
+  onClimbNavigateRef.current = onClimbNavigate;
+  const stableOnClimbNavigate = useCallback(() => {
+    onClimbNavigateRef.current?.();
+  }, []);
+
+  const excludeActions = useMemo(
+    () => getExcludedClimbActions(boardDetails.board_name, 'list'),
+    [boardDetails.board_name],
+  );
 
   // Ref for scrolling to position that shows only 2 history items above current
   const scrollTargetRef = useRef<HTMLDivElement>(null);
@@ -163,7 +205,8 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
   }, [handleObserver, viewOnlyMode, scrollContainer]);
 
   // Find the index of the current climb in the queue
-  const currentIndex = queue.findIndex((item) => item.uuid === currentClimbQueueItem?.uuid);
+  const currentIndex = queue.findIndex((item) => item.uuid === currentClimbUuid);
+  const currentItem = currentIndex >= 0 ? queue[currentIndex] : null;
 
   // Split queue into history (past), current, and future items
   // Rendered in Spotify-like order: history (oldest to newest) → current → future
@@ -221,6 +264,8 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                     boardDetails={boardDetails}
                     setCurrentClimbQueueItem={setCurrentClimbQueueItem}
                     onTickClick={handleTickClick}
+                    onOpenActions={handleOpenActions}
+                    onOpenPlaylistSelector={handleOpenPlaylistSelector}
                     isEditMode={isEditMode}
                     isSelected={selectedItems?.has(climbQueueItem.uuid) ?? false}
                     onToggleSelect={onToggleSelect}
@@ -233,18 +278,20 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
         )}
 
         {/* Current climb item */}
-        {currentClimbQueueItem && (
-          <div key={currentClimbQueueItem.uuid} ref={!showHistory || historyItems.length <= 2 ? scrollTargetRef : undefined}>
+        {currentItem && (
+          <div key={currentItem.uuid} ref={!showHistory || historyItems.length <= 2 ? scrollTargetRef : undefined}>
             <QueueClimbListItem
-              item={currentClimbQueueItem}
+              item={currentItem}
               index={currentIndex}
               isCurrent={true}
               isHistory={false}
               boardDetails={boardDetails}
               setCurrentClimbQueueItem={setCurrentClimbQueueItem}
               onTickClick={handleTickClick}
+              onOpenActions={handleOpenActions}
+              onOpenPlaylistSelector={handleOpenPlaylistSelector}
               isEditMode={isEditMode}
-              isSelected={selectedItems?.has(currentClimbQueueItem.uuid) ?? false}
+              isSelected={selectedItems?.has(currentItem.uuid) ?? false}
               onToggleSelect={onToggleSelect}
             />
           </div>
@@ -256,7 +303,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
           const originalIndex = currentIndex >= 0 ? currentIndex + 1 + index : index;
           // Attach scroll target to first future item if there's no current climb
           // and history has 2 or fewer items (scrollTargetRef wouldn't be attached elsewhere)
-          const isScrollTarget = index === 0 && !currentClimbQueueItem && (!showHistory || historyItems.length <= 2);
+          const isScrollTarget = index === 0 && !currentItem && (!showHistory || historyItems.length <= 2);
 
           return (
             <div key={climbQueueItem.uuid} ref={isScrollTarget ? scrollTargetRef : undefined}>
@@ -268,6 +315,8 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                 boardDetails={boardDetails}
                 setCurrentClimbQueueItem={setCurrentClimbQueueItem}
                 onTickClick={handleTickClick}
+                onOpenActions={handleOpenActions}
+                onOpenPlaylistSelector={handleOpenPlaylistSelector}
                 isEditMode={isEditMode}
                 isSelected={selectedItems?.has(climbQueueItem.uuid) ?? false}
                 onToggleSelect={onToggleSelect}
@@ -276,7 +325,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
           );
         })}
       </div>
-      {!viewOnlyMode && (
+      {active && !viewOnlyMode && (
         <>
           <div className={styles.suggestedSectionHeader}>
             <Typography variant="overline" color="text.secondary">
@@ -290,7 +339,9 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                   climb={climb}
                   boardDetails={boardDetails}
                   titleProps={suggestedTitleProps}
-                  onNavigate={onClimbNavigate}
+                  onNavigate={stableOnClimbNavigate}
+                  onOpenActions={handleOpenActions}
+                  onOpenPlaylistSelector={handleOpenPlaylistSelector}
                   addToQueue={addToQueue}
                 />
               </div>
@@ -357,10 +408,63 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
         </SwipeableDrawer>
       )}
 
+      {/* Shared actions drawer — only mount when a climb's actions are open */}
+      {actionsClimb && (
+        <SwipeableDrawer
+          title={<DrawerClimbHeader climb={actionsClimb} boardDetails={boardDetails} />}
+          placement="bottom"
+          open
+          onClose={handleCloseActions}
+          styles={actionsDrawerStyles}
+        >
+          <ClimbActions
+            climb={actionsClimb}
+            boardDetails={boardDetails}
+            angle={actionsClimb.angle}
+            currentPathname={pathname}
+            viewMode="list"
+            exclude={excludeActions}
+            onOpenPlaylistSelector={() => handleOpenPlaylistFromActions(actionsClimb)}
+            onActionComplete={handleCloseActions}
+          />
+        </SwipeableDrawer>
+      )}
+
+      {/* Shared playlist selector drawer — only mount when a climb's playlist is open */}
+      {playlistClimb && (
+        <SwipeableDrawer
+          title={<DrawerClimbHeader climb={playlistClimb} boardDetails={boardDetails} />}
+          placement="bottom"
+          open
+          onClose={handleClosePlaylist}
+          styles={playlistDrawerStyles}
+        >
+          <PlaylistSelectionContent
+            climbUuid={playlistClimb.uuid}
+            boardDetails={boardDetails}
+            angle={playlistClimb.angle}
+            onDone={handleClosePlaylist}
+          />
+        </SwipeableDrawer>
+      )}
+
     </>
   );
 });
 
+// Static drawer styles — hoisted to avoid per-render allocation
+const actionsDrawerStyles = {
+  wrapper: { height: 'auto', width: '100%' },
+  body: { padding: `${themeTokens.spacing[2]}px 0` },
+  header: { paddingLeft: `${themeTokens.spacing[3]}px`, paddingRight: `${themeTokens.spacing[3]}px` },
+} as const;
+
+const playlistDrawerStyles = {
+  wrapper: { height: 'auto', maxHeight: '70vh', width: '100%' },
+  body: { padding: 0 },
+  header: { paddingLeft: `${themeTokens.spacing[3]}px`, paddingRight: `${themeTokens.spacing[3]}px` },
+} as const;
+
 QueueList.displayName = 'QueueList';
 
-export default QueueList;
+export default React.memo(QueueList);

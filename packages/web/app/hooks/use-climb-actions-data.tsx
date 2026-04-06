@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useWsAuthToken } from '@/app/hooks/use-ws-auth-token';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
@@ -149,13 +149,22 @@ export function useClimbActionsData({
     },
   });
 
+  // Ref for mutation — avoids recreating toggleFavorite on every render.
+  // useMutation returns a new object each render (status, data, error change),
+  // but mutateAsync is functionally stable. Using a ref prevents the cascade:
+  // mutation object changes → toggleFavorite changes → FavoritesContext changes → all consumers re-render.
+  const toggleFavMutateRef = useRef(toggleFavoriteMutation.mutateAsync);
+  toggleFavMutateRef.current = toggleFavoriteMutation.mutateAsync;
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  isAuthenticatedRef.current = isAuthenticated;
+
   const toggleFavorite = useCallback(
     async (climbUuid: string): Promise<boolean> => {
-      if (!isAuthenticated) return false;
-      const result = await toggleFavoriteMutation.mutateAsync(climbUuid);
+      if (!isAuthenticatedRef.current) return false;
+      const result = await toggleFavMutateRef.current(climbUuid);
       return result.favorited;
     },
-    [isAuthenticated, toggleFavoriteMutation],
+    [],
   );
 
   // === Playlists ===
@@ -231,38 +240,46 @@ export function useClimbActionsData({
   );
 
   // Playlist mutations — update the accumulated membership cache
+  // Ref holding latest values so playlist callbacks can be stable (same pattern as toggleFavorite above)
+  const playlistRef = useRef({
+    token, cancelMemFetches, queryClient, memAccKey, playlistsQueryKey, boardName, layoutId,
+  });
+  playlistRef.current = {
+    token, cancelMemFetches, queryClient, memAccKey, playlistsQueryKey, boardName, layoutId,
+  };
+
   const addToPlaylist = useCallback(
     async (playlistId: string, climbUuid: string, climbAngle: number) => {
-      if (!token) throw new Error('Not authenticated');
-      const client = createGraphQLHttpClient(token);
+      const r = playlistRef.current;
+      if (!r.token) throw new Error('Not authenticated');
+      const client = createGraphQLHttpClient(r.token);
       await client.request<AddClimbToPlaylistMutationResponse>(ADD_CLIMB_TO_PLAYLIST, {
         input: { playlistId, climbUuid, angle: climbAngle },
       });
-      // Cancel in-flight fetches and update accumulated membership cache
-      await cancelMemFetches();
-      const prevMem = queryClient.getQueryData<Map<string, Set<string>>>(memAccKey) ?? new Map();
+      await r.cancelMemFetches();
+      const prevMem = r.queryClient.getQueryData<Map<string, Set<string>>>(r.memAccKey) ?? new Map();
       const updatedMem = new Map(prevMem);
       const currentSet = new Set(updatedMem.get(climbUuid) || []);
       currentSet.add(playlistId);
       updatedMem.set(climbUuid, currentSet);
-      queryClient.setQueryData(memAccKey, updatedMem);
-      queryClient.setQueryData<Playlist[]>(playlistsQueryKey, (prev) =>
+      r.queryClient.setQueryData(r.memAccKey, updatedMem);
+      r.queryClient.setQueryData<Playlist[]>(r.playlistsQueryKey, (prev) =>
         prev?.map((p) => (p.uuid === playlistId ? { ...p, climbCount: p.climbCount + 1 } : p)),
       );
     },
-    [token, memAccKey, playlistsQueryKey, queryClient, cancelMemFetches],
+    [],
   );
 
   const removeFromPlaylist = useCallback(
     async (playlistId: string, climbUuid: string) => {
-      if (!token) throw new Error('Not authenticated');
-      const client = createGraphQLHttpClient(token);
+      const r = playlistRef.current;
+      if (!r.token) throw new Error('Not authenticated');
+      const client = createGraphQLHttpClient(r.token);
       await client.request<RemoveClimbFromPlaylistMutationResponse>(REMOVE_CLIMB_FROM_PLAYLIST, {
         input: { playlistId, climbUuid },
       });
-      // Cancel in-flight fetches and update accumulated membership cache
-      await cancelMemFetches();
-      const prevMem = queryClient.getQueryData<Map<string, Set<string>>>(memAccKey) ?? new Map();
+      await r.cancelMemFetches();
+      const prevMem = r.queryClient.getQueryData<Map<string, Set<string>>>(r.memAccKey) ?? new Map();
       const updatedMem = new Map(prevMem);
       const currentPlaylists = updatedMem.get(climbUuid);
       if (currentPlaylists) {
@@ -270,14 +287,14 @@ export function useClimbActionsData({
         next.delete(playlistId);
         updatedMem.set(climbUuid, next);
       }
-      queryClient.setQueryData(memAccKey, updatedMem);
-      queryClient.setQueryData<Playlist[]>(playlistsQueryKey, (prev) =>
+      r.queryClient.setQueryData(r.memAccKey, updatedMem);
+      r.queryClient.setQueryData<Playlist[]>(r.playlistsQueryKey, (prev) =>
         prev?.map((p) =>
           p.uuid === playlistId ? { ...p, climbCount: Math.max(0, p.climbCount - 1) } : p,
         ),
       );
     },
-    [token, memAccKey, playlistsQueryKey, queryClient, cancelMemFetches],
+    [],
   );
 
   const createPlaylist = useCallback(
@@ -287,22 +304,24 @@ export function useClimbActionsData({
       color?: string,
       icon?: string,
     ): Promise<Playlist> => {
-      if (!token) throw new Error('Not authenticated');
-      const client = createGraphQLHttpClient(token);
+      const r = playlistRef.current;
+      if (!r.token) throw new Error('Not authenticated');
+      const client = createGraphQLHttpClient(r.token);
       const response = await client.request<CreatePlaylistMutationResponse>(CREATE_PLAYLIST, {
-        input: { boardType: boardName, layoutId, name, description, color, icon },
+        input: { boardType: r.boardName, layoutId: r.layoutId, name, description, color, icon },
       });
-      queryClient.setQueryData<Playlist[]>(playlistsQueryKey, (prev) =>
+      r.queryClient.setQueryData<Playlist[]>(r.playlistsQueryKey, (prev) =>
         prev ? [response.createPlaylist, ...prev] : [response.createPlaylist],
       );
       return response.createPlaylist;
     },
-    [token, boardName, layoutId, playlistsQueryKey, queryClient],
+    [],
   );
 
   const refreshPlaylists = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: playlistsQueryKey });
-  }, [queryClient, playlistsQueryKey]);
+    const r = playlistRef.current;
+    await r.queryClient.invalidateQueries({ queryKey: r.playlistsQueryKey });
+  }, []);
 
   return {
     favoritesProviderProps: {

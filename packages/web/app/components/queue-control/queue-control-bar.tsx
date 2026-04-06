@@ -90,6 +90,8 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
     }
   }, []);
 
+  const handleCloseDrawer = useCallback(() => setActiveDrawer('none'), []);
+
   const isViewPage = pathname.includes('/view/');
   const isListPage = pathname.includes('/list');
   const isPlayPage = pathname.includes('/play/');
@@ -566,9 +568,8 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
         title="Queue"
         placement="bottom"
         open={activeDrawer === 'queue'}
-        onClose={() => setActiveDrawer('none')}
+        onClose={handleCloseDrawer}
         onTransitionEnd={handleDrawerOpenChange}
-        keepMounted
         styles={{ wrapper: { height: '70%' }, body: { padding: 0 } }}
         extra={
           queue.length > 0 && (
@@ -586,7 +587,7 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
           )
         }
       >
-        <QueueList ref={queueListRef} boardDetails={boardDetails} onClimbNavigate={() => setActiveDrawer('none')} />
+        <QueueList ref={queueListRef} boardDetails={boardDetails} onClimbNavigate={handleCloseDrawer} active={activeDrawer === 'queue'} />
       </SwipeableDrawer>
 
       <PlayViewDrawer
