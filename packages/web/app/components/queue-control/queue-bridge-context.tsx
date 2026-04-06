@@ -57,6 +57,8 @@ const QueueBridgeSetterContext = createContext<QueueBridgeSetters>({
 
 function usePersistentSessionQueueAdapter(): {
   context: GraphQLQueueContextType;
+  actionsValue: GraphQLQueueActionsType;
+  dataValue: GraphQLQueueDataType;
   boardDetails: BoardDetails | null;
   angle: Angle;
   hasActiveQueue: boolean;
@@ -201,7 +203,44 @@ function usePersistentSessionQueueAdapter(): {
   const noopJoinSession = useCallback(async (_sessionId: string) => {}, []);
   const noopSetClimbSearchParams = useCallback((_params: SearchRequestPagination) => {}, []);
 
-  const context: GraphQLQueueContextType = useMemo(
+  // Split into stable actions and volatile data to enable targeted subscriptions
+  const actionsValue: GraphQLQueueActionsType = useMemo(
+    () => ({
+      addToQueue,
+      removeFromQueue,
+      setCurrentClimb,
+      setCurrentClimbQueueItem,
+      setClimbSearchParams: noopSetClimbSearchParams,
+      setCountSearchParams: noopSetClimbSearchParams,
+      mirrorClimb,
+      fetchMoreClimbs: noop,
+      getNextClimbQueueItem,
+      getPreviousClimbQueueItem,
+      setQueue,
+      startSession: noopStartSession,
+      joinSession: noopJoinSession,
+      endSession: ps.deactivateSession,
+      dismissSessionSummary: noop,
+      disconnect: ps.deactivateSession,
+    }),
+    [
+      addToQueue,
+      removeFromQueue,
+      setCurrentClimb,
+      setCurrentClimbQueueItem,
+      noopSetClimbSearchParams,
+      mirrorClimb,
+      noop,
+      getNextClimbQueueItem,
+      getPreviousClimbQueueItem,
+      setQueue,
+      noopStartSession,
+      noopJoinSession,
+      ps.deactivateSession,
+    ],
+  );
+
+  const dataValue: GraphQLQueueDataType = useMemo(
     () => ({
       queue,
       currentClimbQueueItem,
@@ -218,39 +257,17 @@ function usePersistentSessionQueueAdapter(): {
       connectionState: 'connected',
       canMutate: true,
       parsedParams,
-
-      // Session management
       isSessionActive: isParty && ps.hasConnected,
       sessionId: ps.activeSession?.sessionId ?? null,
-      startSession: noopStartSession,
-      joinSession: noopJoinSession,
-      endSession: ps.deactivateSession,
       sessionSummary: null,
-      dismissSessionSummary: noop,
       sessionGoal: ps.session?.goal ?? null,
-
-      // Session data
       users: isParty ? ps.users : [],
       clientId: ps.clientId,
       isLeader: ps.isLeader,
       isBackendMode: true,
       hasConnected: ps.hasConnected,
       connectionError: ps.error,
-      disconnect: ps.deactivateSession,
-
-      // Actions
-      addToQueue,
-      removeFromQueue,
-      setCurrentClimb,
-      setCurrentClimbQueueItem,
-      setClimbSearchParams: noopSetClimbSearchParams,
-      setCountSearchParams: noopSetClimbSearchParams,
-      mirrorClimb,
       isDisconnected: false,
-      fetchMoreClimbs: noop,
-      getNextClimbQueueItem,
-      getPreviousClimbQueueItem,
-      setQueue,
     }),
     [
       queue,
@@ -259,28 +276,20 @@ function usePersistentSessionQueueAdapter(): {
       isParty,
       ps.hasConnected,
       ps.activeSession?.sessionId,
-      ps.deactivateSession,
       ps.session?.goal,
       ps.users,
       ps.clientId,
       ps.isLeader,
       ps.error,
-      noopStartSession,
-      noopJoinSession,
-      noopSetClimbSearchParams,
-      noop,
-      addToQueue,
-      removeFromQueue,
-      setCurrentClimb,
-      setCurrentClimbQueueItem,
-      mirrorClimb,
-      getNextClimbQueueItem,
-      getPreviousClimbQueueItem,
-      setQueue,
     ],
   );
 
-  return { context, boardDetails, angle, hasActiveQueue };
+  const context: GraphQLQueueContextType = useMemo(
+    () => ({ ...dataValue, ...actionsValue }),
+    [dataValue, actionsValue],
+  );
+
+  return { context, actionsValue, dataValue, boardDetails, angle, hasActiveQueue };
 }
 
 // -------------------------------------------------------------------
@@ -314,61 +323,71 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
     () => (isInjected && injectedContextRef.current) ? injectedContextRef.current : adapter.context,
     [isInjected, contextVersion, adapter.context],
   );
+
+  // Derive split contexts from the effective combined context.
+  // When not injected, use the adapter's pre-split values (more stable references).
+  // When injected, extract actions/data from the combined context.
+  const effectiveActions: GraphQLQueueActionsType = useMemo(() => {
+    if (!isInjected) return adapter.actionsValue;
+    const ctx = effectiveContext;
+    return {
+      addToQueue: ctx.addToQueue,
+      removeFromQueue: ctx.removeFromQueue,
+      setCurrentClimb: ctx.setCurrentClimb,
+      setCurrentClimbQueueItem: ctx.setCurrentClimbQueueItem,
+      setClimbSearchParams: ctx.setClimbSearchParams,
+      setCountSearchParams: ctx.setCountSearchParams,
+      mirrorClimb: ctx.mirrorClimb,
+      fetchMoreClimbs: ctx.fetchMoreClimbs,
+      getNextClimbQueueItem: ctx.getNextClimbQueueItem,
+      getPreviousClimbQueueItem: ctx.getPreviousClimbQueueItem,
+      setQueue: ctx.setQueue,
+      startSession: ctx.startSession,
+      joinSession: ctx.joinSession,
+      endSession: ctx.endSession,
+      dismissSessionSummary: ctx.dismissSessionSummary,
+      disconnect: ctx.disconnect,
+    };
+  }, [isInjected, adapter.actionsValue, effectiveContext]);
+
+  const effectiveData: GraphQLQueueDataType = useMemo(() => {
+    if (!isInjected) return adapter.dataValue;
+    const ctx = effectiveContext;
+    return {
+      queue: ctx.queue,
+      currentClimbQueueItem: ctx.currentClimbQueueItem,
+      currentClimb: ctx.currentClimb,
+      climbSearchParams: ctx.climbSearchParams,
+      climbSearchResults: ctx.climbSearchResults,
+      suggestedClimbs: ctx.suggestedClimbs,
+      totalSearchResultCount: ctx.totalSearchResultCount,
+      hasMoreResults: ctx.hasMoreResults,
+      isFetchingClimbs: ctx.isFetchingClimbs,
+      isFetchingNextPage: ctx.isFetchingNextPage,
+      hasDoneFirstFetch: ctx.hasDoneFirstFetch,
+      viewOnlyMode: ctx.viewOnlyMode,
+      connectionState: ctx.connectionState,
+      canMutate: ctx.canMutate,
+      parsedParams: ctx.parsedParams,
+      isSessionActive: ctx.isSessionActive,
+      sessionId: ctx.sessionId,
+      sessionSummary: ctx.sessionSummary,
+      sessionGoal: ctx.sessionGoal,
+      users: ctx.users,
+      clientId: ctx.clientId,
+      isLeader: ctx.isLeader,
+      isBackendMode: ctx.isBackendMode,
+      hasConnected: ctx.hasConnected,
+      connectionError: ctx.connectionError,
+      isDisconnected: ctx.isDisconnected,
+    };
+  }, [isInjected, adapter.dataValue, effectiveContext]);
+
   const effectiveBoardDetails = isInjected ? injectedBoardDetails : adapter.boardDetails;
   const effectiveAngle = isInjected ? injectedAngle : adapter.angle;
   const effectiveHasActiveQueue = isInjected
     ? true // If injected, a board route is active — always show bar
     : adapter.hasActiveQueue;
-
-  // Derive split context values from the effective (combined) context so narrow hooks
-  // (useQueueActions / useQueueData) work both inside GraphQLQueueProvider and the bridge.
-  const effectiveActionsContext = useMemo<GraphQLQueueActionsType>(() => ({
-    addToQueue: effectiveContext.addToQueue,
-    removeFromQueue: effectiveContext.removeFromQueue,
-    setCurrentClimb: effectiveContext.setCurrentClimb,
-    setCurrentClimbQueueItem: effectiveContext.setCurrentClimbQueueItem,
-    setClimbSearchParams: effectiveContext.setClimbSearchParams,
-    setCountSearchParams: effectiveContext.setCountSearchParams,
-    mirrorClimb: effectiveContext.mirrorClimb,
-    fetchMoreClimbs: effectiveContext.fetchMoreClimbs,
-    getNextClimbQueueItem: effectiveContext.getNextClimbQueueItem,
-    getPreviousClimbQueueItem: effectiveContext.getPreviousClimbQueueItem,
-    setQueue: effectiveContext.setQueue,
-    disconnect: effectiveContext.disconnect,
-    startSession: effectiveContext.startSession,
-    joinSession: effectiveContext.joinSession,
-    endSession: effectiveContext.endSession,
-    dismissSessionSummary: effectiveContext.dismissSessionSummary,
-  }), [effectiveContext]);
-
-  const effectiveDataContext = useMemo<GraphQLQueueDataType>(() => ({
-    queue: effectiveContext.queue,
-    currentClimbQueueItem: effectiveContext.currentClimbQueueItem,
-    currentClimb: effectiveContext.currentClimb,
-    climbSearchParams: effectiveContext.climbSearchParams,
-    climbSearchResults: effectiveContext.climbSearchResults,
-    suggestedClimbs: effectiveContext.suggestedClimbs,
-    totalSearchResultCount: effectiveContext.totalSearchResultCount,
-    hasMoreResults: effectiveContext.hasMoreResults,
-    isFetchingClimbs: effectiveContext.isFetchingClimbs,
-    isFetchingNextPage: effectiveContext.isFetchingNextPage,
-    hasDoneFirstFetch: effectiveContext.hasDoneFirstFetch,
-    viewOnlyMode: effectiveContext.viewOnlyMode,
-    parsedParams: effectiveContext.parsedParams,
-    connectionState: effectiveContext.connectionState,
-    canMutate: effectiveContext.canMutate,
-    users: effectiveContext.users,
-    clientId: effectiveContext.clientId,
-    isLeader: effectiveContext.isLeader,
-    isBackendMode: effectiveContext.isBackendMode,
-    hasConnected: effectiveContext.hasConnected,
-    connectionError: effectiveContext.connectionError,
-    isDisconnected: effectiveContext.isDisconnected,
-    isSessionActive: effectiveContext.isSessionActive,
-    sessionId: effectiveContext.sessionId,
-    sessionSummary: effectiveContext.sessionSummary,
-    sessionGoal: effectiveContext.sessionGoal,
-  }), [effectiveContext]);
 
   const boardInfo = useMemo<QueueBridgeBoardInfo>(
     () => ({
@@ -408,8 +427,8 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
   return (
     <QueueBridgeSetterContext.Provider value={setters}>
       <QueueBridgeBoardInfoContext.Provider value={boardInfo}>
-        <QueueActionsContext.Provider value={effectiveActionsContext}>
-          <QueueDataContext.Provider value={effectiveDataContext}>
+        <QueueActionsContext.Provider value={effectiveActions}>
+          <QueueDataContext.Provider value={effectiveData}>
             <QueueContext.Provider value={effectiveContext}>
               {/* Sync queue state to iOS Live Activity (code-split, no-op on non-iOS) */}
               <LiveActivityBridge

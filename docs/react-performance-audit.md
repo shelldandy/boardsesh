@@ -8,11 +8,11 @@ Audit of queue control bar, climb list, and play view drawer — April 2026.
 
 ### Unstable adapter context object
 **File:** `packages/web/app/components/queue-control/queue-bridge-context.tsx:204-281`
-**Status:** Open
+**Status:** Fixed
 
 The `usePersistentSessionQueueAdapter()` creates a context object with 20+ properties. Even though it's wrapped in `useMemo`, the dependency array includes derived values (`parsedParams`, `queue`, `currentClimbQueueItem`) that change frequently. Every change recreates the entire context object, causing all consumers to re-render.
 
-**Fix:** Split the adapter context into stable (actions) and volatile (data) parts, matching the split already done in `QueueContext.tsx`.
+**Fix applied:** Split the adapter's single `useMemo` into three: `actionsValue` (stable callbacks), `dataValue` (volatile state), and `contextValue` (combined for backward compat). `QueueBridgeProvider` now provides all three contexts (`QueueActionsContext`, `QueueDataContext`, `QueueContext`), matching `GraphQLQueueProvider`. Consumers using `useQueueActions()` now get a stable reference that doesn't change on queue/data updates.
 
 ### Overly broad context subscription
 **File:** `packages/web/app/components/queue-control/queue-control-bar.tsx:96-111`
@@ -88,23 +88,27 @@ The `ClimbsList` component itself is not wrapped in `React.memo`. Parent re-rend
 
 ### keepMounted with heavy children
 **File:** `packages/web/app/components/play-view/play-view-drawer.tsx:273`
-**Status:** Open
+**Status:** Fixed
 
 The main drawer uses `keepMounted={true}`, meaning `SwipeBoardCarousel` (canvas rendering), `ClimbDetailShellClient`, and API queries (beta videos, logbook) all run continuously even when the drawer is closed.
 
-**Fix:** Either conditionally render content based on `isOpen`, or add visibility gating so queries and canvas rendering pause when the drawer is not visible.
+**Fix applied:** Gated all heavy content (`PlayDrawerContent`, `SwipeBoardCarousel`, child drawers) on `isOpen`. When the drawer is closed, the shell stays mounted for smooth animations but no expensive children render. Canvas rendering, API queries, and section builds are fully stopped when the drawer is not visible.
 
 ### PlayDrawerContent not memoized
 **File:** `packages/web/app/components/play-view/play-view-drawer.tsx:55-66`
-**Status:** Open
+**Status:** Fixed
 
 Called on every render without `React.memo`. `useBuildClimbDetailSections` re-evaluates unconditionally, triggering section queries and CollapsibleSection rebuilds.
 
+**Fix applied:** Wrapped `PlayDrawerContent` in `React.memo`. Now only re-renders when its own props (`climb`, `boardType`, `angle`, `aboveFold`) change.
+
 ### SwipeBoardCarousel receives fresh callback props
 **File:** `packages/web/app/components/play-view/play-view-drawer.tsx:302-318`
-**Status:** Open
+**Status:** Fixed
 
 Not wrapped in `React.memo`. Receives callback props (`onSwipeNext`, `onDoubleTap`) that are new references on parent re-render, potentially causing canvas re-initialization.
+
+**Fix applied:** Wrapped `SwipeBoardCarousel` in `React.memo`. Combined with `useCallback`-wrapped handlers in the parent, the carousel now skips re-renders when only unrelated parent state changes.
 
 ### Queue drawer height state cascade
 **File:** `packages/web/app/components/play-view/play-view-drawer.tsx:90,183-194,501`
@@ -120,15 +124,19 @@ No visibility gating — queries run even when the section is collapsed or the d
 
 ### Logbook filtering not memoized
 **File:** `packages/web/app/components/play-view/play-view-comments.tsx:24-26`
-**Status:** Open
+**Status:** Fixed
 
-Refilters and resorts the logbook array on every parent re-render. Should be wrapped in `useMemo`.
+Refilters and resorts the logbook array on every parent re-render.
+
+**Fix applied:** Wrapped in `useMemo` with `[logbook, climbUuid]` dependencies.
 
 ### Unused dynamic import
 **File:** `packages/web/app/components/play-view/play-view-drawer.tsx:20`
-**Status:** Open
+**Status:** Fixed
 
-`import dynamic from 'next/dynamic'` is imported but never used — dead code.
+`import dynamic from 'next/dynamic'` was imported but never used.
+
+**Fix applied:** Removed the unused import.
 
 ---
 
@@ -137,16 +145,16 @@ Refilters and resorts the logbook array on every parent re-render. Should be wra
 | Priority | Issue | Component | Status |
 |----------|-------|-----------|--------|
 | P0 | CSS content-visibility for paint skipping | Climb List | **Fixed** |
-| P0 | keepMounted with canvas | Play View Drawer | Open |
-| P0 | Unstable bridge context | Queue Control Bar | Open |
+| P0 | keepMounted with canvas | Play View Drawer | **Fixed** |
+| P0 | Unstable bridge context | Queue Control Bar | **Fixed** |
 | P1 | Combined context subscription | Queue Control Bar | Open |
 | P1 | Shared drawer state re-renders | Climb List | **Fixed** |
 | P1 | O(n^2) dedup filter | Climb List | **Fixed** |
-| P1 | Unmemoized PlayDrawerContent | Play View Drawer | Open |
+| P1 | Unmemoized PlayDrawerContent | Play View Drawer | **Fixed** |
 | P2 | Queue height via state | Play View Drawer | Open |
 | P2 | Canvas thumbnails for all items | Climb List | Mitigated |
 | P2 | Beta API queries unconditional | Play View Drawer | Open |
-| P2 | Logbook filtering no memo | Play View Drawer | Open |
+| P2 | Logbook filtering no memo | Play View Drawer | **Fixed** |
 | P3 | Color mode coupling | Queue Control Bar | Open |
 | P3 | Inline style recreation | Queue Control Bar | Open |
-| P3 | Unused dynamic import | Play View Drawer | Open |
+| P3 | Unused dynamic import | Play View Drawer | **Fixed** |

@@ -17,7 +17,6 @@ import EditOutlined from '@mui/icons-material/EditOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
 import CheckOutlined from '@mui/icons-material/CheckOutlined';
-import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useQueueContext } from '../graphql-queue';
 import { ClimbActions } from '../climb-actions';
@@ -52,7 +51,7 @@ interface PlayDrawerContentProps {
   aboveFold: React.ReactNode;
 }
 
-const PlayDrawerContent: React.FC<PlayDrawerContentProps> = ({ climb, boardType, angle, aboveFold }) => {
+const PlayDrawerContent = React.memo<PlayDrawerContentProps>(({ climb, boardType, angle, aboveFold }) => {
   const sections = useBuildClimbDetailSections({
     climb,
     climbUuid: climb.uuid,
@@ -63,7 +62,8 @@ const PlayDrawerContent: React.FC<PlayDrawerContentProps> = ({ climb, boardType,
   });
 
   return <ClimbDetailShellClient mode="play" sections={sections} aboveFold={aboveFold} />;
-};
+});
+PlayDrawerContent.displayName = 'PlayDrawerContent';
 
 interface PlayViewDrawerProps {
   activeDrawer: ActiveDrawer;
@@ -278,6 +278,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         wrapper: { height: '100%', backgroundColor: 'var(--semantic-background)' },
       }}
     >
+      {isOpen ? (
+      <>
       <div className={styles.drawerContent}>
         {currentClimb ? (
           <PlayDrawerContent
@@ -474,6 +476,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             boardDetails={boardDetails}
           />
         )}
+      </>
+      ) : null}
 
         {/* Queue list drawer */}
         <SwipeableDrawer

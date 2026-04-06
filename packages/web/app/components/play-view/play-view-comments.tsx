@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
@@ -19,13 +19,14 @@ interface PlayViewCommentsProps {
 const PlayViewComments: React.FC<PlayViewCommentsProps> = ({ climbUuid }) => {
   const { logbook } = useBoardProvider();
 
-  if (!climbUuid) return null;
+  const ascents = useMemo(
+    () => logbook
+      .filter((entry) => entry.climb_uuid === climbUuid)
+      .sort((a, b) => dayjs(b.climbed_at).valueOf() - dayjs(a.climbed_at).valueOf()),
+    [logbook, climbUuid],
+  );
 
-  const ascents = logbook
-    .filter((entry) => entry.climb_uuid === climbUuid)
-    .sort((a, b) => dayjs(b.climbed_at).valueOf() - dayjs(a.climbed_at).valueOf());
-
-  if (ascents.length === 0) return null;
+  if (!climbUuid || ascents.length === 0) return null;
 
   return (
     <Box sx={{ px: `${themeTokens.spacing[3]}px`, pb: `${themeTokens.spacing[2]}px` }}>
