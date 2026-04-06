@@ -222,6 +222,10 @@ function usePersistentSessionQueueAdapter(): {
   );
   const noopJoinSession = useCallback(async (_sessionId: string) => {}, []);
   const noopSetClimbSearchParams = useCallback((_params: SearchRequestPagination) => {}, []);
+  // Wrap deactivateSession via ref so actionsValue deps are fully stable
+  const stableDeactivateSession = useCallback(() => {
+    latestRef.current.ps.deactivateSession();
+  }, []);
 
   // Actions value is now stable — all callbacks use latestRef with empty deps
   const actionsValue: GraphQLQueueActionsType = useMemo(
@@ -239,9 +243,9 @@ function usePersistentSessionQueueAdapter(): {
       setQueue,
       startSession: noopStartSession,
       joinSession: noopJoinSession,
-      endSession: ps.deactivateSession,
+      endSession: stableDeactivateSession,
       dismissSessionSummary: noop,
-      disconnect: ps.deactivateSession,
+      disconnect: stableDeactivateSession,
     }),
     [
       addToQueue,
@@ -254,7 +258,7 @@ function usePersistentSessionQueueAdapter(): {
       getNextClimbQueueItem,
       getPreviousClimbQueueItem,
       setQueue,
-      ps.deactivateSession,
+      stableDeactivateSession,
       noopStartSession,
       noopJoinSession,
     ],
