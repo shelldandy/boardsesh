@@ -6,7 +6,7 @@ import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { getDb } from "@/app/lib/db/db";
 import * as schema from "@/app/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { verifyNativeOAuthTransferToken } from "@/app/lib/auth/native-oauth-transfer";
 
@@ -202,15 +202,25 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account }) {
       // OAuth providers - allow sign in (emails are pre-verified by provider)
-      if (account?.provider !== "credentials") {
-        // Auto-verify email for OAuth users (provider already verified it)
+      // Skip native-oauth (transfer token flow) — email is already verified
+      if (account?.provider !== "credentials" && account?.provider !== "native-oauth") {
+        // Mark email as verified if not already (provider already verified it)
         if (user.id) {
-          const db = getDb();
-          await db
-            .update(schema.users)
-            .set({ emailVerified: new Date() })
-            .where(eq(schema.users.id, user.id));
+          try {
+            const db = getDb();
+            await db
+              .update(schema.users)
+              .set({ emailVerified: new Date() })
+              .where(and(eq(schema.users.id, user.id), isNull(schema.users.emailVerified)));
+          } catch {
+            // Best-effort — don't block sign-in if this fails
+          }
         }
+        return true;
+      }
+
+      // Native OAuth transfer tokens — already authenticated, allow through
+      if (account?.provider === "native-oauth") {
         return true;
       }
 
