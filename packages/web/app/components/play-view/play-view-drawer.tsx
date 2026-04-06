@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo, useDeferredValue } from 'react';
 import MuiBadge from '@mui/material/Badge';
 import MuiButton from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -80,25 +80,18 @@ interface PlayViewDrawerProps {
   angle: Angle;
 }
 
-interface PlayViewDrawerContentProps extends PlayViewDrawerProps {
-  nestedDrawerOpenRef: React.MutableRefObject<boolean>;
-}
 
-const PlayViewDrawerContent: React.FC<PlayViewDrawerContentProps> = ({
+const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   activeDrawer,
   setActiveDrawer,
   boardDetails,
   angle,
-  nestedDrawerOpenRef,
 }) => {
   const isOpen = activeDrawer === 'play';
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isPlaylistSelectorOpen, setIsPlaylistSelectorOpen] = useState(false);
   const [isTickDrawerOpen, setIsTickDrawerOpen] = useState(false);
-
-  const hasNestedDrawerOpen = isActionsOpen || isQueueOpen || isPlaylistSelectorOpen || isTickDrawerOpen;
-  nestedDrawerOpenRef.current = hasNestedDrawerOpen;
   const [isEditMode, setIsEditMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -124,9 +117,21 @@ const PlayViewDrawerContent: React.FC<PlayViewDrawerContentProps> = ({
     setQueueScrollEl(node);
   }, []);
 
-  const { currentClimb, currentClimbQueueItem } = useCurrentClimb();
-  const { queue } = useQueueList();
-  const { viewOnlyMode } = useSessionData();
+  // Fine-grained context hooks (only re-render when specific data changes)
+  const currentClimbData = useCurrentClimb();
+  const queueListData = useQueueList();
+  const sessionData = useSessionData();
+
+  // When the drawer is closed, defer context updates so they don't block the main
+  // thread. React will batch these into low-priority renders that yield to user input.
+  const deferredCurrentClimb = useDeferredValue(currentClimbData);
+  const deferredQueue = useDeferredValue(queueListData);
+  const deferredSession = useDeferredValue(sessionData);
+
+  // Use immediate values when open (responsive), deferred when closed (non-blocking)
+  const { currentClimb, currentClimbQueueItem } = isOpen ? currentClimbData : deferredCurrentClimb;
+  const { queue } = isOpen ? queueListData : deferredQueue;
+  const { viewOnlyMode } = isOpen ? sessionData : deferredSession;
   const {
     mirrorClimb,
     setQueue,
@@ -242,6 +247,14 @@ const PlayViewDrawerContent: React.FC<PlayViewDrawerContentProps> = ({
     };
   }, [isOpen, setActiveDrawer]);
 
+  const handleClose = useCallback(() => {
+    if (isActionsOpen || isQueueOpen || isPlaylistSelectorOpen || isTickDrawerOpen) return;
+    setActiveDrawer('none');
+    if (window.location.hash === '#playing') {
+      window.history.back();
+    }
+  }, [setActiveDrawer, isActionsOpen, isQueueOpen, isPlaylistSelectorOpen, isTickDrawerOpen]);
+
   // Compute ascent info for tick FAB badge
   const currentAngle = typeof angle === 'string' ? parseInt(angle, 10) : angle;
   const filteredLogbook = useMemo(() => {
@@ -275,8 +288,38 @@ const PlayViewDrawerContent: React.FC<PlayViewDrawerContentProps> = ({
 
   const isMirrored = !!currentClimb?.mirrored;
 
+  // Keep content mounted during the close animation so the slide-out is smooth.
+  // `isOpen` drives immediate rendering; `keepMountedDuringClose` keeps content
+  // visible until the exit transition completes so the slide-out animates content.
+  const [keepMountedDuringClose, setKeepMountedDuringClose] = useState(false);
+  const showContent = isOpen || keepMountedDuringClose;
+
+  useEffect(() => {
+    if (isOpen) setKeepMountedDuringClose(true);
+  }, [isOpen]);
+
+  const handleTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setKeepMountedDuringClose(false);
+  }, []);
+
   return (
     <>
+    <SwipeableDrawer
+      placement="bottom"
+      height="100%"
+      fullHeight
+      open={isOpen}
+      onClose={handleClose}
+      onTransitionEnd={handleTransitionEnd}
+      keepMounted
+      swipeEnabled={!isActionsOpen && !isQueueOpen && !isPlaylistSelectorOpen}
+      showDragHandle={true}
+      styles={{
+        body: { padding: 0, overflow: 'hidden' },
+        wrapper: { height: '100%', backgroundColor: 'var(--semantic-background)' },
+      }}
+    >
+      {showContent ? (<>
       <div className={styles.drawerContent}>
         {currentClimb ? (
           <PlayDrawerContent
@@ -473,6 +516,7 @@ const PlayViewDrawerContent: React.FC<PlayViewDrawerContentProps> = ({
             boardDetails={boardDetails}
           />
         )}
+      </>) : null}
 
         {/* Queue list drawer */}
         <SwipeableDrawer
@@ -582,59 +626,8 @@ const PlayViewDrawerContent: React.FC<PlayViewDrawerContentProps> = ({
             )}
           </div>
         </SwipeableDrawer>
-    </>
-  );
-};
-
-// Outer wrapper: owns the SwipeableDrawer shell (always rendered for animations),
-// but only mounts PlayViewDrawerContent (which subscribes to queue contexts)
-// when the drawer is open or closing. This prevents context re-renders when closed.
-const PlayViewDrawer: React.FC<PlayViewDrawerProps> = (props) => {
-  const { activeDrawer, setActiveDrawer } = props;
-  const isOpen = activeDrawer === 'play';
-
-  const [keepMountedDuringClose, setKeepMountedDuringClose] = useState(false);
-  const showContent = isOpen || keepMountedDuringClose;
-
-  // Ref updated by the inner component to signal whether a nested drawer is open.
-  const nestedDrawerOpenRef = useRef(false);
-
-  useEffect(() => {
-    if (isOpen) setKeepMountedDuringClose(true);
-  }, [isOpen]);
-
-  const handleTransitionEnd = useCallback((open: boolean) => {
-    if (!open) setKeepMountedDuringClose(false);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    if (nestedDrawerOpenRef.current) return;
-    setActiveDrawer('none');
-    if (window.location.hash === '#playing') {
-      window.history.back();
-    }
-  }, [setActiveDrawer]);
-
-  return (
-    <SwipeableDrawer
-      placement="bottom"
-      height="100%"
-      fullHeight
-      open={isOpen}
-      onClose={handleClose}
-      onTransitionEnd={handleTransitionEnd}
-      keepMounted
-      swipeEnabled={showContent && !nestedDrawerOpenRef.current}
-      showDragHandle={true}
-      styles={{
-        body: { padding: 0, overflow: 'hidden' },
-        wrapper: { height: '100%', backgroundColor: 'var(--semantic-background)' },
-      }}
-    >
-      {showContent ? (
-        <PlayViewDrawerContent {...props} nestedDrawerOpenRef={nestedDrawerOpenRef} />
-      ) : null}
     </SwipeableDrawer>
+    </>
   );
 };
 
