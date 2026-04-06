@@ -20,7 +20,6 @@ import { trackQueueOperation, trackQueueOperationError, type QueueOperationMode 
 
 import { useSessionIdManagement } from './hooks/use-session-id-management';
 import { useQueueRestoration } from './hooks/use-queue-restoration';
-import { useQueueStorageSync } from './hooks/use-queue-storage-sync';
 import { useQueueEventSubscription } from './hooks/use-queue-event-subscription';
 import { usePendingUpdateCleanup } from './hooks/use-pending-update-cleanup';
 import { useMutationGuard } from './hooks/use-mutation-guard';
@@ -85,8 +84,8 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
     currentClimbQueueItem: state.currentClimbQueueItem,
   });
 
-  // --- Queue restoration ---
-  const { hasRestored } = useQueueRestoration({
+  // --- Queue restoration (from in-memory bridge state or party session) ---
+  useQueueRestoration({
     isPersistentSessionActive,
     sessionId,
     baseBoardPath,
@@ -155,19 +154,6 @@ export const GraphQLQueueProvider = ({ parsedParams, boardDetails, children, bas
     persistentSession,
     currentQueue: state.queue,
     currentClimbQueueItem: state.currentClimbQueueItem,
-  });
-
-  // --- Queue storage sync ---
-  useQueueStorageSync({
-    hasRestored,
-    isPersistentSessionActive,
-    sessionId,
-    queue: state.queue,
-    currentClimbQueueItem: state.currentClimbQueueItem,
-    baseBoardPath,
-    boardDetails,
-    isDisconnected,
-    persistentSession,
   });
 
   // --- Queue event subscription ---
