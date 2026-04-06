@@ -11,8 +11,12 @@ class BoardseshViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Disable rubber-band bounce so the page cannot overscroll
-        webView?.scrollView.bounces = false
+        // Let the native scroll view bounce naturally for smooth scroll physics.
+        // CSS overscroll-behavior-y:none on <html> prevents web content from
+        // rubber-banding, and Capacitor's backgroundColor (#0A0A0A) ensures
+        // any native bounce reveals matching black — not a jarring white.
+        // Previously bounces=false was set here, but it degrades momentum
+        // scrolling and touch responsiveness vs Safari.
 
         // If a universal link triggered a cold start, navigate to it now
         // that the bridge and WebView are ready.

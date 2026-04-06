@@ -98,7 +98,6 @@ html[data-theme="dark"] {
 
 /* Base styles */
 html {
-  touch-action: manipulation;
   background-color: var(--semantic-surface) !important;
   scrollbar-width: thin;
   scrollbar-color: var(--neutral-300) var(--neutral-100);
