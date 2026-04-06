@@ -550,12 +550,7 @@ export function useSessionLifecycle({
         clearTimeout(retryConnectTimeout);
       }
     };
-  // Note: username, avatarUrl, wsAuthToken are accessed via refs to prevent reconnection on changes
-  }, [activeSession, isAuthLoading, handleQueueEvent, handleSessionEvent, setSession,
-      mountedRef, connectionGenerationRef, isConnectingRef, isReconnectingRef,
-      wsAuthTokenRef, usernameRef, avatarUrlRef, sessionRef, activeSessionRef,
-      queueRef, currentClimbQueueItemRef, triggerResyncRef, lastReceivedSequenceRef,
-      queueUnsubscribeRef, sessionUnsubscribeRef, pendingInitialQueue]);
+  }, [activeSession, isAuthLoading, handleQueueEvent, handleSessionEvent, setSession, pendingInitialQueue]);
 
   return {
     activeSession,
