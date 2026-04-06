@@ -258,8 +258,29 @@ const SwipeableDrawer: React.FC<SwipeableDrawerProps> = ({
     return sx;
   }, [userStyles?.wrapper, height, width, fullHeightProp]);
 
-  // SwipeableDrawer onClose handler
+  // SwipeableDrawer onClose handler.
+  // Normalizes the Paper's inline transform before the Slide exit transition
+  // fires. During swipe, MUI sets `translate(0, Xpx)` but Slide animates to
+  // `translateY(Xpx)`. These different function formats can't be interpolated
+  // by CSS transitions, causing the Paper to jump instead of animate.
   const handleSwipeableClose = useCallback(() => {
+    const paper = lastPaperRef.current;
+    if (paper) {
+      const t = paper.style.transform;
+      if (t) {
+        const m = t.match(/translate\(\s*0(?:px)?\s*,\s*(.+?)\s*\)/);
+        if (m) {
+          paper.style.transform = `translateY(${m[1]})`;
+          paper.style.webkitTransform = `translateY(${m[1]})`;
+        } else {
+          const mh = t.match(/translate\(\s*(.+?)\s*,\s*0(?:px)?\s*\)/);
+          if (mh) {
+            paper.style.transform = `translateX(${mh[1]})`;
+            paper.style.webkitTransform = `translateX(${mh[1]})`;
+          }
+        }
+      }
+    }
     onClose?.();
   }, [onClose]);
 
