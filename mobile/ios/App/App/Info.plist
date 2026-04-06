@@ -55,6 +55,11 @@
 	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>boardsesh.com</string>
+		<string>www.boardsesh.com</string>
+	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Boardsesh uses Bluetooth to connect to your Kilter Board, Tension Board, or MoonBoard and light up climbing holds. No personal data is sent over Bluetooth.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
