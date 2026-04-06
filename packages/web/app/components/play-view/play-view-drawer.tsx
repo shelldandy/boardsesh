@@ -322,11 +322,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     return () => cancelAnimationFrame(openRafRef.current);
   }, [isOpen]);
 
-  const handleTransitionEnd = useCallback((_open: boolean) => {
-    // Content stays mounted for instant re-opens.
-    // useDeferredValue already deprioritizes background updates when closed.
-  }, []);
-
   return (
     <>
     <SwipeableDrawer
@@ -335,7 +330,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
       fullHeight
       open={drawerOpen}
       onClose={handleClose}
-      onTransitionEnd={handleTransitionEnd}
       keepMounted
       swipeEnabled={!isActionsOpen && !isQueueOpen && !isPlaylistSelectorOpen}
       showDragHandle={true}
