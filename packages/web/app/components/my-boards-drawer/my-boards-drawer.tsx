@@ -22,11 +22,8 @@ export default function MyBoardsDrawer({ open, onClose }: MyBoardsDrawerProps) {
   const [editingBoard, setEditingBoard] = useState<UserBoard | null>(null);
 
   const handleEditSuccess = useCallback(
-    (updatedBoard: UserBoard) => {
+    (_updatedBoard: UserBoard) => {
       setEditingBoard(null);
-      // The useMyBoards hook will refetch when the drawer is still open
-      // Force a close/reopen cycle isn't needed because boards state updates
-      void updatedBoard;
     },
     [],
   );
