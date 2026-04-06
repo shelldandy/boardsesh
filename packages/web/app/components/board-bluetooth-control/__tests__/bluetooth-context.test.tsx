@@ -33,6 +33,10 @@ vi.mock('../../graphql-queue', () => ({
   useQueueData: () => ({
     currentClimbQueueItem: mockCurrentClimbQueueItem,
   }),
+  useCurrentClimb: () => ({
+    currentClimbQueueItem: mockCurrentClimbQueueItem,
+    currentClimb: mockCurrentClimbQueueItem?.climb ?? null,
+  }),
 }));
 
 import { BluetoothProvider, useBluetoothContext } from '../bluetooth-context';

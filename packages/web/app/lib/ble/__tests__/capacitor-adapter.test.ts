@@ -41,7 +41,7 @@ afterAll(() => {
   }
 });
 
-import { CapacitorBleAdapter } from '../capacitor-adapter';
+import { CapacitorBleAdapter, _resetInitCache } from '../capacitor-adapter';
 
 describe('CapacitorBleAdapter', () => {
   let adapter: CapacitorBleAdapter;
@@ -49,6 +49,7 @@ describe('CapacitorBleAdapter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     disconnectListenerCallback = null;
+    _resetInitCache();
     adapter = new CapacitorBleAdapter();
   });
 
