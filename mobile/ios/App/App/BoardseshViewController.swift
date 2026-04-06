@@ -9,8 +9,8 @@ class BoardseshViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(LiveActivityPlugin())
     }
 
-    override open func webViewConfiguration() -> WKWebViewConfiguration {
-        let config = super.webViewConfiguration()
+    override open func webViewConfiguration(for webView: WKWebView) -> WKWebViewConfiguration {
+        let config = super.webViewConfiguration(for: webView)
 
         // Enable inline media playback (avoids fullscreen video takeover)
         config.allowsInlineMediaPlayback = true
