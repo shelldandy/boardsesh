@@ -164,10 +164,10 @@ export function useQueueStorage({ activeSession, setActiveSession }: UseQueueSto
       boardPath: string,
       boardDetails: BoardDetails,
     ) => {
-      if (activeSession) return;
+      if (activeSessionRef.current) return;
       debouncedSaveToIndexedDB(newQueue, newCurrentItem, boardPath, boardDetails);
     },
-    [activeSession, debouncedSaveToIndexedDB],
+    [debouncedSaveToIndexedDB],
   );
 
   const clearLocalQueue = useCallback(() => {
