@@ -322,8 +322,9 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     return () => cancelAnimationFrame(openRafRef.current);
   }, [isOpen]);
 
-  const handleTransitionEnd = useCallback((open: boolean) => {
-    if (!open) setShowContent(false);
+  const handleTransitionEnd = useCallback((_open: boolean) => {
+    // Content stays mounted for instant re-opens.
+    // useDeferredValue already deprioritizes background updates when closed.
   }, []);
 
   return (

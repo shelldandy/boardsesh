@@ -77,6 +77,7 @@ export function useBuildClimbDetailSections({
       title: 'Your Logbook',
       defaultSummary: 'No ascents',
       getSummary: getLogbookSummaryParts,
+      lazy: true,
       content: <LogbookSection climb={climb} />,
     },
     {

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import CollapsibleSection from '@/app/components/collapsible-section/collapsible-section';
 import type { CollapsibleSectionConfig } from '@/app/components/collapsible-section/collapsible-section';
@@ -21,12 +21,23 @@ export default function ClimbDetailShellClient({
 }: ClimbDetailShellClientProps) {
   const isDesktop = useMediaQuery('(min-width:1024px)', { noSsr: true });
 
+  // In play mode, defer below-fold sections so the above-fold content
+  // (board + header) paints first without competing with section mounting.
+  const [showSections, setShowSections] = useState(mode !== 'play');
+  useEffect(() => {
+    if (mode === 'play' && !showSections) {
+      startTransition(() => {
+        setShowSections(true);
+      });
+    }
+  }, [mode, showSections]);
+
   if (mode === 'play') {
     return (
       <div className={styles.mobileScrollLayout}>
         <div className={styles.aboveFold}>{aboveFold}</div>
         <div className={styles.belowFold}>
-          <CollapsibleSection sections={sections} />
+          {showSections && <CollapsibleSection sections={sections} />}
         </div>
       </div>
     );
