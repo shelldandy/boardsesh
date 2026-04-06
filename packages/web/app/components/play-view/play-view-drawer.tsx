@@ -374,7 +374,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [currentFrames, currentMirrored, boardDetails]);
-
   return (
     <>
     <SwipeableDrawer
