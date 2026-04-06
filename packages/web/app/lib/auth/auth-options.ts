@@ -149,7 +149,7 @@ providers.push(
 
 // Apple Sign-In posts its callback cross-origin (response_mode=form_post),
 // so verification cookies need SameSite=None (which requires Secure).
-// We override state, nonce, and pkceCodeVerifier cookies for this reason.
+// We override callbackUrl, state, nonce, and pkceCodeVerifier cookies for this reason.
 const useSecureCookies =
   process.env.NEXTAUTH_URL?.startsWith("https://") ??
   !!process.env.VERCEL_URL;
@@ -163,6 +163,15 @@ export const authOptions: NextAuthOptions = {
   }),
   providers,
   cookies: {
+    callbackUrl: {
+      name: `${useSecureCookies ? "__Secure-" : ""}next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: useSecureCookies ? "none" : "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
     state: {
       name: `${useSecureCookies ? "__Secure-" : ""}next-auth.state`,
       options: {
