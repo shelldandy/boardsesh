@@ -44,6 +44,14 @@ import { useBuildClimbDetailSections } from '@/app/components/climb-detail/build
 
 
 
+const QUEUE_DRAWER_STYLES = {
+  wrapper: {
+    touchAction: 'pan-y' as const,
+    transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  },
+  body: { padding: 0, touchAction: 'pan-y' as const },
+} as const;
+
 interface PlayDrawerContentProps {
   climb: Climb;
   boardType: string;
@@ -86,7 +94,15 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [queueDrawerHeight, setQueueDrawerHeight] = useState<string>('60%');
+  const queueDrawerHeightRef = useRef('60%');
+  const queuePaperRef = useRef<HTMLDivElement>(null);
+
+  const updateQueueDrawerHeight = useCallback((height: string) => {
+    queueDrawerHeightRef.current = height;
+    if (queuePaperRef.current) {
+      queuePaperRef.current.style.height = height;
+    }
+  }, []);
   const pathname = usePathname();
   const queueListRef = useRef<QueueListHandle>(null);
   const queueScrollRef = useRef<HTMLDivElement>(null);
@@ -162,9 +178,9 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
 
   const handleQueueDragStart = useCallback((e: React.TouchEvent) => {
     dragStartY.current = e.touches[0].clientY;
-    dragStartHeightRef.current = queueDrawerHeight;
+    dragStartHeightRef.current = queueDrawerHeightRef.current;
     isDragGestureRef.current = false;
-  }, [queueDrawerHeight]);
+  }, []);
 
   const handleQueueDragMove = useCallback((e: React.TouchEvent) => {
     const delta = Math.abs(e.touches[0].clientY - dragStartY.current);
@@ -181,11 +197,11 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
 
     if (deltaY < -THRESHOLD) {
       // Dragged up → expand to 100%
-      setQueueDrawerHeight('100%');
+      updateQueueDrawerHeight('100%');
     } else if (deltaY > THRESHOLD) {
       if (dragStartHeightRef.current === '100%') {
         // Dragged down from 100% → collapse to 60%
-        setQueueDrawerHeight('60%');
+        updateQueueDrawerHeight('60%');
       } else {
         // Dragged down from 60% → close drawer
         setIsQueueOpen(false);
@@ -193,14 +209,14 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         setShowHistory(false);
       }
     }
-  }, [handleExitEditMode]);
+  }, [handleExitEditMode, updateQueueDrawerHeight]);
 
   // Reset drawer height when queue drawer closes
   useEffect(() => {
     if (!isQueueOpen) {
-      setQueueDrawerHeight('60%');
+      updateQueueDrawerHeight('60%');
     }
-  }, [isQueueOpen]);
+  }, [isQueueOpen, updateQueueDrawerHeight]);
 
   // Hash-based back button support
   useEffect(() => {
@@ -483,7 +499,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         {/* Queue list drawer */}
         <SwipeableDrawer
           placement="bottom"
-          height={queueDrawerHeight}
+          height="60%"
+          paperRef={queuePaperRef}
           open={isQueueOpen}
           showCloseButton={false}
           swipeEnabled={false}
@@ -501,14 +518,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
               }, 100);
             }
           }}
-          styles={{
-            wrapper: {
-              height: queueDrawerHeight,
-              touchAction: 'pan-y',
-              transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            },
-            body: { padding: 0, touchAction: 'pan-y' },
-          }}
+          styles={QUEUE_DRAWER_STYLES}
         >
           {/* Custom drag header — resize only on deliberate drag, not scroll */}
           <div

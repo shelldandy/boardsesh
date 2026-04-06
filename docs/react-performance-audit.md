@@ -112,9 +112,11 @@ Not wrapped in `React.memo`. Receives callback props (`onSwipeNext`, `onDoubleTa
 
 ### Queue drawer height state cascade
 **File:** `packages/web/app/components/play-view/play-view-drawer.tsx:90,183-194,501`
-**Status:** Open
+**Status:** Fixed
 
 `queueDrawerHeight` state updates during drag gestures trigger parent re-renders, which cascade to the canvas renderer. Should use a ref + CSS variable instead of state.
+
+**Fix applied:** Replaced `queueDrawerHeight` state with a ref (`queueDrawerHeightRef`) and direct DOM manipulation via a `paperRef` on the queue `SwipeableDrawer`. The `updateQueueDrawerHeight` helper writes to both the ref and the Paper element's inline `style.height`, bypassing React reconciliation entirely. Drag gestures no longer trigger re-renders of `PlayViewDrawer`, `SwipeBoardCarousel`, or `PlayDrawerContent`. The queue drawer's `styles` object was also extracted to a module-level constant (`QUEUE_DRAWER_STYLES`) to prevent object recreation on every render.
 
 ### Beta API queries fire unconditionally
 **File:** `packages/web/app/components/play-view/play-view-beta-slider.tsx:36-45`
@@ -151,7 +153,7 @@ Refilters and resorts the logbook array on every parent re-render.
 | P1 | Shared drawer state re-renders | Climb List | **Fixed** |
 | P1 | O(n^2) dedup filter | Climb List | **Fixed** |
 | P1 | Unmemoized PlayDrawerContent | Play View Drawer | **Fixed** |
-| P2 | Queue height via state | Play View Drawer | Open |
+| P2 | Queue height via state | Play View Drawer | **Fixed** |
 | P2 | Canvas thumbnails for all items | Climb List | Mitigated |
 | P2 | Beta API queries unconditional | Play View Drawer | Open |
 | P2 | Logbook filtering no memo | Play View Drawer | **Fixed** |
