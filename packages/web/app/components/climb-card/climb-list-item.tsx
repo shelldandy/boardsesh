@@ -79,14 +79,14 @@ const rightActionLayerDefaultStyle: React.CSSProperties = {
   ...rightSwipeActionLayerBaseStyle,
   backgroundColor: themeTokens.colors.primary,
   opacity: 0,
-  transition: 'opacity 200ms ease-out',
+  transition: 'opacity 120ms ease-out',
 };
 
 const rightActionLayerConfirmedStyle: React.CSSProperties = {
   ...rightSwipeActionLayerBaseStyle,
   backgroundColor: themeTokens.colors.success,
   opacity: 0,
-  transition: 'opacity 200ms ease-out',
+  transition: 'opacity 120ms ease-out',
 };
 
 const defaultLeftActionStyle: React.CSSProperties = {
