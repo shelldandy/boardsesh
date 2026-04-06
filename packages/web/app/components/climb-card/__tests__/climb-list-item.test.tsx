@@ -239,7 +239,7 @@ describe('ClimbListItem', () => {
     render(<ClimbListItem climb={makeClimb()} boardDetails={makeBoardDetails()} />);
 
     expect(capturedSwipeOptions).not.toBeNull();
-    expect(capturedSwipeOptions?.swipeThreshold).toBe(90);
+    expect(capturedSwipeOptions?.swipeThreshold).toBe(60);
     expect(capturedSwipeOptions?.longSwipeRightThreshold).toBe(150);
     expect(capturedSwipeOptions?.maxSwipe).toBe(180);
     expect(typeof capturedSwipeOptions?.onSwipeRightLong).toBe('function');
