@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import MuiSwipeableDrawer from '@mui/material/SwipeableDrawer';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
@@ -186,20 +186,36 @@ const SwipeableDrawer: React.FC<SwipeableDrawerProps> = ({
     );
   }, [showCloseButton, placement, onClose]);
 
+  // Drag handles for top/bottom placements are rendered OUTSIDE the scrollable
+  // body Box so MUI's getDomTreeShapes doesn't find a scroll container between
+  // the drag handle and the Paper, which would block swipe-to-close gestures.
+  // Left/right vertical handles use position:absolute and stay inside.
+  const topDragHandle = useMemo(() => {
+    if (handleInHeader || !showDragHandle) return null;
+    if (placement === 'bottom') return horizontalDragHandle;
+    return null;
+  }, [handleInHeader, showDragHandle, placement, horizontalDragHandle]);
+
+  const bottomDragHandle = useMemo(() => {
+    if (handleInHeader || !showDragHandle || hasExternalBottomHandle) return null;
+    if (placement === 'top') return horizontalDragHandle;
+    return null;
+  }, [handleInHeader, showDragHandle, hasExternalBottomHandle, placement, horizontalDragHandle]);
+
   const wrappedChildren = useMemo(() => {
     if (handleInHeader) {
       return children;
     }
 
-    // Handle in body for non-titled drawers or horizontal placements
+    // Only left/right placements keep drag handles inside the body (absolute positioned)
     return (
       <>
-        {(placement === 'bottom' || placement === 'left') && (isVerticalPlacement ? horizontalDragHandle : verticalDragHandle)}
+        {placement === 'left' && verticalDragHandle}
         {children}
-        {(placement === 'right' || (placement === 'top' && !hasExternalBottomHandle)) && (isVerticalPlacement ? horizontalDragHandle : verticalDragHandle)}
+        {placement === 'right' && verticalDragHandle}
       </>
     );
-  }, [placement, horizontalDragHandle, verticalDragHandle, handleInHeader, isVerticalPlacement, children, hasExternalBottomHandle]);
+  }, [placement, verticalDragHandle, handleInHeader, children]);
 
   // Compute paper dimensions from height/width/styles.wrapper
   const paperSx = useMemo(() => {
@@ -299,15 +315,38 @@ const SwipeableDrawer: React.FC<SwipeableDrawerProps> = ({
     [userStyles?.mask, disableBackdropClick, handleBackdropClick],
   );
 
+  // IMPORTANT: Never pass `ref` in PaperProps. In MUI v7, mergeSlotProps does
+  // { ...defaults, ...external } — a PaperProps.ref (even undefined) overwrites
+  // MUI's internal handleRef, breaking swipe-to-close. We forward paperRef
+  // through the wrapper Box's callback ref instead.
   const muiPaperProps = useMemo(
-    () => ({ ref: paperRef, sx: paperSx, 'data-swipeable-drawer': 'true' }),
-    [paperRef, paperSx],
+    () => ({ sx: paperSx, 'data-swipeable-drawer': 'true' }),
+    [paperSx],
+  );
+
+  // Forward paperRef to the MUI Paper element via the wrapper Box's parent.
+  const lastPaperRef = useRef<HTMLDivElement | null>(null);
+  const wrapperBoxRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      // The wrapper Box's parentElement is the MUI Paper element
+      const paper = node?.parentElement as HTMLDivElement | null;
+      if (paper === lastPaperRef.current) return;
+      lastPaperRef.current = paper;
+      if (!paperRef) return;
+      if (typeof paperRef === 'function') {
+        paperRef(paper);
+      } else {
+        (paperRef as React.MutableRefObject<HTMLDivElement | null>).current = paper;
+      }
+    },
+    [paperRef],
   );
 
   const bodyContent = (
     <>
       {closeButton}
       {headerElement}
+      {topDragHandle}
       <Box
         sx={{
           flex: 1,
@@ -332,6 +371,7 @@ const SwipeableDrawer: React.FC<SwipeableDrawerProps> = ({
           {footer}
         </Box>
       )}
+      {bottomDragHandle}
       {hasExternalBottomHandle && horizontalDragHandle}
     </>
   );
@@ -352,7 +392,7 @@ const SwipeableDrawer: React.FC<SwipeableDrawerProps> = ({
       slotProps={slotProps}
       PaperProps={muiPaperProps}
     >
-      <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <Box ref={wrapperBoxRef} sx={{ position: 'relative', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         {bodyContent}
       </Box>
     </MuiSwipeableDrawer>
