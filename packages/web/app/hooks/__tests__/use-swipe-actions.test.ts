@@ -139,7 +139,7 @@ describe('useSwipeActions', () => {
     expect(mockReset).toHaveBeenCalled();
   });
 
-  it('swipeLeftConfirmed becomes true immediately and resets after 2800ms', () => {
+  it('swipeLeftConfirmed becomes true immediately and resets after 600ms', () => {
     const options = createDefaultOptions();
     const { result } = renderHook(() => useSwipeActions(options));
 
@@ -164,13 +164,13 @@ describe('useSwipeActions', () => {
     expect(options.onSwipeLeft).toHaveBeenCalledTimes(1);
     expect(result.current.swipeLeftConfirmed).toBe(true);
 
-    // Still active before 2800ms
+    // Still active before 600ms
     act(() => {
-      vi.advanceTimersByTime(2700);
+      vi.advanceTimersByTime(500);
     });
     expect(result.current.swipeLeftConfirmed).toBe(true);
 
-    // Resets after 2800ms
+    // Resets after 600ms
     act(() => {
       vi.advanceTimersByTime(100);
     });
@@ -455,14 +455,14 @@ describe('useSwipeActions', () => {
 
     // Content should be at peek offset
     expect(mockContent.style.transform).toBe('translateX(-76px)');
-    expect(mockContent.style.transition).toBe('transform 200ms ease-out');
+    expect(mockContent.style.transition).toBe('transform 120ms ease-out');
     // Right action layer should be fully visible
     expect(mockRightAction.style.opacity).toBe('1');
     expect(mockRightAction.style.visibility).toBe('visible');
 
     // After confirmation timer, content snaps back
     act(() => {
-      vi.advanceTimersByTime(2800);
+      vi.advanceTimersByTime(600);
     });
 
     expect(mockContent.style.transform).toBe('translateX(0px)');
