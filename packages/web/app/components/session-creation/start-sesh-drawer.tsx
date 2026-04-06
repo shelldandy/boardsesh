@@ -77,12 +77,13 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
     // Strategy 2: Match by numeric board identity from localBoardDetails
     // Handles generic routes like /kilter/original/16x12/screw_bolt/40/list
     if (!match && localBoardDetails) {
+      const sortedLocalSetIds = [...localBoardDetails.set_ids].sort((a, b) => a - b).join(',');
       match = boards.find(
         (b) =>
           b.boardType === localBoardDetails.board_name &&
           b.layoutId === localBoardDetails.layout_id &&
           b.sizeId === localBoardDetails.size_id &&
-          b.setIds === localBoardDetails.set_ids.join(','),
+          b.setIds.split(',').map(Number).sort((a, b) => a - b).join(',') === sortedLocalSetIds,
       );
     }
 

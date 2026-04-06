@@ -310,4 +310,40 @@ describe('StartSeshDrawer', () => {
     expect(screen.getByTestId('board-scroll-section')).toBeTruthy();
     expect(screen.queryByText('Change')).toBeNull();
   });
+
+  it('matches board details even when set_ids are in different order', async () => {
+    // localBoardDetails has set_ids in reverse order compared to UserBoard.setIds "1,2"
+    mockLocalBoardPath = '/kilter/original/12x12/screw_bolt/40/list';
+    mockLocalBoardDetails = { board_name: 'kilter', layout_id: 1, size_id: 10, set_ids: [2, 1] };
+
+    render(<StartSeshDrawer open onClose={vi.fn()} />);
+
+    // Should auto-select Kilter despite reversed set_ids order
+    await submitSesh();
+
+    await waitFor(() => {
+      expect(mockCreateSession).toHaveBeenCalled();
+    });
+    expect(mockRouterPush).toHaveBeenCalled();
+  });
+
+  it('prioritizes slug match over board details match', async () => {
+    // localBoardPath matches Kilter by slug, but localBoardDetails matches Tension by IDs
+    mockLocalBoardPath = '/b/kilter-original-12x12/40/list';
+    mockLocalBoardDetails = { board_name: 'tension', layout_id: 2, size_id: 20, set_ids: [3, 4] };
+
+    render(<StartSeshDrawer open onClose={vi.fn()} />);
+
+    // Should show Kilter (slug match wins), not Tension
+    expect(screen.getByText('Kilter')).toBeTruthy();
+
+    await submitSesh();
+
+    await waitFor(() => {
+      expect(mockCreateSession).toHaveBeenCalledWith(
+        expect.anything(),
+        '/b/kilter-original-12x12',
+      );
+    });
+  });
 });
