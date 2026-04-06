@@ -8,10 +8,8 @@ import { useSwipeDirection } from './use-swipe-direction';
 const DEFAULT_SWIPE_THRESHOLD = 100;
 // Maximum swipe distance
 const DEFAULT_MAX_SWIPE = 120;
-// Peek offset shown during left-swipe confirmation (enough to reveal the action icon)
-const CONFIRMATION_PEEK_OFFSET = -76;
 // Duration the confirmation checkmark is shown before snapping back
-const CONFIRMATION_DISPLAY_MS = 2800;
+const CONFIRMATION_DISPLAY_MS = 1500;
 
 export type SwipeZone = 'none' | 'left-short' | 'left-long' | 'right-short' | 'right-long';
 
@@ -42,6 +40,9 @@ export interface UseSwipeActionsOptions {
   maxSwipeRight?: number;
   /** Whether swipe is disabled (e.g. in edit mode) */
   disabled?: boolean;
+  /** Pixels the content peeks left during confirmation to reveal the action icon.
+   *  Should match the right action layer width so both states show the same area. */
+  confirmationPeekOffset?: number;
 }
 
 export interface UseSwipeActionsReturn {
@@ -79,6 +80,7 @@ export function useSwipeActions({
   maxSwipeLeft,
   maxSwipeRight,
   disabled = false,
+  confirmationPeekOffset = 76,
 }: UseSwipeActionsOptions): UseSwipeActionsReturn {
   const [swipeLeftConfirmed, setSwipeLeftConfirmed] = useState(false);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,7 +164,7 @@ export function useSwipeActions({
     // Animate content to a peek offset so the action layer (checkmark) stays visible
     if (contentEl.current) {
       contentEl.current.style.transition = 'transform 200ms ease-out';
-      contentEl.current.style.transform = `translateX(${CONFIRMATION_PEEK_OFFSET}px)`;
+      contentEl.current.style.transform = `translateX(${-confirmationPeekOffset}px)`;
     }
 
     // Keep the right action layer fully visible during confirmation
@@ -186,7 +188,7 @@ export function useSwipeActions({
       updateSwipeZone('none');
       setSwipeLeftConfirmed(false);
     }, CONFIRMATION_DISPLAY_MS);
-  }, [onSwipeLeft, applyOffset, updateSwipeZone]);
+  }, [onSwipeLeft, applyOffset, updateSwipeZone, confirmationPeekOffset]);
 
   const handleSwipeRightComplete = useCallback(() => {
     applyOffset(0);

@@ -316,6 +316,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
       maxSwipe: useSimpleSwipe ? SIMPLE_MAX_SWIPE : MAX_GESTURE_SWIPE,
       maxSwipeLeft: useSimpleSwipe ? undefined : RIGHT_ACTION_WIDTH,
       disabled: disableSwipe,
+      confirmationPeekOffset: RIGHT_ACTION_WIDTH,
     });
 
     // Combined ref callback for left action container — avoids inline function recreation
