@@ -292,6 +292,8 @@ export const boardEntitiesTypeDefs = /* GraphQL */ `
     climbCount: Int!
     "Total sends across all climbs and angles"
     totalAscents: Int!
+    "Number of registered boards with this layout/size combination"
+    boardCount: Int!
     "Pre-formatted display name for UI (e.g. 'OG 12x12 Full Ride')"
     displayName: String!
   }

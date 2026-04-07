@@ -139,6 +139,7 @@ export const GET_POPULAR_BOARD_CONFIGS = gql`
         setNames
         climbCount
         totalAscents
+        boardCount
         displayName
       }
       totalCount

@@ -227,6 +227,7 @@ describe('HomePageContent', () => {
           setNames: ['Set A', 'Set B'],
           climbCount: 500,
           totalAscents: 5000,
+          boardCount: 10,
           displayName: 'OG 12x12',
         },
       ];

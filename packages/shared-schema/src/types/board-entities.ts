@@ -141,6 +141,7 @@ export type PopularBoardConfig = {
   setNames: string[];
   climbCount: number;
   totalAscents: number;
+  boardCount: number;
   displayName: string;
 };
 

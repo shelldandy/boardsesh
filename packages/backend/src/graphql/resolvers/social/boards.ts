@@ -382,6 +382,7 @@ export interface CachedPopularConfig {
   setNames: string[];
   climbCount: number;
   totalAscents: number;
+  boardCount: number;
   displayName: string;
 }
 
@@ -472,7 +473,8 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
       configs.set_ids,
       configs.set_names,
       COALESCE(cc.climb_count, 0) AS climb_count,
-      COALESCE(cc.total_ascents, 0) AS total_ascents
+      COALESCE(cc.total_ascents, 0) AS total_ascents,
+      COALESCE(ub_counts.board_count, 0) AS board_count
     FROM (
       SELECT
         psls.board_type,
@@ -487,6 +489,19 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
     ) configs
     JOIN board_layouts bl ON bl.board_type = configs.board_type AND bl.id = configs.layout_id
     JOIN board_product_sizes bps ON bps.board_type = configs.board_type AND bps.id = configs.size_id
+    LEFT JOIN (
+      SELECT
+        ub.board_type,
+        ub.layout_id,
+        ub.size_id,
+        COUNT(*)::int AS board_count
+      FROM user_boards ub
+      WHERE ub.deleted_at IS NULL
+      GROUP BY ub.board_type, ub.layout_id, ub.size_id
+    ) ub_counts
+      ON ub_counts.board_type = configs.board_type
+      AND ub_counts.layout_id = configs.layout_id
+      AND ub_counts.size_id = configs.size_id
     LEFT JOIN LATERAL (
       SELECT
         COUNT(DISTINCT bc.uuid)::int AS climb_count,
@@ -517,7 +532,7 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
     ) cc ON true
     WHERE bl.is_listed = true
       AND bps.is_listed = true
-    ORDER BY total_ascents DESC, configs.board_type, bl.name
+    ORDER BY board_count DESC, total_ascents DESC, configs.board_type, bl.name
   `);
 
   // db.execute() returns QueryResult with .rows for neon-serverless, or an array directly for postgres-js
@@ -541,6 +556,7 @@ async function getPopularConfigs(): Promise<CachedPopularConfig[]> {
       setNames,
       climbCount: Number(row.climb_count),
       totalAscents: Number(row.total_ascents),
+      boardCount: Number(row.board_count),
       displayName: formatDisplayName(boardType, layoutName, sizeName, setNames),
     };
   });
