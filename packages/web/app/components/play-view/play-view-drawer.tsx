@@ -96,7 +96,7 @@ interface PlayViewActionBarProps {
   onOpenQueue: () => void;
 }
 
-const PlayViewActionBar = React.memo(function PlayViewActionBar({
+export const PlayViewActionBar = React.memo(function PlayViewActionBar({
   canSwipePrevious,
   canSwipeNext,
   isMirrored,
@@ -469,12 +469,14 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [currentFrames, currentMirrored, boardDetails]);
 
-  const aboveFold = useMemo(() => (
+  const aboveFold = useMemo(() => {
+    if (!currentClimb) return null;
+    return (
     <>
       {/* Header: Grade | Name | Angle Selector */}
       <div className={styles.headerSection}>
         <ClimbDetailHeader
-          climb={currentClimb!}
+          climb={currentClimb}
           boardDetails={boardDetails}
           angle={currentAngle}
           isAngleAdjustable={true}
@@ -538,7 +540,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         />
       )}
     </>
-  ), [
+    );
+  }, [
     currentClimb,
     boardDetails,
     currentAngle,
