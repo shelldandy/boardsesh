@@ -3,5 +3,5 @@ export const MAX_PAGE_SIZE = 100; // Maximum page size to prevent excessive data
 
 // Threshold for proactive fetching of suggestions
 // When suggestedClimbs falls below this, we fetch more automatically
-// Set to 3 to fetch when ~70% of PAGE_LIMIT consumed for smooth UX
-export const SUGGESTIONS_THRESHOLD = 3;
+// Set to 10 to keep a healthy buffer of suggestions available
+export const SUGGESTIONS_THRESHOLD = 10;

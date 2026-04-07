@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Boardsesh',
   server: {
     url: process.env.CAPACITOR_DEV_URL ?? 'https://www.boardsesh.com',
-    allowNavigation: ['boardsesh.com', '*.boardsesh.com'],
+    allowNavigation: ['boardsesh.com', '*.boardsesh.com', '*.ts.net'],
   },
   ios: {
     contentInset: 'never',

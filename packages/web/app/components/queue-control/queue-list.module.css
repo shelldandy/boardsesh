@@ -2,22 +2,8 @@
   margin: 8px 0;
 }
 
-.queueColumn {
-  display: flex;
-  flex-direction: column;
-}
-
 .suggestedSectionHeader {
   padding: 12px 8px 4px;
-}
-
-.suggestedColumn {
-  display: flex;
-  flex-direction: column;
-}
-
-.suggestedItem {
-  border-left: 3px solid var(--color-primary);
 }
 
 .loadMoreContainer {

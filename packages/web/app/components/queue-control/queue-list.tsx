@@ -22,12 +22,22 @@ import { ClimbActions } from '../climb-actions';
 import PlaylistSelectionContent from '../climb-actions/playlist-selection-content';
 import { getExcludedClimbActions } from '@/app/lib/climb-action-utils';
 import { themeTokens } from '@/app/theme/theme-config';
-import { SUGGESTIONS_THRESHOLD } from '../board-page/constants';
 import { useOptionalBoardProvider } from '../board-provider/board-provider-context';
 import { LogAscentDrawer } from '../logbook/log-ascent-drawer';
 import { useAuthModal } from '@/app/components/providers/auth-modal-provider';
+import { ClimbQueueItem } from './types';
 import styles from './queue-list.module.css';
 
+// Discriminated union for all possible rows in the flat virtualized list
+type FlatRow =
+  | { type: 'history-item'; item: ClimbQueueItem; queueIndex: number }
+  | { type: 'history-divider' }
+  | { type: 'current-item'; item: ClimbQueueItem; queueIndex: number }
+  | { type: 'future-item'; item: ClimbQueueItem; queueIndex: number }
+  | { type: 'suggestion-header' }
+  | { type: 'suggestion'; climb: Climb }
+  | { type: 'loading' }
+  | { type: 'end-message' };
 
 export type QueueListHandle = {
   scrollToCurrentClimb: () => void;
@@ -52,7 +62,6 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
   const { hasMoreResults, isFetchingClimbs, isFetchingNextPage } = useSearchData();
   const { viewOnlyMode } = useSessionData();
   const {
-    fetchMoreClimbs,
     setCurrentClimbQueueItem,
     setQueue,
     addToQueue,
@@ -100,18 +109,6 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
     [boardDetails.board_name],
   );
 
-  // Ref for scrolling to position that shows only 2 history items above current
-  const scrollTargetRef = useRef<HTMLDivElement>(null);
-
-  // Expose scroll method to parent via ref
-  useImperativeHandle(ref, () => ({
-    scrollToCurrentClimb: () => {
-      if (scrollTargetRef.current) {
-        scrollTargetRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    },
-  }));
-
   const handleTickClick = useCallback((climb: Climb) => {
     setTickClimb(climb);
     setTickDrawerVisible(true);
@@ -154,72 +151,8 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
       },
     });
 
-    return cleanup; // Cleanup listener on component unmount
+    return cleanup;
   }, [queue, setQueue, isEditMode]);
-
-  // Ref for the intersection observer sentinel element
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  // Refs for observer callback values — prevents observer recreation on every page load
-  const fetchMoreClimbsRef = useRef(fetchMoreClimbs);
-  const hasMoreResultsRef = useRef(hasMoreResults);
-  const isFetchingNextPageRef = useRef(isFetchingNextPage);
-  const suggestedClimbsLengthRef = useRef(suggestedClimbs.length);
-  fetchMoreClimbsRef.current = fetchMoreClimbs;
-  hasMoreResultsRef.current = hasMoreResults;
-  isFetchingNextPageRef.current = isFetchingNextPage;
-  suggestedClimbsLengthRef.current = suggestedClimbs.length;
-
-  // Intersection Observer callback for infinite scroll — stable ref, never recreated
-  // Skip if suggestions are below threshold - proactive fetch in QueueContext handles that case
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const [target] = entries;
-      if (
-        target.isIntersecting &&
-        hasMoreResultsRef.current &&
-        !isFetchingNextPageRef.current &&
-        suggestedClimbsLengthRef.current >= SUGGESTIONS_THRESHOLD
-      ) {
-        fetchMoreClimbsRef.current();
-      }
-    },
-    [],
-  );
-
-  // Set up Intersection Observer for infinite scroll
-  // Uses scrollContainerRef as root when provided (for nested scroll containers like drawers/sidebars),
-  // falls back to null (viewport) for top-level scrolling
-  useEffect(() => {
-    const element = loadMoreRef.current;
-    if (!element || viewOnlyMode) return;
-
-    const observer = new IntersectionObserver(handleObserver, {
-      root: scrollContainer ?? null,
-      rootMargin: '100px',
-      threshold: 0,
-    });
-
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [handleObserver, viewOnlyMode, scrollContainer]);
-
-  // Find the index of the current climb in the queue
-  const currentIndex = queue.findIndex((item) => item.uuid === currentClimbUuid);
-  const currentItem = currentIndex >= 0 ? queue[currentIndex] : null;
-
-  // Split queue into history (past), current, and future items
-  // Rendered in Spotify-like order: history (oldest to newest) → current → future
-  const historyItems = currentIndex > 0 ? queue.slice(0, currentIndex) : [];
-  // When no current climb (currentIndex === -1), show entire queue as future items
-  const futureItems = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue;
-
-  // Calculate which history item to scroll to:
-  // Show only 2 history items above current, so scroll target is at index (length - 2)
-  const scrollToHistoryIndex = historyItems.length > 2 ? historyItems.length - 2 : 0;
 
   // Memoize suggested item title props — match queue item layout (grade on right)
   const suggestedTitleProps = useMemo(
@@ -227,13 +160,115 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
     [],
   );
 
-  const loadMoreContainerStyle = useMemo(
-    () => ({
-      minHeight: themeTokens.spacing[5],
-      marginTop: themeTokens.spacing[2],
-    }),
-    [],
-  );
+  // Build the flat row model for the unified virtualizer
+  const { flatRows, scrollTargetFlatIndex } = useMemo(() => {
+    const rows: FlatRow[] = [];
+    let scrollTargetIdx = -1;
+
+    const currentIndex = queue.findIndex((item) => item.uuid === currentClimbUuid);
+    const historyItems = currentIndex > 0 ? queue.slice(0, currentIndex) : [];
+    const currentItem = currentIndex >= 0 ? queue[currentIndex] : null;
+    // When no current climb (currentIndex === -1), show entire queue as future items
+    const futureItems = currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue;
+
+    // History items
+    if (showHistory && historyItems.length > 0) {
+      const scrollToHistoryIndex = historyItems.length > 2 ? historyItems.length - 2 : 0;
+      for (let i = 0; i < historyItems.length; i++) {
+        if (historyItems.length > 2 && i === scrollToHistoryIndex) {
+          scrollTargetIdx = rows.length;
+        }
+        rows.push({ type: 'history-item', item: historyItems[i], queueIndex: i });
+      }
+      rows.push({ type: 'history-divider' });
+    }
+
+    // Current item
+    if (currentItem) {
+      if (!showHistory || historyItems.length <= 2) {
+        scrollTargetIdx = rows.length;
+      }
+      rows.push({ type: 'current-item', item: currentItem, queueIndex: currentIndex });
+    }
+
+    // Future items
+    for (let i = 0; i < futureItems.length; i++) {
+      const originalIndex = currentIndex >= 0 ? currentIndex + 1 + i : i;
+      if (i === 0 && !currentItem && (!showHistory || historyItems.length <= 2)) {
+        scrollTargetIdx = rows.length;
+      }
+      rows.push({ type: 'future-item', item: futureItems[i], queueIndex: originalIndex });
+    }
+
+    // Suggestions section (only when active and not viewOnlyMode)
+    if (active && !viewOnlyMode) {
+      rows.push({ type: 'suggestion-header' });
+      for (let i = 0; i < suggestedClimbs.length; i++) {
+        rows.push({ type: 'suggestion', climb: suggestedClimbs[i] });
+      }
+      // Loading or end message
+      if (suggestedClimbs.length > 0 || isFetchingClimbs || isFetchingNextPage) {
+        if (isFetchingClimbs || isFetchingNextPage) {
+          rows.push({ type: 'loading' });
+        } else if (!hasMoreResults && suggestedClimbs.length > 0) {
+          rows.push({ type: 'end-message' });
+        }
+      }
+    }
+
+    return { flatRows: rows, scrollTargetFlatIndex: scrollTargetIdx };
+  }, [queue, currentClimbUuid, showHistory, suggestedClimbs, active, viewOnlyMode, hasMoreResults, isFetchingClimbs, isFetchingNextPage]);
+
+  // Unified virtualizer for the entire list
+  const virtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => scrollContainer ?? null,
+    estimateSize: (index) => {
+      const row = flatRows[index];
+      if (!row) return 102;
+      switch (row.type) {
+        case 'history-divider': return 17;
+        case 'suggestion-header': return 36;
+        case 'loading': return 220;
+        case 'end-message': return 52;
+        default: return 102;
+      }
+    },
+    overscan: 10,
+    getItemKey: (index) => {
+      const row = flatRows[index];
+      if (!row) return index;
+      switch (row.type) {
+        case 'history-item':
+        case 'current-item':
+        case 'future-item':
+          return `q-${row.item.uuid}`;
+        case 'suggestion':
+          return `s-${row.climb.uuid}`;
+        case 'history-divider':
+          return 'divider';
+        case 'suggestion-header':
+          return 'suggestion-header';
+        case 'loading':
+          return 'loading';
+        case 'end-message':
+          return 'end-message';
+      }
+    },
+  });
+
+  // Store virtualizer in a ref for the imperative handle
+  const virtualizerRef = useRef(virtualizer);
+  virtualizerRef.current = virtualizer;
+
+  // Expose scroll method to parent via ref
+  useImperativeHandle(ref, () => ({
+    scrollToCurrentClimb: () => {
+      if (scrollTargetFlatIndex >= 0) {
+        virtualizerRef.current.scrollToIndex(scrollTargetFlatIndex, { align: 'start', behavior: 'smooth' });
+      }
+    },
+  }), [scrollTargetFlatIndex]);
 
   const loadMoreSkeletonStyle = useMemo(
     () => ({
@@ -243,176 +278,111 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
     [],
   );
 
-  // Virtualizer for suggested climbs — only mounts items in/near the viewport
-  const suggestedVirtualizer = useVirtualizer({
-    count: suggestedClimbs.length,
-    getScrollElement: () => scrollContainer ?? null,
-    estimateSize: () => 72,
-    overscan: 15,
-    getItemKey: (index) => suggestedClimbs[index]?.uuid ?? index,
-  });
-
-  // Virtualizer-based infinite scroll for suggested climbs
-  const suggestedVirtualItems = suggestedVirtualizer.getVirtualItems();
-  const lastSuggestedItem = suggestedVirtualItems[suggestedVirtualItems.length - 1];
-
-  useEffect(() => {
-    if (!lastSuggestedItem) return;
-    if (
-      lastSuggestedItem.index >= suggestedClimbs.length - 5 &&
-      hasMoreResultsRef.current &&
-      !isFetchingNextPageRef.current &&
-      suggestedClimbsLengthRef.current >= SUGGESTIONS_THRESHOLD
-    ) {
-      fetchMoreClimbsRef.current();
-    }
-  }, [lastSuggestedItem?.index, suggestedClimbs.length]);
-
   return (
     <>
-      <div className={styles.queueColumn}>
-        {/* History items (oldest to newest at top) - only shown when showHistory is true */}
-        {showHistory && historyItems.length > 0 && (
-          <>
-            {historyItems.map((climbQueueItem, index) => {
-              // Calculate original queue index for drag-and-drop
-              // historyItems = queue.slice(0, currentIndex), so original index equals map index
-              const originalIndex = index;
-              // Add scroll target ref at the position that shows only 2 history items
-              const isScrollTarget = historyItems.length > 2 && index === scrollToHistoryIndex;
-
-              return (
-                <div key={climbQueueItem.uuid} ref={isScrollTarget ? scrollTargetRef : undefined}>
-                  <QueueClimbListItem
-                    item={climbQueueItem}
-                    index={originalIndex}
-                    isCurrent={false}
-                    isHistory={true}
-                    boardDetails={boardDetails}
-                    pathname={pathname}
-                    isDark={isDark}
-                    setCurrentClimbQueueItem={setCurrentClimbQueueItem}
-                    onTickClick={handleTickClick}
-                    onOpenActions={handleOpenActions}
-                    onOpenPlaylistSelector={handleOpenPlaylistSelector}
-                    isEditMode={isEditMode}
-                    isSelected={selectedItems?.has(climbQueueItem.uuid) ?? false}
-                    onToggleSelect={onToggleSelect}
-                  />
-                </div>
-              );
-            })}
-            <MuiDivider className={styles.historyDivider} />
-          </>
-        )}
-
-        {/* Current climb item */}
-        {currentItem && (
-          <div key={currentItem.uuid} ref={!showHistory || historyItems.length <= 2 ? scrollTargetRef : undefined}>
-            <QueueClimbListItem
-              item={currentItem}
-              index={currentIndex}
-              isCurrent={true}
-              isHistory={false}
-              boardDetails={boardDetails}
-              pathname={pathname}
-              isDark={isDark}
-              setCurrentClimbQueueItem={setCurrentClimbQueueItem}
-              onTickClick={handleTickClick}
-              onOpenActions={handleOpenActions}
-              onOpenPlaylistSelector={handleOpenPlaylistSelector}
-              isEditMode={isEditMode}
-              isSelected={selectedItems?.has(currentItem.uuid) ?? false}
-              onToggleSelect={onToggleSelect}
-            />
-          </div>
-        )}
-
-        {/* Future items (after current) */}
-        {futureItems.map((climbQueueItem, index) => {
-          // Calculate original index: future items start after current climb
-          const originalIndex = currentIndex >= 0 ? currentIndex + 1 + index : index;
-          // Attach scroll target to first future item if there's no current climb
-          // and history has 2 or fewer items (scrollTargetRef wouldn't be attached elsewhere)
-          const isScrollTarget = index === 0 && !currentItem && (!showHistory || historyItems.length <= 2);
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const row = flatRows[virtualItem.index];
+          if (!row) return null;
 
           return (
-            <div key={climbQueueItem.uuid} ref={isScrollTarget ? scrollTargetRef : undefined}>
-              <QueueClimbListItem
-                item={climbQueueItem}
-                index={originalIndex}
-                isCurrent={false}
-                isHistory={false}
-                boardDetails={boardDetails}
-                pathname={pathname}
-                isDark={isDark}
-                setCurrentClimbQueueItem={setCurrentClimbQueueItem}
-                onTickClick={handleTickClick}
-                onOpenActions={handleOpenActions}
-                onOpenPlaylistSelector={handleOpenPlaylistSelector}
-                isEditMode={isEditMode}
-                isSelected={selectedItems?.has(climbQueueItem.uuid) ?? false}
-                onToggleSelect={onToggleSelect}
-              />
-            </div>
-          );
-        })}
-      </div>
-      {active && !viewOnlyMode && (
-        <>
-          <div className={styles.suggestedSectionHeader}>
-            <Typography variant="overline" color="text.secondary">
-              Suggestions
-            </Typography>
-          </div>
-          <div
-            className={styles.suggestedColumn}
-            style={{
-              height: suggestedVirtualizer.getTotalSize(),
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            {suggestedVirtualizer.getVirtualItems().map((virtualItem) => {
-              const climb = suggestedClimbs[virtualItem.index];
-              if (!climb) return null;
-              return (
-                <div
-                  key={virtualItem.key}
-                  data-index={virtualItem.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: `${virtualItem.size}px`,
-                    transform: `translateY(${virtualItem.start}px)`,
-                    contain: 'layout style paint',
-                  }}
-                >
-                  <ClimbListItem
-                    climb={climb}
-                    boardDetails={boardDetails}
-                    pathname={pathname}
-                    isDark={isDark}
-                    titleProps={suggestedTitleProps}
-                    onNavigate={stableOnClimbNavigate}
-                    onOpenActions={handleOpenActions}
-                    onOpenPlaylistSelector={handleOpenPlaylistSelector}
-                    addToQueue={addToQueue}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          {/* Sentinel element for Intersection Observer - only render when needed */}
-          {/* Include isFetchingClimbs to show skeleton during initial page load */}
-          {(suggestedClimbs.length > 0 || isFetchingClimbs || isFetchingNextPage || hasMoreResults) && (
             <div
-              ref={loadMoreRef}
-              style={loadMoreContainerStyle}
+              key={virtualItem.key}
+              ref={virtualizer.measureElement}
+              data-index={virtualItem.index}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualItem.start}px)`,
+                contain: 'layout style paint',
+              }}
             >
-              {(isFetchingClimbs || isFetchingNextPage) && (
+              {row.type === 'history-item' && (
+                <QueueClimbListItem
+                  item={row.item}
+                  index={row.queueIndex}
+                  isCurrent={false}
+                  isHistory={true}
+                  boardDetails={boardDetails}
+                  pathname={pathname}
+                  isDark={isDark}
+                  setCurrentClimbQueueItem={setCurrentClimbQueueItem}
+                  onTickClick={handleTickClick}
+                  onOpenActions={handleOpenActions}
+                  onOpenPlaylistSelector={handleOpenPlaylistSelector}
+                  isEditMode={isEditMode}
+                  isSelected={selectedItems?.has(row.item.uuid) ?? false}
+                  onToggleSelect={onToggleSelect}
+                />
+              )}
+              {row.type === 'history-divider' && (
+                <MuiDivider className={styles.historyDivider} />
+              )}
+              {row.type === 'current-item' && (
+                <QueueClimbListItem
+                  item={row.item}
+                  index={row.queueIndex}
+                  isCurrent={true}
+                  isHistory={false}
+                  boardDetails={boardDetails}
+                  pathname={pathname}
+                  isDark={isDark}
+                  setCurrentClimbQueueItem={setCurrentClimbQueueItem}
+                  onTickClick={handleTickClick}
+                  onOpenActions={handleOpenActions}
+                  onOpenPlaylistSelector={handleOpenPlaylistSelector}
+                  isEditMode={isEditMode}
+                  isSelected={selectedItems?.has(row.item.uuid) ?? false}
+                  onToggleSelect={onToggleSelect}
+                />
+              )}
+              {row.type === 'future-item' && (
+                <QueueClimbListItem
+                  item={row.item}
+                  index={row.queueIndex}
+                  isCurrent={false}
+                  isHistory={false}
+                  boardDetails={boardDetails}
+                  pathname={pathname}
+                  isDark={isDark}
+                  setCurrentClimbQueueItem={setCurrentClimbQueueItem}
+                  onTickClick={handleTickClick}
+                  onOpenActions={handleOpenActions}
+                  onOpenPlaylistSelector={handleOpenPlaylistSelector}
+                  isEditMode={isEditMode}
+                  isSelected={selectedItems?.has(row.item.uuid) ?? false}
+                  onToggleSelect={onToggleSelect}
+                />
+              )}
+              {row.type === 'suggestion-header' && (
+                <div className={styles.suggestedSectionHeader}>
+                  <Typography variant="overline" color="text.secondary">
+                    Suggestions
+                  </Typography>
+                </div>
+              )}
+              {row.type === 'suggestion' && (
+                <ClimbListItem
+                  climb={row.climb}
+                  boardDetails={boardDetails}
+                  pathname={pathname}
+                  isDark={isDark}
+                  titleProps={suggestedTitleProps}
+                  onNavigate={stableOnClimbNavigate}
+                  onOpenActions={handleOpenActions}
+                  onOpenPlaylistSelector={handleOpenPlaylistSelector}
+                  addToQueue={addToQueue}
+                />
+              )}
+              {row.type === 'loading' && (
                 <div
                   className={styles.loadMoreContainer}
                   style={loadMoreSkeletonStyle}
@@ -426,7 +396,7 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                   ))}
                 </div>
               )}
-              {!hasMoreResults && !isFetchingClimbs && suggestedClimbs.length > 0 && (
+              {row.type === 'end-message' && (
                 <div className={styles.noMoreSuggestions}>
                   <Typography variant="body2" color="text.disabled">
                     That's all for now
@@ -434,9 +404,9 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
                 </div>
               )}
             </div>
-          )}
-        </>
-      )}
+          );
+        })}
+      </div>
 
       {/* Tick drawer - now works with just NextAuth authentication */}
       {isAuthenticated ? (
