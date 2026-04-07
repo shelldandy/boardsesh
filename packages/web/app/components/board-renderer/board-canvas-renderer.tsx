@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { BoardDetails } from '@/app/lib/types';
 import { renderBoard } from '@/app/lib/board-render-worker/worker-manager';
 import { trackRenderComplete, trackRenderError, type RenderContext } from '@/app/lib/rendering-metrics';
+import { THUMBNAIL_WIDTH } from './types';
 import BoardImageLayers from './board-image-layers';
 
 export interface BoardCanvasRendererProps {
@@ -23,7 +24,6 @@ export interface BoardCanvasRendererProps {
  * returning an ImageBitmap that is drawn directly onto the canvas.
  * Falls back to BoardImageLayers if the worker render fails.
  */
-const THUMBNAIL_WIDTH = 300;
 
 const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
   boardDetails,
@@ -101,7 +101,7 @@ const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
     );
   }
 
-  if (contain) {
+  if (contain || thumbnail) {
     return (
       <div
         style={{

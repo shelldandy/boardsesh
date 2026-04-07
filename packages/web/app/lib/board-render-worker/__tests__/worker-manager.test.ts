@@ -22,6 +22,7 @@ vi.mock('@/app/components/board-renderer/util', () => ({
 
 // Mock HOLD_STATE_MAP
 vi.mock('@/app/components/board-renderer/types', () => ({
+  THUMBNAIL_WIDTH: 200,
   HOLD_STATE_MAP: {
     kilter: {
       42: { name: 'STARTING', color: '#00FF00' },
@@ -604,7 +605,7 @@ describe('renderBoard', () => {
     expect(request).toMatchObject({
       boardWidth: 1080,
       boardHeight: 1504,
-      outputWidth: 300, // THUMBNAIL_WIDTH when thumbnail=true
+      outputWidth: 200, // THUMBNAIL_WIDTH when thumbnail=true
       frames: 'p1r42p2r43',
       mirrored: true,
       thumbnail: true,

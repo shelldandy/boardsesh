@@ -156,4 +156,50 @@ describe('BoardImageLayers', () => {
     });
   });
 
+  it('uses object-fit contain when thumbnail prop is set', () => {
+    const { container } = render(
+      <BoardImageLayers
+        boardDetails={mockBoardDetails}
+        frames="p1r42"
+        mirrored={false}
+        thumbnail
+      />,
+    );
+
+    const images = container.querySelectorAll('img');
+    images.forEach((img) => {
+      expect(img.style.objectFit).toBe('contain');
+    });
+  });
+
+  it('uses thumbnail dimensions for img width/height when thumbnail is set', () => {
+    const { container } = render(
+      <BoardImageLayers
+        boardDetails={mockBoardDetails}
+        frames="p1r42"
+        mirrored={false}
+        thumbnail
+      />,
+    );
+
+    const img = container.querySelector('img')!;
+    // THUMBNAIL_WIDTH = 200, height = round(200 * 1350 / 1080) = 250
+    expect(img.getAttribute('width')).toBe('200');
+    expect(img.getAttribute('height')).toBe('250');
+  });
+
+  it('uses full board dimensions for img width/height when not thumbnail', () => {
+    const { container } = render(
+      <BoardImageLayers
+        boardDetails={mockBoardDetails}
+        frames="p1r42"
+        mirrored={false}
+      />,
+    );
+
+    const img = container.querySelector('img')!;
+    expect(img.getAttribute('width')).toBe('1080');
+    expect(img.getAttribute('height')).toBe('1350');
+  });
+
 });

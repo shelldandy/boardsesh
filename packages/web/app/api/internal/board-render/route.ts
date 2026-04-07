@@ -4,7 +4,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import sharp from 'sharp';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
-import { HOLD_STATE_MAP } from '@/app/components/board-renderer/types';
+import { HOLD_STATE_MAP, THUMBNAIL_WIDTH } from '@/app/components/board-renderer/types';
 import type { BoardName } from '@/app/lib/types';
 
 // Node.js runtime for reliable WASM loading via filesystem
@@ -50,9 +50,8 @@ async function ensureWasmInitialized() {
 
 const VALID_BOARD_NAMES = new Set(['kilter', 'tension', 'moonboard']);
 
-// Thumbnail: 300px wide (sharp on 2x retina at ~150css-px)
+// THUMBNAIL_WIDTH imported from @/app/components/board-renderer/types
 // Full: native board resolution for crisp rendering in climb drawer/card cover
-const THUMBNAIL_WIDTH = 300;
 
 // ---------------------------------------------------------------------------
 // Background image helpers (for include_background=1 compositing)

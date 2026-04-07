@@ -31,6 +31,9 @@ export interface HeatmapData {
   userAttempts?: number; // Added for user-specific attempt data
 }
 
+/** Thumbnail render width in pixels. Covers 3x retina at ~64px CSS display. */
+export const THUMBNAIL_WIDTH = 200;
+
 // If adding more boards be sure to increment the DB version number for indexeddb
 export const supported_boards: BoardName[] = MOONBOARD_ENABLED
   ? ['kilter', 'tension', 'moonboard']

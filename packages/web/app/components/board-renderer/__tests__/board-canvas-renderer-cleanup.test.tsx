@@ -144,9 +144,9 @@ describe('BoardCanvasRenderer cleanup', () => {
     const canvas = container.querySelector('canvas') as HTMLCanvasElement;
     expect(canvas).toBeTruthy();
 
-    // Thumbnail width is 300, height scales proportionally
-    const expectedHeight = Math.round((300 * mockBoardDetails.boardHeight) / mockBoardDetails.boardWidth);
-    expect(canvas.width).toBe(300);
+    // Thumbnail width is 200, height scales proportionally
+    const expectedHeight = Math.round((200 * mockBoardDetails.boardHeight) / mockBoardDetails.boardWidth);
+    expect(canvas.width).toBe(200);
     expect(canvas.height).toBe(expectedHeight);
   });
 });

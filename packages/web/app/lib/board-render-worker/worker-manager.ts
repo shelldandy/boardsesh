@@ -11,11 +11,8 @@ import type { RenderRequest, RenderResponse, PreloadImagesMessage } from './boar
 import type { BoardDetails } from '@/app/lib/types';
 import type { HoldRenderData } from '@/app/components/board-renderer/types';
 import { getImageUrl } from '@/app/components/board-renderer/util';
-import { HOLD_STATE_MAP } from '@/app/components/board-renderer/types';
+import { HOLD_STATE_MAP, THUMBNAIL_WIDTH } from '@/app/components/board-renderer/types';
 import { isCapacitor } from '@/app/lib/ble/capacitor-utils';
-
-// Thumbnail width matches server-side constant
-const THUMBNAIL_WIDTH = 300;
 
 // LRU cache for rendered bitmaps
 const CACHE_MAX = 150;

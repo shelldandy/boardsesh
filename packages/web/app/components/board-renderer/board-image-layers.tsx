@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import type { BoardDetails } from '@/app/lib/types';
 import { getImageUrl, buildOverlayUrl } from './util';
+import { THUMBNAIL_WIDTH } from './types';
 import { trackRenderComplete, trackRenderError, type RenderContext } from '@/app/lib/rendering-metrics';
 
 // Use CSS Grid stacking (gridArea: 1/1) instead of absolute positioning to avoid
@@ -59,7 +60,7 @@ const BoardImageLayers = React.memo(function BoardImageLayers({
     [style, mirrored],
   );
 
-  const imgStyle = contain ? layerContainStyle : layerStyle;
+  const imgStyle = (contain || thumbnail) ? layerContainStyle : layerStyle;
 
   // Render timing: measure mount → overlay loaded
   const mountTime = useRef(performance.now());
@@ -76,6 +77,13 @@ const BoardImageLayers = React.memo(function BoardImageLayers({
     trackRenderError(renderContext, 'wasm');
   }, [renderContext]);
 
+  // Use actual thumbnail dimensions for HTML width/height hints so the browser
+  // reserves the correct aspect ratio before the image loads.
+  const imgWidth = thumbnail ? THUMBNAIL_WIDTH : boardDetails.boardWidth;
+  const imgHeight = thumbnail
+    ? Math.round((THUMBNAIL_WIDTH * boardDetails.boardHeight) / boardDetails.boardWidth)
+    : boardDetails.boardHeight;
+
   return (
     <div style={containerStyle}>
       {overlayUrl ? (
@@ -84,8 +92,8 @@ const BoardImageLayers = React.memo(function BoardImageLayers({
         <img
           src={overlayUrl}
           alt=""
-          width={boardDetails.boardWidth}
-          height={boardDetails.boardHeight}
+          width={imgWidth}
+          height={imgHeight}
           style={imgStyle}
           onLoad={handleOverlayLoad}
           onError={handleOverlayError}
@@ -98,8 +106,8 @@ const BoardImageLayers = React.memo(function BoardImageLayers({
             key={url}
             src={url}
             alt=""
-            width={boardDetails.boardWidth}
-            height={boardDetails.boardHeight}
+            width={imgWidth}
+            height={imgHeight}
             style={imgStyle}
           />
         ))
