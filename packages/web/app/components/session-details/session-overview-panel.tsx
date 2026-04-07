@@ -41,6 +41,7 @@ interface SessionOverviewPanelProps {
   onRemoveParticipant?: (userId: string) => void;
   removingUserId?: string | null;
   getParticipantHref?: (userId: string) => string;
+  afterParticipants?: React.ReactNode;
 }
 
 function ParticipantAvatar({
@@ -88,6 +89,7 @@ export default function SessionOverviewPanel({
   onRemoveParticipant,
   removingUserId = null,
   getParticipantHref,
+  afterParticipants,
 }: SessionOverviewPanelProps) {
   // Defensive dedup: during WebSocket reconnection race conditions the server
   // may briefly report the same participant twice. Deduplicating by userId
@@ -181,6 +183,8 @@ export default function SessionOverviewPanel({
           )}
         </CardContent>
       </Card>
+
+      {afterParticipants}
 
       {goal ? (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

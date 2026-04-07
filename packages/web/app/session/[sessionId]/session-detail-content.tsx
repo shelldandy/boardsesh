@@ -42,6 +42,7 @@ interface SessionDetailContentProps {
   sessionId?: string;
   embedded?: boolean;
   fallbackBoardDetails?: BoardDetails | null;
+  afterParticipants?: React.ReactNode;
 }
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -236,6 +237,7 @@ export default function SessionDetailContent({
   sessionId: sessionIdProp,
   embedded = false,
   fallbackBoardDetails = null,
+  afterParticipants,
 }: SessionDetailContentProps) {
   const { data: authSession } = useSession();
   const router = useRouter();
@@ -510,6 +512,7 @@ export default function SessionDetailContent({
             onRemoveParticipant={handleRemoveUser}
             removingUserId={removingUserId}
             getParticipantHref={(userId) => `/crusher/${userId}`}
+            afterParticipants={afterParticipants}
           />
         )}
 
