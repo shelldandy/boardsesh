@@ -90,10 +90,14 @@ export function useSwipeActions({
   const leftActionEl = useRef<HTMLElement | null>(null);
   const rightActionEl = useRef<HTMLElement | null>(null);
 
-  // Clean up confirmation timer on unmount
+  // Clean up confirmation timer and DOM refs on unmount.
+  // Nulling refs breaks reference chains that retain detached DOM trees.
   useEffect(() => {
     return () => {
       if (confirmationTimerRef.current) clearTimeout(confirmationTimerRef.current);
+      contentEl.current = null;
+      leftActionEl.current = null;
+      rightActionEl.current = null;
     };
   }, []);
 

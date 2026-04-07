@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import MuiAvatar from '@mui/material/Avatar';
 import MuiTypography from '@mui/material/Typography';
 import MuiButton from '@mui/material/Button';
@@ -52,6 +52,7 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [drawerRendered, setDrawerRendered] = useState(false);
   const { openAuthModal } = useAuthModal();
   const [showHoldClassification, setShowHoldClassification] = useState(false);
   const [showBoardSelector, setShowBoardSelector] = useState(false);
@@ -74,6 +75,9 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
   }, [isOpen]);
 
   const handleClose = () => setIsOpen(false);
+  const handleDrawerTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setDrawerRendered(false);
+  }, []);
 
   const handleSignOut = () => {
     signOut();
@@ -97,7 +101,7 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
   return (
     <>
       <IconButton
-        onClick={() => setIsOpen(true)}
+        onClick={() => { setDrawerRendered(true); setIsOpen(true); }}
         aria-label="User menu"
         className={styles.avatarButton}
       >
@@ -110,10 +114,11 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
         </MuiAvatar>
       </IconButton>
 
-      <SwipeableDrawer
+      {drawerRendered && <SwipeableDrawer
         placement="left"
         open={isOpen}
         onClose={handleClose}
+        onTransitionEnd={handleDrawerTransitionEnd}
         width={300}
         title={null}
       >
@@ -303,7 +308,7 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
             </div>
           </div>
         </div>
-      </SwipeableDrawer>
+      </SwipeableDrawer>}
 
       {boardDetails && (
         <HoldClassificationWizard

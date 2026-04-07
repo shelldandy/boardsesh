@@ -5,38 +5,26 @@ import React from 'react';
 import type { Climb, BoardDetails } from '@/app/lib/types';
 import type { ClimbQueueItem } from '../types';
 
-// --- Mocks ---
+// --- Mock data ---
 
-const mockSuggestedClimbs: Climb[] = [
-  {
-    uuid: 'suggested-1',
-    name: 'Suggested Boulder A',
-    setter_username: 'setter_1',
+function makeClimb(index: number): Climb {
+  return {
+    uuid: `suggested-${index}`,
+    name: `Suggested Boulder ${index}`,
+    setter_username: 'setter',
     description: '',
-    frames: 'p1r14',
+    frames: `p${index}r14`,
     angle: 40,
     ascensionist_count: 5,
-    difficulty: 'V3',
+    difficulty: 'V4',
     quality_average: '3.0',
     stars: 0,
     difficulty_error: '0.5',
     benchmark_difficulty: null,
-  },
-  {
-    uuid: 'suggested-2',
-    name: 'Suggested Boulder B',
-    setter_username: 'setter_2',
-    description: '',
-    frames: 'p2r15',
-    angle: 40,
-    ascensionist_count: 8,
-    difficulty: 'V5',
-    quality_average: '4.0',
-    stars: 0,
-    difficulty_error: '0.3',
-    benchmark_difficulty: null,
-  },
-];
+  };
+}
+
+const suggestedClimbs = Array.from({ length: 20 }, (_, i) => makeClimb(i));
 
 const mockQueueItems: ClimbQueueItem[] = [
   {
@@ -56,14 +44,32 @@ const mockQueueItems: ClimbQueueItem[] = [
       benchmark_difficulty: null,
     },
   },
+  {
+    uuid: 'queue-2',
+    climb: {
+      uuid: 'climb-q2',
+      name: 'Queue Climb 2',
+      setter_username: 'setter_q',
+      description: '',
+      frames: 'p4r17',
+      angle: 40,
+      ascensionist_count: 8,
+      difficulty: 'V5',
+      quality_average: '4.0',
+      stars: 0,
+      difficulty_error: '0.3',
+      benchmark_difficulty: null,
+    },
+  },
 ];
 
-// Mock graphql-queue hooks
+// --- Mocks ---
+
 vi.mock('../../graphql-queue', () => ({
   useCurrentClimbUuid: () => null,
   useQueueList: () => ({
     queue: mockQueueItems,
-    suggestedClimbs: mockSuggestedClimbs,
+    suggestedClimbs,
   }),
   useSearchData: () => ({
     hasMoreResults: false,
@@ -99,7 +105,7 @@ vi.mock('@/app/components/providers/auth-modal-provider', () => ({
   }),
 }));
 
-// Mock child components as simple divs with data-testid
+// Mock child components as simple stubs
 vi.mock('../queue-climb-list-item', () => ({
   default: ({ item }: { item: ClimbQueueItem }) => (
     <div data-testid="queue-climb-list-item" data-uuid={item.uuid}>
@@ -170,7 +176,20 @@ vi.mock('@/app/theme/theme-config', () => ({
   },
 }));
 
-// Mock @tanstack/react-virtual so virtualizer works in jsdom
+vi.mock('../queue-list.module.css', () => ({
+  default: {
+    queueColumn: 'queueColumn',
+    suggestedSectionHeader: 'suggestedSectionHeader',
+    suggestedColumn: 'suggestedColumn',
+    suggestedItem: 'suggestedItem',
+    historyDivider: 'historyDivider',
+    loadMoreContainer: 'loadMoreContainer',
+    loadMoreSkeletonRow: 'loadMoreSkeletonRow',
+    noMoreSuggestions: 'noMoreSuggestions',
+  },
+}));
+
+// Mock @tanstack/react-virtual to make tests deterministic in jsdom
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: (opts: { count: number; getItemKey?: (i: number) => string | number }) => {
     const items = Array.from({ length: opts.count }, (_, i) => ({
@@ -222,52 +241,52 @@ function makeBoardDetails(): BoardDetails {
   } as unknown as BoardDetails;
 }
 
-// --- Tests ---
-
-describe('QueueList active prop', () => {
+describe('QueueList rendering', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders the "Suggestions" section header when active is true (default)', () => {
-    render(<QueueList boardDetails={makeBoardDetails()} />);
-    expect(screen.getByText('Suggestions')).toBeTruthy();
-  });
-
-  it('renders the "Suggestions" section header when active is explicitly true', () => {
+  it('renders all suggested climbs when active', () => {
     render(<QueueList boardDetails={makeBoardDetails()} active={true} />);
-    expect(screen.getByText('Suggestions')).toBeTruthy();
+
+    // All 20 suggested ClimbListItems should be in the DOM
+    const suggestedItems = screen.getAllByTestId('climb-list-item');
+    expect(suggestedItems).toHaveLength(20);
+
+    // Verify first and last suggested climb data
+    expect(suggestedItems[0].getAttribute('data-uuid')).toBe('suggested-0');
+    expect(suggestedItems[0].textContent).toBe('Suggested Boulder 0');
+    expect(suggestedItems[19].getAttribute('data-uuid')).toBe('suggested-19');
+    expect(suggestedItems[19].textContent).toBe('Suggested Boulder 19');
   });
 
-  it('does NOT render the "Suggestions" section header when active is false', () => {
+  it('queue items always render regardless of active prop', () => {
     render(<QueueList boardDetails={makeBoardDetails()} active={false} />);
-    expect(screen.queryByText('Suggestions')).toBeNull();
-  });
 
-  it('does NOT render suggested ClimbListItems when active is false', () => {
-    render(<QueueList boardDetails={makeBoardDetails()} active={false} />);
+    // All queue items should be rendered even when active=false
+    const queueItems = screen.getAllByTestId('queue-climb-list-item');
+    expect(queueItems).toHaveLength(2);
+    expect(screen.getByText('Queue Climb 1')).toBeTruthy();
+    expect(screen.getByText('Queue Climb 2')).toBeTruthy();
+
+    // No suggested items should render when active=false
     expect(screen.queryAllByTestId('climb-list-item')).toHaveLength(0);
   });
 
-  it('renders suggested ClimbListItems when active is true', () => {
+  it('renders suggestions section header when active', () => {
     render(<QueueList boardDetails={makeBoardDetails()} active={true} />);
-    const items = screen.getAllByTestId('climb-list-item');
-    expect(items).toHaveLength(2);
-    expect(screen.getByText('Suggested Boulder A')).toBeTruthy();
-    expect(screen.getByText('Suggested Boulder B')).toBeTruthy();
+
+    expect(screen.getByText('Suggestions')).toBeTruthy();
   });
 
-  it('renders queue items (QueueClimbListItem) when active is true', () => {
-    render(<QueueList boardDetails={makeBoardDetails()} active={true} />);
-    const queueItems = screen.getAllByTestId('queue-climb-list-item');
-    expect(queueItems).toHaveLength(1);
-    expect(screen.getByText('Queue Climb 1')).toBeTruthy();
-  });
-
-  it('renders queue items (QueueClimbListItem) when active is false', () => {
+  it('does not render suggestions section when active is false', () => {
     render(<QueueList boardDetails={makeBoardDetails()} active={false} />);
+
+    expect(screen.queryByText('Suggestions')).toBeNull();
+    expect(screen.queryAllByTestId('climb-list-item')).toHaveLength(0);
+
+    // Queue items still render
     const queueItems = screen.getAllByTestId('queue-climb-list-item');
-    expect(queueItems).toHaveLength(1);
-    expect(screen.getByText('Queue Climb 1')).toBeTruthy();
+    expect(queueItems).toHaveLength(2);
   });
 });

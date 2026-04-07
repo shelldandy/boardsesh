@@ -32,6 +32,7 @@ const BoardMapView = lazy(() => import('./board-map-view'));
 interface BoardSelectorDrawerProps {
   open: boolean;
   onClose: () => void;
+  onTransitionEnd?: (open: boolean) => void;
   boardConfigs: BoardConfigData;
   placement?: 'top' | 'bottom';
   onBoardSelected?: (url: string, config?: StoredBoardConfig) => void;
@@ -40,6 +41,7 @@ interface BoardSelectorDrawerProps {
 export default function BoardSelectorDrawer({
   open,
   onClose,
+  onTransitionEnd,
   boardConfigs,
   placement = 'bottom',
   onBoardSelected,
@@ -287,6 +289,7 @@ export default function BoardSelectorDrawer({
         placement={placement}
         open={open}
         onClose={onClose}
+        onTransitionEnd={onTransitionEnd}
         height="85dvh"
       >
         {/* My Boards (server-side) */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Button from '@mui/material/Button';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import PlayCircleOutlineOutlined from '@mui/icons-material/PlayCircleOutlineOutlined';
@@ -34,14 +34,29 @@ interface GlobalHeaderProps {
 
 export default function GlobalHeader({ boardConfigs }: GlobalHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchRendered, setSearchRendered] = useState(false);
   const [startSeshOpen, setStartSeshOpen] = useState(false);
+  const [startSeshRendered, setStartSeshRendered] = useState(false);
   const [seshSettingsOpen, setSeshSettingsOpen] = useState(false);
+  const [seshSettingsRendered, setSeshSettingsRendered] = useState(false);
   const { activeSession } = usePersistentSessionState();
   const isOnBoardRoute = useIsOnBoardRoute();
   const { openClimbSearchDrawer, searchPillSummary, hasActiveFilters: filtersActive } = useSearchDrawerBridge();
   const pathname = usePathname();
 
   const hasActiveSession = !!activeSession;
+
+  // Unmount drawer trees after close animation finishes to avoid rendering
+  // MUI Modal/Portal/FocusTrap infrastructure on every parent re-render.
+  const handleSearchTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setSearchRendered(false);
+  }, []);
+  const handleStartSeshTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setStartSeshRendered(false);
+  }, []);
+  const handleSeshSettingsTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setSeshSettingsRendered(false);
+  }, []);
 
   // On hidden-header pages, show only the avatar in a transparent bar
   if (HIDDEN_HEADER_PAGES.includes(pathname)) {
@@ -63,14 +78,17 @@ export default function GlobalHeader({ boardConfigs }: GlobalHeaderProps) {
     if (useClimbSearchBridge) {
       openClimbSearchDrawer();
     } else {
+      setSearchRendered(true);
       setSearchOpen(true);
     }
   };
 
   const handleSeshClick = () => {
     if (hasActiveSession) {
+      setSeshSettingsRendered(true);
       setSeshSettingsOpen(true);
     } else {
+      setStartSeshRendered(true);
       setStartSeshOpen(true);
     }
   };
@@ -119,22 +137,31 @@ export default function GlobalHeader({ boardConfigs }: GlobalHeaderProps) {
         </Button>
       </header>
 
-      <UnifiedSearchDrawer
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        defaultCategory={isOnBoardRoute ? 'climbs' : 'boards'}
-      />
+      {searchRendered && (
+        <UnifiedSearchDrawer
+          open={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          onTransitionEnd={handleSearchTransitionEnd}
+          defaultCategory={isOnBoardRoute ? 'climbs' : 'boards'}
+        />
+      )}
 
-      <StartSeshDrawer
-        open={startSeshOpen}
-        onClose={() => setStartSeshOpen(false)}
-        boardConfigs={boardConfigs}
-      />
+      {startSeshRendered && (
+        <StartSeshDrawer
+          open={startSeshOpen}
+          onClose={() => setStartSeshOpen(false)}
+          onTransitionEnd={handleStartSeshTransitionEnd}
+          boardConfigs={boardConfigs}
+        />
+      )}
 
-      <SeshSettingsDrawer
-        open={seshSettingsOpen}
-        onClose={() => setSeshSettingsOpen(false)}
-      />
+      {seshSettingsRendered && (
+        <SeshSettingsDrawer
+          open={seshSettingsOpen}
+          onClose={() => setSeshSettingsOpen(false)}
+          onTransitionEnd={handleSeshSettingsTransitionEnd}
+        />
+      )}
     </>
   );
 }

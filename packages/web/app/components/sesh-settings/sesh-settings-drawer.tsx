@@ -28,9 +28,10 @@ import SessionDetailContent from '@/app/session/[sessionId]/session-detail-conte
 interface SeshSettingsDrawerProps {
   open: boolean;
   onClose: () => void;
+  onTransitionEnd?: (open: boolean) => void;
 }
 
-export default function SeshSettingsDrawer({ open, onClose }: SeshSettingsDrawerProps) {
+export default function SeshSettingsDrawer({ open, onClose, onTransitionEnd }: SeshSettingsDrawerProps) {
   const { activeSession, session, users, deactivateSession, liveSessionStats } = usePersistentSession();
   const { boardDetails, angle } = useQueueBridgeBoardInfo();
   const { token: authToken } = useWsAuthToken();
@@ -181,6 +182,7 @@ export default function SeshSettingsDrawer({ open, onClose }: SeshSettingsDrawer
       placement="top"
       open={open}
       onClose={handleClose}
+      onTransitionEnd={onTransitionEnd}
       fullHeight
       styles={{
         wrapper: { height: '100dvh' },

@@ -19,6 +19,7 @@ export type SearchCategory = 'climbs' | 'users' | 'playlists' | 'boards' | 'gyms
 interface UnifiedSearchDrawerProps {
   open: boolean;
   onClose: () => void;
+  onTransitionEnd?: (open: boolean) => void;
   defaultCategory?: SearchCategory;
   boardDetails?: BoardDetails;
   /** Render prop for climb search content (accordion form). Only used when boardDetails is provided. */
@@ -30,6 +31,7 @@ interface UnifiedSearchDrawerProps {
 export default function UnifiedSearchDrawer({
   open,
   onClose,
+  onTransitionEnd,
   defaultCategory = 'boards',
   boardDetails,
   renderClimbSearch,
@@ -66,6 +68,7 @@ export default function UnifiedSearchDrawer({
       placement="top"
       open={open}
       onClose={handleClose}
+      onTransitionEnd={onTransitionEnd}
       height={isClimbMode ? '100%' : '80vh'}
       fullHeight={isClimbMode}
       showDragHandle

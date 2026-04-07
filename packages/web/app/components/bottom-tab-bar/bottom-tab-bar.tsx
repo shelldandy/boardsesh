@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useContext, useMemo } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 import MuiButton from '@mui/material/Button';
 import Box from '@mui/material/Box';
@@ -34,7 +34,6 @@ import { useUnreadNotificationCount } from '@/app/hooks/use-unread-notification-
 import { useClimbActionsData } from '@/app/hooks/use-climb-actions-data';
 import type { StoredBoardConfig } from '@/app/lib/saved-boards-db';
 import { isValidHexColor } from '@/app/lib/color-utils';
-import { getPlatform } from '@/app/lib/ble/capacitor-utils';
 
 type Tab = 'home' | 'climbs' | 'library' | 'feed' | 'create' | 'notifications';
 type PendingCreateAction = 'climb' | 'playlist' | null;
@@ -91,14 +90,30 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
   const { mode } = useColorMode();
   const isDark = mode === 'dark';
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateRendered, setIsCreateRendered] = useState(false);
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
+  const [isCreatePlaylistRendered, setIsCreatePlaylistRendered] = useState(false);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const { openAuthModal } = useAuthModal();
   const [isBoardSelectorOpen, setIsBoardSelectorOpen] = useState(false);
+  const [isBoardSelectorRendered, setIsBoardSelectorRendered] = useState(false);
   const [pendingCreateAction, setPendingCreateAction] = useState<PendingCreateAction>(null);
   const [selectedBoardContext, setSelectedBoardContext] = useState<SelectedBoardContext | null>(null);
   const [playlistFormValues, setPlaylistFormValues] = useState(INITIAL_PLAYLIST_FORM);
   const [playlistFormErrors, setPlaylistFormErrors] = useState<Record<string, string>>({});
+
+  // Stable callbacks for drawer unmount-after-close-animation pattern.
+  // Avoids invalidating MUI's SlideProps memo on every parent render.
+  const handleCreateTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setIsCreateRendered(false);
+  }, []);
+  const handleCreatePlaylistTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setIsCreatePlaylistRendered(false);
+  }, []);
+  const handleBoardSelectorTransitionEnd = useCallback((open: boolean) => {
+    if (!open) setIsBoardSelectorRendered(false);
+  }, []);
+
   const pathname = usePathname();
   const router = useRouter();
 
@@ -139,9 +154,6 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
 
   // Hide playlists for moonboard (not yet supported)
   const isMoonboard = playlistBoardName === 'moonboard';
-
-  // Hide feed tab in iOS native app (pending block/report functionality for app store compliance)
-  const isIOSNativeApp = useMemo(() => getPlatform() === 'ios', []);
 
   // Determine active tab from pathname
   const activeTabFromPath = getActiveTab(pathname);
@@ -225,7 +237,7 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
     // Open board selector drawer if no board context
     if (!url) {
       if (boardConfigs) {
-        setIsBoardSelectorOpen(true);
+        setIsBoardSelectorRendered(true); setIsBoardSelectorOpen(true);
       }
       track('Bottom Tab Bar', { tab: 'climbs', action: 'open_selector' });
       return;
@@ -287,7 +299,7 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
 
   const handleCreateTab = () => {
     setIsCreatePlaylistOpen(false);
-    setIsCreateOpen(true);
+    setIsCreateRendered(true); setIsCreateOpen(true);
     track('Bottom Tab Bar', { tab: 'create' });
   };
 
@@ -323,7 +335,7 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
 
     if (boardConfigs) {
       setPendingCreateAction('climb');
-      setIsBoardSelectorOpen(true);
+      setIsBoardSelectorRendered(true); setIsBoardSelectorOpen(true);
     }
   };
 
@@ -337,13 +349,13 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
           if (!canCreatePlaylistHere) {
             if (boardConfigs) {
               setPendingCreateAction('playlist');
-              setIsBoardSelectorOpen(true);
+              setIsBoardSelectorRendered(true); setIsBoardSelectorOpen(true);
             } else {
               showMessage('Select a board before creating a playlist', 'error');
             }
             return;
           }
-          setIsCreatePlaylistOpen(true);
+          setIsCreatePlaylistRendered(true); setIsCreatePlaylistOpen(true);
         },
       });
       return;
@@ -353,7 +365,7 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
       setIsCreateOpen(false);
       if (boardConfigs) {
         setPendingCreateAction('playlist');
-        setIsBoardSelectorOpen(true);
+        setIsBoardSelectorRendered(true); setIsBoardSelectorOpen(true);
       } else {
         showMessage('Select a board before creating a playlist', 'error');
       }
@@ -361,7 +373,7 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
     }
 
     setIsCreateOpen(false);
-    setIsCreatePlaylistOpen(true);
+    setIsCreatePlaylistRendered(true); setIsCreatePlaylistOpen(true);
   };
 
   const handleBoardSelected = useCallback((url: string, config?: StoredBoardConfig) => {
@@ -382,7 +394,7 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
         setPendingCreateAction(null);
         return;
       }
-      setIsCreatePlaylistOpen(true);
+      setIsCreatePlaylistRendered(true); setIsCreatePlaylistOpen(true);
       setPendingCreateAction(null);
       return;
     }
@@ -485,14 +497,12 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
           value="library"
           sx={actionSx}
         />
-        {!isIOSNativeApp && (
-          <BottomNavigationAction
-            label="Feed"
-            icon={<DynamicFeedOutlined sx={{ fontSize: 20 }} />}
-            value="feed"
-            sx={actionSx}
-          />
-        )}
+        <BottomNavigationAction
+          label="Feed"
+          icon={<DynamicFeedOutlined sx={{ fontSize: 20 }} />}
+          value="feed"
+          sx={actionSx}
+        />
         <BottomNavigationAction
           label="Create"
           icon={<AddOutlined sx={{ fontSize: 20 }} />}
@@ -516,134 +526,141 @@ function BottomTabBar({ boardDetails, angle, boardConfigs }: BottomTabBarProps) 
         />
       </BottomNavigation>
 
-      {/* Create Menu Drawer */}
-      <SwipeableDrawer
-        title="Create"
-        placement="bottom"
-        open={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        styles={{
-          wrapper: { height: 'auto' },
-          body: { padding: `${themeTokens.spacing[2]}px 0` },
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <MuiButton
-            data-testid="create-climb-option"
-            variant="text"
-            startIcon={<EditOutlined />}
-            fullWidth
-            onClick={handleOpenCreateClimb}
-            sx={{
-              height: 48,
-              justifyContent: 'flex-start',
-              paddingLeft: themeTokens.spacing[4],
-              fontSize: themeTokens.typography.fontSize.base,
-              color: 'inherit',
-            }}
-          >
-            Create Climb
-          </MuiButton>
-          {!isMoonboard && (
+      {/* Create Menu Drawer — only mounted after first open, unmounted after close animation */}
+      {isCreateRendered && (
+        <SwipeableDrawer
+          title="Create"
+          placement="bottom"
+          open={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          onTransitionEnd={handleCreateTransitionEnd}
+          styles={{
+            wrapper: { height: 'auto' },
+            body: { padding: `${themeTokens.spacing[2]}px 0` },
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <MuiButton
-              data-testid="create-playlist-option"
+              data-testid="create-climb-option"
               variant="text"
-              startIcon={<LocalOfferOutlined />}
+              startIcon={<EditOutlined />}
               fullWidth
-              onClick={handleOpenCreatePlaylist}
+              onClick={handleOpenCreateClimb}
               sx={{
                 height: 48,
                 justifyContent: 'flex-start',
                 paddingLeft: themeTokens.spacing[4],
                 fontSize: themeTokens.typography.fontSize.base,
+                color: 'inherit',
               }}
             >
-              Playlist
+              Create Climb
             </MuiButton>
-          )}
-        </Box>
-      </SwipeableDrawer>
+            {!isMoonboard && (
+              <MuiButton
+                data-testid="create-playlist-option"
+                variant="text"
+                startIcon={<LocalOfferOutlined />}
+                fullWidth
+                onClick={handleOpenCreatePlaylist}
+                sx={{
+                  height: 48,
+                  justifyContent: 'flex-start',
+                  paddingLeft: themeTokens.spacing[4],
+                  fontSize: themeTokens.typography.fontSize.base,
+                }}
+              >
+                Playlist
+              </MuiButton>
+            )}
+          </Box>
+        </SwipeableDrawer>
+      )}
 
       {/* Create Playlist Drawer */}
-      <SwipeableDrawer
-        title="Create Playlist"
-        placement="bottom"
-        open={isCreatePlaylistOpen}
-        onClose={() => {
-          setIsCreatePlaylistOpen(false);
-          setPlaylistFormValues(INITIAL_PLAYLIST_FORM);
-          setPlaylistFormErrors({});
-        }}
-        styles={{
-          wrapper: { height: 'auto' },
-          body: { padding: themeTokens.spacing[4] },
-        }}
-        extra={
-          <MuiButton
-            variant="contained"
-            onClick={handleCreatePlaylist}
-            disabled={isCreatingPlaylist}
-          >
-            {isCreatingPlaylist ? 'Creating...' : 'Create'}
-          </MuiButton>
-        }
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Name</Typography>
-            <TextField
-              placeholder="e.g., Hard Crimps"
-              autoFocus
-              fullWidth
-              size="small"
-              value={playlistFormValues.name}
-              onChange={(e) => {
-                setPlaylistFormValues((prev) => ({ ...prev, name: e.target.value }));
-                setPlaylistFormErrors((prev) => ({ ...prev, name: '' }));
-              }}
-              error={!!playlistFormErrors.name}
-              helperText={playlistFormErrors.name}
-            />
+      {isCreatePlaylistRendered && (
+        <SwipeableDrawer
+          title="Create Playlist"
+          placement="bottom"
+          open={isCreatePlaylistOpen}
+          onClose={() => {
+            setIsCreatePlaylistOpen(false);
+            setPlaylistFormValues(INITIAL_PLAYLIST_FORM);
+            setPlaylistFormErrors({});
+          }}
+          onTransitionEnd={handleCreatePlaylistTransitionEnd}
+          styles={{
+            wrapper: { height: 'auto' },
+            body: { padding: themeTokens.spacing[4] },
+          }}
+          extra={
+            <MuiButton
+              variant="contained"
+              onClick={handleCreatePlaylist}
+              disabled={isCreatingPlaylist}
+            >
+              {isCreatingPlaylist ? 'Creating...' : 'Create'}
+            </MuiButton>
+          }
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Name</Typography>
+              <TextField
+                placeholder="e.g., Hard Crimps"
+                autoFocus
+                fullWidth
+                size="small"
+                value={playlistFormValues.name}
+                onChange={(e) => {
+                  setPlaylistFormValues((prev) => ({ ...prev, name: e.target.value }));
+                  setPlaylistFormErrors((prev) => ({ ...prev, name: '' }));
+                }}
+                error={!!playlistFormErrors.name}
+                helperText={playlistFormErrors.name}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Description (optional)</Typography>
+              <TextField
+                placeholder="Optional description..."
+                multiline
+                rows={2}
+                fullWidth
+                size="small"
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+                value={playlistFormValues.description}
+                onChange={(e) => {
+                  setPlaylistFormValues((prev) => ({ ...prev, description: e.target.value }));
+                  setPlaylistFormErrors((prev) => ({ ...prev, description: '' }));
+                }}
+                error={!!playlistFormErrors.description}
+                helperText={playlistFormErrors.description}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Color (optional)</Typography>
+              <TextField
+                type="color"
+                value={playlistFormValues.color || '#000000'}
+                onChange={(e) => setPlaylistFormValues((prev) => ({ ...prev, color: e.target.value }))}
+                size="small"
+                sx={{ width: 80 }}
+              />
+            </Box>
           </Box>
-          <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Description (optional)</Typography>
-            <TextField
-              placeholder="Optional description..."
-              multiline
-              rows={2}
-              fullWidth
-              size="small"
-              slotProps={{ htmlInput: { maxLength: 500 } }}
-              value={playlistFormValues.description}
-              onChange={(e) => {
-                setPlaylistFormValues((prev) => ({ ...prev, description: e.target.value }));
-                setPlaylistFormErrors((prev) => ({ ...prev, description: '' }));
-              }}
-              error={!!playlistFormErrors.description}
-              helperText={playlistFormErrors.description}
-            />
-          </Box>
-          <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Color (optional)</Typography>
-            <TextField
-              type="color"
-              value={playlistFormValues.color || '#000000'}
-              onChange={(e) => setPlaylistFormValues((prev) => ({ ...prev, color: e.target.value }))}
-              size="small"
-              sx={{ width: 80 }}
-            />
-          </Box>
-        </Box>
-      </SwipeableDrawer>
+        </SwipeableDrawer>
+      )}
 
       {/* Board Selector Drawer */}
-      {boardConfigs && (
+      {boardConfigs && isBoardSelectorRendered && (
         <BoardSelectorDrawer
           open={isBoardSelectorOpen}
           onClose={() => {
             setIsBoardSelectorOpen(false);
             setPendingCreateAction(null);
           }}
+          onTransitionEnd={handleBoardSelectorTransitionEnd}
           onBoardSelected={handleBoardSelected}
           boardConfigs={boardConfigs}
         />

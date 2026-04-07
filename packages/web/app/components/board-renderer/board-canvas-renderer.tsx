@@ -79,6 +79,11 @@ const BoardCanvasRenderer = React.memo(function BoardCanvasRenderer({
 
     return () => {
       cancelled = true;
+      // Release GPU backing store immediately instead of waiting for GC
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
     };
   }, [boardDetails, frames, mirrored, thumbnail, contain]);
 

@@ -7,12 +7,9 @@
  * height once an item has been visible, and only fall back to the
  * estimate for items that haven't been laid out yet. */
 
-.listItem {
-  content-visibility: auto;
-  /* 72px ≈ thumbnail (10vh capped ~40px) + 2×8px padding + 1px border.
-   * Matches the typical rendered height of a ClimbListItem row. */
-  contain-intrinsic-size: auto 72px;
-}
+/* .listItem content-visibility removed — list mode uses @tanstack/react-virtual
+ * which handles virtualization at the React level, making CSS content-visibility
+ * redundant and potentially conflicting with absolute positioning. */
 
 .gridItem {
   content-visibility: auto;

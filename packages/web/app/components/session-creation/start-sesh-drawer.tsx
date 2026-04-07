@@ -29,10 +29,11 @@ import type { StoredBoardConfig } from '@/app/lib/saved-boards-db';
 interface StartSeshDrawerProps {
   open: boolean;
   onClose: () => void;
+  onTransitionEnd?: (open: boolean) => void;
   boardConfigs?: BoardConfigData;
 }
 
-export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSeshDrawerProps) {
+export default function StartSeshDrawer({ open, onClose, onTransitionEnd, boardConfigs }: StartSeshDrawerProps) {
   const { status } = useSession();
   const router = useRouter();
   const { showMessage } = useSnackbar();
@@ -260,6 +261,7 @@ export default function StartSeshDrawer({ open, onClose, boardConfigs }: StartSe
         placement="top"
         open={open}
         onClose={handleClose}
+        onTransitionEnd={onTransitionEnd}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="body2" component="span">

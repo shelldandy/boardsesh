@@ -7,6 +7,8 @@ import FormatListBulletedOutlined from '@mui/icons-material/FormatListBulletedOu
 import { usePathname } from 'next/navigation';
 import { track } from '@vercel/analytics';
 import dynamic from 'next/dynamic';
+import { useIsDarkMode } from '@/app/hooks/use-is-dark-mode';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Climb, BoardDetails } from '@/app/lib/types';
 import ErrorBoundary from '../error-boundary';
 import ClimbCard from '../climb-card/climb-card';
@@ -55,7 +57,7 @@ type SharedDrawersProps = {
   resolveBoardDetails: (climb: Climb) => BoardDetails;
 };
 
-const SharedDrawers = forwardRef<SharedDrawerHandle, SharedDrawersProps>(
+const SharedDrawers = React.memo(forwardRef<SharedDrawerHandle, SharedDrawersProps>(
   ({ boardDetails, resolveBoardDetails }, ref) => {
     const pathname = usePathname();
     const [activeDrawerClimb, setActiveDrawerClimb] = useState<Climb | null>(null);
@@ -140,7 +142,7 @@ const SharedDrawers = forwardRef<SharedDrawerHandle, SharedDrawersProps>(
       </>
     );
   },
-);
+));
 SharedDrawers.displayName = 'SharedDrawers';
 
 export type ClimbsListProps = {
@@ -175,6 +177,42 @@ const ClimbsListSkeleton = ({ aspectRatio, viewMode }: { aspectRatio: number; vi
   ));
 };
 
+type GridClimbItemProps = {
+  climb: Climb;
+  index: number;
+  boardDetails: BoardDetails;
+  preferImageLayers: boolean;
+  unsupported?: boolean;
+  onClimbClickByIndex: (index: number) => void;
+  renderItemExtra?: (climb: Climb) => React.ReactNode;
+};
+
+const GridClimbItem = React.memo(function GridClimbItem({
+  climb,
+  index,
+  boardDetails,
+  preferImageLayers,
+  unsupported,
+  onClimbClickByIndex,
+  renderItemExtra,
+}: GridClimbItemProps) {
+  const handleCoverClick = useCallback(() => onClimbClickByIndex(index), [onClimbClickByIndex, index]);
+  return (
+    <>
+      <div {...(index === 0 ? { id: 'onboarding-climb-card' } : {})}>
+        <ClimbCard
+          climb={climb}
+          boardDetails={boardDetails}
+          preferImageLayers={preferImageLayers}
+          onCoverClick={handleCoverClick}
+          unsupported={unsupported}
+        />
+      </div>
+      {renderItemExtra?.(climb)}
+    </>
+  );
+});
+
 const ClimbsList = ({
   boardDetails,
   boardDetailsMap,
@@ -194,6 +232,10 @@ const ClimbsList = ({
   renderItemExtra,
   showBottomSpacer,
 }: ClimbsListProps) => {
+  // Hoisted once so every ClimbListItem receives the value as a prop
+  // instead of each one doing its own context lookup.
+  const pathname = usePathname();
+  const isDark = useIsDarkMode();
   // Show the first batch immediately, then reveal the rest on the next frame.
   // Only batch when the list is replaced (new search), not when items are appended (infinite scroll)
   // — otherwise the height shrinks and the page jumps.
@@ -294,18 +336,13 @@ const ClimbsList = ({
     isFetching,
   });
 
-  const handleClimbClick = useCallback((climb: Climb) => {
-    onClimbSelectRef.current?.(climb);
-    track('Climb List Item Clicked', { climbUuid: climb.uuid });
-  }, []);
-
-  const climbHandlersMap = useMemo(() => {
-    const map = new Map<string, () => void>();
-    climbs.forEach((climb) => {
-      map.set(climb.uuid, () => handleClimbClick(climb));
-    });
-    return map;
-  }, [climbs, handleClimbClick]);
+  const handleClimbClickByIndex = useCallback((index: number) => {
+    const climb = climbs[index];
+    if (climb) {
+      onClimbSelectRef.current?.(climb);
+      track('Climb List Item Clicked', { climbUuid: climb.uuid });
+    }
+  }, [climbs]);
 
   const resolveBoardDetails = useCallback(
     (climb: Climb): BoardDetails => {
@@ -416,6 +453,27 @@ const ClimbsList = ({
   // without the parent list needing to iterate all items.
   const selectionStore = useSelectionStore(selectedClimbUuid ?? null);
 
+  // --- List virtualization ---
+  // Only ~40-50 items are mounted at a time instead of 600+.
+  // Overscan of 25 items (1800px) provides enough headroom so that fast scrolling
+  // never outpaces the render cycle and causes a blank screen.
+  const virtualizer = useWindowVirtualizer({
+    count: visibleClimbs.length,
+    estimateSize: () => 72,
+    overscan: 25,
+    getItemKey: (index) => visibleClimbs[index]?.uuid ?? index,
+  });
+
+  // Virtualizer-based infinite scroll for list mode
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastVirtualItem = virtualItems[virtualItems.length - 1];
+  useEffect(() => {
+    if (viewMode !== 'list' || !lastVirtualItem) return;
+    if (lastVirtualItem.index >= visibleClimbs.length - 5 && hasMore && !isFetching) {
+      handleLoadMore();
+    }
+  }, [viewMode, lastVirtualItem?.index, visibleClimbs.length, hasMore, isFetching, handleLoadMore]);
+
   return (
     <SelectionStoreContext.Provider value={selectionStore}>
     <Box>
@@ -454,16 +512,15 @@ const ClimbsList = ({
         <Box sx={gridContainerSx} translate="no">
           {visibleClimbs.map((climb, index) => (
             <Box key={climb.uuid} sx={cardBoxSx} className={listStyles.gridItem}>
-              <div {...(index === 0 ? { id: 'onboarding-climb-card' } : {})}>
-                <ClimbCard
-                  climb={climb}
-                  boardDetails={resolveBoardDetails(climb)}
-                  preferImageLayers={index < initialImageCount}
-                  onCoverClick={climbHandlersMap.get(climb.uuid)}
-                  unsupported={unsupportedClimbs?.has(climb.uuid)}
-                />
-              </div>
-              {renderItemExtra?.(climb)}
+              <GridClimbItem
+                climb={climb}
+                index={index}
+                boardDetails={resolveBoardDetails(climb)}
+                preferImageLayers={index < initialImageCount}
+                unsupported={unsupportedClimbs?.has(climb.uuid)}
+                onClimbClickByIndex={handleClimbClickByIndex}
+                renderItemExtra={renderItemExtra}
+              />
             </Box>
           ))}
           {isFetching && (!climbs || climbs.length === 0) ? (
@@ -471,38 +528,58 @@ const ClimbsList = ({
           ) : null}
         </Box>
       ) : (
-        /* List mode — non-virtualized */
+        /* List mode — virtualized via @tanstack/react-virtual */
         <div translate="no">
           {isFetching && climbs.length === 0 ? (
             <ClimbsListSkeleton aspectRatio={boardDetails.boardWidth / boardDetails.boardHeight} viewMode="list" />
           ) : (
-            visibleClimbs.map((climb, index) => (
-              <div key={climb.uuid} className={listStyles.listItem}>
-                <div {...(index === 0 ? { id: 'onboarding-climb-card' } : {})}>
-                  <ClimbListItem
-                    climb={climb}
-                    boardDetails={resolveBoardDetails(climb)}
-                    preferImageLayers={index < initialImageCount}
-                    onSelect={climbHandlersMap.get(climb.uuid)}
-                    onThumbnailClick={climbHandlersMap.get(climb.uuid)}
-                    disableThumbnailNavigation
-                    disableSwipe={!hydrated}
-                    unsupported={unsupportedClimbs?.has(climb.uuid)}
-                    onOpenActions={handleOpenActions}
-                    onOpenPlaylistSelector={handleOpenPlaylistSelector}
-                    addToQueue={addToQueue}
-                  />
-                </div>
-                {renderItemExtra?.(climb)}
-              </div>
-            ))
+            <div style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative', backgroundColor: 'var(--semantic-surface)' }}>
+              {virtualItems.map((virtualItem) => {
+                const climb = visibleClimbs[virtualItem.index];
+                const index = virtualItem.index;
+                if (!climb) return null;
+                return (
+                  <div
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    {...(index === 0 ? { id: 'onboarding-climb-card' } : {})}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: `${virtualItem.size}px`,
+                      transform: `translateY(${virtualItem.start}px)`,
+                      contain: 'layout style paint',
+                    }}
+                  >
+                    <ClimbListItem
+                      climb={climb}
+                      boardDetails={resolveBoardDetails(climb)}
+                      pathname={pathname}
+                      isDark={isDark}
+                      preferImageLayers={index < initialImageCount}
+                      onSelect={() => handleClimbClickByIndex(index)}
+                      onThumbnailClick={() => handleClimbClickByIndex(index)}
+                      disableThumbnailNavigation
+                      disableSwipe={!hydrated}
+                      unsupported={unsupportedClimbs?.has(climb.uuid)}
+                      onOpenActions={handleOpenActions}
+                      onOpenPlaylistSelector={handleOpenPlaylistSelector}
+                      addToQueue={addToQueue}
+                    />
+                    {renderItemExtra?.(climb)}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
       </ErrorBoundary>
 
-      {/* Sentinel for infinite scroll (grid mode fallback) */}
-      <Box ref={sentinelRef} sx={sentinelBoxSx}>
+      {/* Sentinel for infinite scroll — only needed for grid mode (list mode uses virtualizer) */}
+      <Box ref={viewMode === 'grid' ? sentinelRef : undefined} sx={sentinelBoxSx}>
         {isFetching &&
           climbs.length > 0 &&
           (viewMode === 'grid' ? (
