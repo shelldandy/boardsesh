@@ -74,9 +74,8 @@ export default function BoardScrollCard({
       }
       cardMeta += ` \u00B7 ${storedConfig.angle}\u00B0`;
     } else if (popularConfig) {
-      const label = BOARD_TYPE_LABELS[popularConfig.boardType] || popularConfig.boardType;
       cardName = popularConfig.displayName;
-      const parts = [label];
+      const parts: string[] = [];
       if (popularConfig.boardCount > 0) parts.push(`${formatAscents(popularConfig.boardCount)} boards`);
       parts.push(`${formatAscents(popularConfig.totalAscents)} sends`);
       cardMeta = parts.join(' \u00B7 ');
