@@ -175,11 +175,11 @@ export const createClimbFilters = (
   // MoonBoard has no board_placements data, so skip (same pattern as edge filtering).
   const setIdsConditions: SQL[] = params.board_name === 'moonboard' || params.set_ids.length === 0 ? [] : [
     sql`NOT EXISTS (
-      SELECT 1 FROM board_climb_holds bch_set
+      SELECT 1 FROM ${tables.climbHolds} bch_set
       WHERE bch_set.climb_uuid = ${tables.climbs.uuid}
         AND bch_set.board_type = ${params.board_name}
         AND NOT EXISTS (
-          SELECT 1 FROM board_placements bp_set
+          SELECT 1 FROM ${tables.placements} bp_set
           WHERE bp_set.board_type = ${params.board_name}
             AND bp_set.layout_id = ${params.layout_id}
             AND bp_set.id = bch_set.hold_id

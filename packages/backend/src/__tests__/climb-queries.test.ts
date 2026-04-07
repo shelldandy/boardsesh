@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { searchClimbs, countClimbs, getClimbByUuid } from '../db/queries/climbs/index';
 import type { ParsedBoardRouteParameters, ClimbSearchParams } from '../db/queries/climbs/index';
 import { getSizeEdges } from '../db/queries/util/product-sizes-data';
+import { db } from '../db/client';
+import { sql } from 'drizzle-orm';
 
 describe('Climb Query Functions', () => {
   const testParams: ParsedBoardRouteParameters = {
@@ -255,6 +257,126 @@ describe('Climb Query Functions', () => {
       // Both should execute without errors (may return null if no data)
       expect(kilterResult === null || typeof kilterResult === 'object').toBe(true);
       expect(tensionResult === null || typeof tensionResult === 'object').toBe(true);
+    });
+  });
+
+  describe('set_ids filtering', () => {
+    // Seed data for set_ids tests
+    // - Placement 100 belongs to set 1 (mainline), layout 1
+    // - Placement 200 belongs to set 2 (full ride), layout 1
+    // - Climb "mainline-only" uses only placement 100 (set 1)
+    // - Climb "full-ride-only" uses only placement 200 (set 2)
+    // - Climb "mixed-sets" uses both placement 100 (set 1) and 200 (set 2)
+    const SET_IDS_TEST_PREFIX = 'set-ids-test-';
+
+    beforeAll(async () => {
+      // Insert placements for two different sets
+      await db.execute(sql`
+        INSERT INTO board_placements (board_type, id, layout_id, hole_id, set_id, default_placement_role_id)
+        VALUES
+          ('kilter', 100, 1, 100, 1, NULL),
+          ('kilter', 200, 1, 200, 2, NULL)
+        ON CONFLICT DO NOTHING
+      `);
+
+      // Insert test climbs that fit within size 7 edges
+      await db.execute(sql`
+        INSERT INTO board_climbs (uuid, board_type, layout_id, setter_username, name, frames, frames_count, is_draft, is_listed, edge_left, edge_right, edge_bottom, edge_top, created_at)
+        VALUES
+          (${SET_IDS_TEST_PREFIX + 'mainline'}, 'kilter', 1, 'test-setter', 'Mainline Only', 'p100r43', 1, false, true, 10, 100, 10, 150, '2024-01-01'),
+          (${SET_IDS_TEST_PREFIX + 'fullride'}, 'kilter', 1, 'test-setter', 'Full Ride Only', 'p200r43', 1, false, true, 10, 100, 10, 150, '2024-01-01'),
+          (${SET_IDS_TEST_PREFIX + 'mixed'}, 'kilter', 1, 'test-setter', 'Mixed Sets', 'p100r43p200r44', 1, false, true, 10, 100, 10, 150, '2024-01-01')
+        ON CONFLICT DO NOTHING
+      `);
+
+      // Insert climb holds matching the frames
+      await db.execute(sql`
+        INSERT INTO board_climb_holds (board_type, climb_uuid, hold_id, frame_number, hold_state)
+        VALUES
+          ('kilter', ${SET_IDS_TEST_PREFIX + 'mainline'}, 100, 0, 'HAND'),
+          ('kilter', ${SET_IDS_TEST_PREFIX + 'fullride'}, 200, 0, 'HAND'),
+          ('kilter', ${SET_IDS_TEST_PREFIX + 'mixed'}, 100, 0, 'HAND'),
+          ('kilter', ${SET_IDS_TEST_PREFIX + 'mixed'}, 200, 0, 'FINISH')
+        ON CONFLICT DO NOTHING
+      `);
+    });
+
+    afterAll(async () => {
+      // Clean up test data
+      await db.execute(sql`DELETE FROM board_climb_holds WHERE climb_uuid LIKE ${SET_IDS_TEST_PREFIX + '%'}`);
+      await db.execute(sql`DELETE FROM board_climbs WHERE uuid LIKE ${SET_IDS_TEST_PREFIX + '%'}`);
+      await db.execute(sql`DELETE FROM board_placements WHERE board_type = 'kilter' AND id IN (100, 200)`);
+    });
+
+    it('should only return climbs whose holds all belong to selected sets', async () => {
+      const params: ParsedBoardRouteParameters = {
+        board_name: 'kilter',
+        layout_id: 1,
+        size_id: 7,
+        set_ids: [1], // mainline only
+        angle: 40,
+      };
+
+      const result = await searchClimbs(params, { page: 0, pageSize: 100, sortBy: 'creation', sortOrder: 'desc' });
+      const uuids = result.climbs.map((c) => c.uuid);
+
+      // Should include mainline-only climb
+      expect(uuids).toContain(SET_IDS_TEST_PREFIX + 'mainline');
+      // Should NOT include full-ride-only or mixed (has a full-ride hold)
+      expect(uuids).not.toContain(SET_IDS_TEST_PREFIX + 'fullride');
+      expect(uuids).not.toContain(SET_IDS_TEST_PREFIX + 'mixed');
+    });
+
+    it('should return climbs from all selected sets', async () => {
+      const params: ParsedBoardRouteParameters = {
+        board_name: 'kilter',
+        layout_id: 1,
+        size_id: 7,
+        set_ids: [1, 2], // both mainline and full ride
+        angle: 40,
+      };
+
+      const result = await searchClimbs(params, { page: 0, pageSize: 100, sortBy: 'creation', sortOrder: 'desc' });
+      const uuids = result.climbs.map((c) => c.uuid);
+
+      // All three climbs should appear when both sets are selected
+      expect(uuids).toContain(SET_IDS_TEST_PREFIX + 'mainline');
+      expect(uuids).toContain(SET_IDS_TEST_PREFIX + 'fullride');
+      expect(uuids).toContain(SET_IDS_TEST_PREFIX + 'mixed');
+    });
+
+    it('should skip set_ids filter for moonboard', async () => {
+      const params: ParsedBoardRouteParameters = {
+        board_name: 'moonboard',
+        layout_id: 1,
+        size_id: 1,
+        set_ids: [1],
+        angle: 40,
+      };
+
+      // Should not throw (the filter is skipped for moonboard)
+      const result = await searchClimbs(params, { page: 0, pageSize: 10 });
+      expect(result).toBeDefined();
+      expect(result.climbs).toBeInstanceOf(Array);
+    });
+
+    it('should skip set_ids filter when set_ids is empty', async () => {
+      const params: ParsedBoardRouteParameters = {
+        board_name: 'kilter',
+        layout_id: 1,
+        size_id: 7,
+        set_ids: [],
+        angle: 40,
+      };
+
+      // Should not throw and should return results (no set filtering applied)
+      const result = await searchClimbs(params, { page: 0, pageSize: 100, sortBy: 'creation', sortOrder: 'desc' });
+      const uuids = result.climbs.map((c) => c.uuid);
+
+      // All test climbs should appear since no set filter is applied
+      expect(uuids).toContain(SET_IDS_TEST_PREFIX + 'mainline');
+      expect(uuids).toContain(SET_IDS_TEST_PREFIX + 'fullride');
+      expect(uuids).toContain(SET_IDS_TEST_PREFIX + 'mixed');
     });
   });
 
