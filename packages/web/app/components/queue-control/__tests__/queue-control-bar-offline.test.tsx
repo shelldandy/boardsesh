@@ -322,15 +322,18 @@ describe('QueueControlBar offline UI', () => {
 
     // Simulate reconnection — pass a new boardDetails object so React.memo re-renders
     // and the useEffect that resets dismissedDisconnect can fire.
+    // (defaultProps.boardDetails is cast `as never` for the prop type; we need a
+    // plain object reference to spread, so we re-cast to unknown first.)
+    const bd = defaultProps.boardDetails as unknown as Record<string, unknown>;
     mockQueueContext = { ...baseQueueContext, isDisconnected: false, connectionState: 'connected' };
     act(() => {
-      rerender(<QueueControlBar {...defaultProps} boardDetails={{ ...defaultProps.boardDetails }} />);
+      rerender(<QueueControlBar {...defaultProps} boardDetails={{ ...bd } as never} />);
     });
 
     // Simulate disconnection again
     mockQueueContext = { ...baseQueueContext, isDisconnected: true, connectionState: 'reconnecting' };
     act(() => {
-      rerender(<QueueControlBar {...defaultProps} boardDetails={{ ...defaultProps.boardDetails }} />);
+      rerender(<QueueControlBar {...defaultProps} boardDetails={{ ...bd } as never} />);
     });
 
     expect(screen.getByText(/Offline/i)).toBeTruthy();
