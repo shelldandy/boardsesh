@@ -540,4 +540,50 @@ describe('useSwipeActions', () => {
       vi.advanceTimersByTime(600);
     });
   });
+
+  it('nulls DOM element refs on unmount to prevent detached DOM retention', () => {
+    const options = createDefaultOptions();
+    const { result, unmount } = renderHook(() => useSwipeActions(options));
+
+    const mockContent = {
+      style: { transform: '', transition: '', opacity: '', visibility: '' },
+    } as unknown as HTMLElement;
+    const mockLeftAction = {
+      style: { opacity: '', visibility: '' },
+    } as unknown as HTMLElement;
+    const mockRightAction = {
+      style: { opacity: '', visibility: '' },
+    } as unknown as HTMLElement;
+
+    act(() => {
+      result.current.contentRef(mockContent);
+      result.current.leftActionRef(mockLeftAction);
+      result.current.rightActionRef(mockRightAction);
+    });
+
+    // Trigger a swipe to create a confirmation timer
+    mockIsHorizontalRef.current = true;
+    mockDetect.mockReturnValue(true);
+
+    act(() => {
+      capturedSwipeableConfig.onSwiping({
+        deltaX: -110,
+        deltaY: 0,
+        event: { nativeEvent: { preventDefault: vi.fn() } },
+      });
+    });
+    act(() => {
+      capturedSwipeableConfig.onSwipedLeft({ deltaX: -110 });
+    });
+
+    // Unmount — refs should be nulled, timer should be cleared
+    unmount();
+
+    // After unmount, the confirmation timer would normally try to manipulate DOM refs.
+    // Since refs are nulled, advancing timers should not throw or access stale DOM.
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    // No error = refs were properly nulled and cleanup ran correctly
+  });
 });

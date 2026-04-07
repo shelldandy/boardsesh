@@ -382,6 +382,17 @@ describe('ClimbListItem', () => {
     });
   });
 
+  describe('disableRipple optimization', () => {
+    it('renders menu button with disableRipple to reduce closure overhead', () => {
+      render(<ClimbListItem climb={makeClimb()} boardDetails={makeBoardDetails()} />);
+      const menuButton = screen.getByLabelText('More actions');
+      expect(menuButton).toBeTruthy();
+      // MUI's disableRipple removes the MuiTouchRipple child element from the DOM
+      const ripple = menuButton.querySelector('.MuiTouchRipple-root');
+      expect(ripple).toBeNull();
+    });
+  });
+
   describe('double-tap to like', () => {
     it('passes handleDoubleTap to useDoubleTap hook', () => {
       render(<ClimbListItem climb={makeClimb()} boardDetails={makeBoardDetails()} />);

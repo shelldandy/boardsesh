@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback, useRef, useImperativeHandle, forwardRef, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import Skeleton from '@mui/material/Skeleton';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -240,6 +241,30 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
     [],
   );
 
+  // Virtualizer for suggested climbs — only mounts items in/near the viewport
+  const suggestedVirtualizer = useVirtualizer({
+    count: suggestedClimbs.length,
+    getScrollElement: () => scrollContainer ?? null,
+    estimateSize: () => 72,
+    overscan: 15,
+    getItemKey: (index) => suggestedClimbs[index]?.uuid ?? index,
+  });
+
+  // Virtualizer-based infinite scroll for suggested climbs
+  const suggestedVirtualItems = suggestedVirtualizer.getVirtualItems();
+  const lastSuggestedItem = suggestedVirtualItems[suggestedVirtualItems.length - 1];
+
+  useEffect(() => {
+    if (!lastSuggestedItem) return;
+    if (
+      lastSuggestedItem.index >= suggestedClimbs.length - 5 &&
+      hasMoreResultsRef.current &&
+      !isFetchingNextPageRef.current &&
+      suggestedClimbsLengthRef.current >= SUGGESTIONS_THRESHOLD
+    ) {
+      fetchMoreClimbsRef.current();
+    }
+  }, [lastSuggestedItem?.index, suggestedClimbs.length]);
 
   return (
     <>
@@ -332,20 +357,42 @@ const QueueList = forwardRef<QueueListHandle, QueueListProps>(({ boardDetails, o
               Suggestions
             </Typography>
           </div>
-          <div className={styles.suggestedColumn}>
-            {suggestedClimbs.map((climb: Climb) => (
-              <div key={`suggested-${climb.uuid}`} className={styles.suggestedItem}>
-                <ClimbListItem
-                  climb={climb}
-                  boardDetails={boardDetails}
-                  titleProps={suggestedTitleProps}
-                  onNavigate={stableOnClimbNavigate}
-                  onOpenActions={handleOpenActions}
-                  onOpenPlaylistSelector={handleOpenPlaylistSelector}
-                  addToQueue={addToQueue}
-                />
-              </div>
-            ))}
+          <div
+            className={styles.suggestedColumn}
+            style={{
+              height: suggestedVirtualizer.getTotalSize(),
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {suggestedVirtualizer.getVirtualItems().map((virtualItem) => {
+              const climb = suggestedClimbs[virtualItem.index];
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualItem.size}px`,
+                    transform: `translateY(${virtualItem.start}px)`,
+                    contain: 'layout style paint',
+                  }}
+                >
+                  <ClimbListItem
+                    climb={climb}
+                    boardDetails={boardDetails}
+                    titleProps={suggestedTitleProps}
+                    onNavigate={stableOnClimbNavigate}
+                    onOpenActions={handleOpenActions}
+                    onOpenPlaylistSelector={handleOpenPlaylistSelector}
+                    addToQueue={addToQueue}
+                  />
+                </div>
+              );
+            })}
           </div>
           {/* Sentinel element for Intersection Observer - only render when needed */}
           {/* Include isFetchingClimbs to show skeleton during initial page load */}

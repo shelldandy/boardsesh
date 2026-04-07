@@ -537,6 +537,7 @@ const ClimbListItem: React.FC<ClimbListItemProps> = React.memo(
               aria-label="More actions"
               onClick={handleMenuClick}
               style={iconButtonStyle}
+              disableRipple
             >
               <MoreHorizOutlined />
             </IconButton>
