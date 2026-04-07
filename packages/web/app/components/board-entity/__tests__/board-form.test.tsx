@@ -8,6 +8,8 @@ const defaultValues = {
   description: 'A test board',
   locationName: 'Test Gym',
   isPublic: true,
+  isUnlisted: false,
+  hideLocation: false,
   isOwned: true,
   angle: 40,
   isAngleAdjustable: true,

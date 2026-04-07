@@ -44,7 +44,7 @@ export default function EditBoardForm({ board, totalAscents, onSuccess, onCancel
   }, [totalAscents, board.boardType]);
 
   const handleSubmit = useCallback(
-    async (values: { name: string; slug?: string; description: string; locationName: string; isPublic: boolean; isOwned: boolean; angle?: number; isAngleAdjustable?: boolean; layoutId?: number; sizeId?: number; setIds?: string; serialNumber?: string }) => {
+    async (values: { name: string; slug?: string; description: string; locationName: string; latitude?: number | null; longitude?: number | null; isPublic: boolean; isUnlisted: boolean; hideLocation: boolean; isOwned: boolean; angle?: number; isAngleAdjustable?: boolean; layoutId?: number; sizeId?: number; setIds?: string; serialNumber?: string }) => {
       if (!values.name) {
         showMessage('Board name is required', 'error');
         return;
@@ -57,7 +57,11 @@ export default function EditBoardForm({ board, totalAscents, onSuccess, onCancel
           slug: values.slug || undefined,
           description: values.description || undefined,
           locationName: values.locationName || undefined,
+          latitude: values.latitude ?? undefined,
+          longitude: values.longitude ?? undefined,
           isPublic: values.isPublic,
+          isUnlisted: values.isUnlisted,
+          hideLocation: values.hideLocation,
           isOwned: values.isOwned,
           angle: values.angle,
           isAngleAdjustable: values.isAngleAdjustable,
@@ -86,7 +90,11 @@ export default function EditBoardForm({ board, totalAscents, onSuccess, onCancel
         slug: board.slug,
         description: board.description ?? '',
         locationName: board.locationName ?? '',
+        latitude: board.latitude ?? null,
+        longitude: board.longitude ?? null,
         isPublic: board.isPublic,
+        isUnlisted: board.isUnlisted,
+        hideLocation: board.hideLocation,
         isOwned: board.isOwned,
         angle: board.angle,
         isAngleAdjustable: board.isAngleAdjustable,

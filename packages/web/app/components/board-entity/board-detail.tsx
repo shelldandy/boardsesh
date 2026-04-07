@@ -220,6 +220,17 @@ export default function BoardDetail({ boardUuid, open, onClose, onDeleted, ancho
                 </MuiTypography>
               )}
 
+              {isOwner && (board.isUnlisted || board.hideLocation) && (
+                <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                  {board.isUnlisted && (
+                    <Chip label="Unlisted" size="small" variant="outlined" color="warning" />
+                  )}
+                  {board.hideLocation && (
+                    <Chip label="Location hidden" size="small" variant="outlined" color="warning" />
+                  )}
+                </Box>
+              )}
+
               {/* Gym info */}
               {board.gymName && board.gymUuid && (
                 <Box

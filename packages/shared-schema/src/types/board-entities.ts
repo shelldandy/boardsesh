@@ -16,6 +16,8 @@ export type UserBoard = {
   latitude?: number | null;
   longitude?: number | null;
   isPublic: boolean;
+  isUnlisted: boolean;
+  hideLocation: boolean;
   isOwned: boolean;
   angle: number;
   isAngleAdjustable: boolean;
@@ -73,6 +75,8 @@ export type CreateBoardInput = {
   latitude?: number;
   longitude?: number;
   isPublic?: boolean;
+  isUnlisted?: boolean;
+  hideLocation?: boolean;
   isOwned?: boolean;
   gymUuid?: string;
   angle?: number;
@@ -89,6 +93,8 @@ export type UpdateBoardInput = {
   latitude?: number;
   longitude?: number;
   isPublic?: boolean;
+  isUnlisted?: boolean;
+  hideLocation?: boolean;
   isOwned?: boolean;
   angle?: number;
   isAngleAdjustable?: boolean;

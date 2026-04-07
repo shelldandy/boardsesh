@@ -15,14 +15,20 @@ import ListItemText from '@mui/material/ListItemText';
 import MuiSelect from '@mui/material/Select';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
+import FormHelperText from '@mui/material/FormHelperText';
 import InputLabel from '@mui/material/InputLabel';
+import MapLocationPicker from './map-location-picker';
 
 interface BoardFormFieldValues {
   name: string;
   slug?: string;
   description: string;
   locationName: string;
+  latitude?: number | null;
+  longitude?: number | null;
   isPublic: boolean;
+  isUnlisted: boolean;
+  hideLocation: boolean;
   isOwned: boolean;
   angle?: number;
   isAngleAdjustable?: boolean;
@@ -86,7 +92,11 @@ export default function BoardForm({
   const [slug, setSlug] = useState(initialValues.slug ?? '');
   const [description, setDescription] = useState(initialValues.description);
   const [locationName, setLocationName] = useState(initialValues.locationName);
+  const [latitude, setLatitude] = useState<number | null>(initialValues.latitude ?? null);
+  const [longitude, setLongitude] = useState<number | null>(initialValues.longitude ?? null);
   const [isPublic, setIsPublic] = useState(initialValues.isPublic);
+  const [isUnlisted, setIsUnlisted] = useState(initialValues.isUnlisted);
+  const [hideLocation, setHideLocation] = useState(initialValues.hideLocation);
   const [isOwned, setIsOwned] = useState(initialValues.isOwned);
   const [angle, setAngle] = useState(initialValues.angle ?? 40);
   const [isAngleAdjustable, setIsAngleAdjustable] = useState(initialValues.isAngleAdjustable ?? true);
@@ -117,7 +127,11 @@ export default function BoardForm({
         slug: slug.trim() || undefined,
         description: description.trim(),
         locationName: locationName.trim(),
+        latitude,
+        longitude,
         isPublic,
+        isUnlisted,
+        hideLocation,
         isOwned,
         angle,
         isAngleAdjustable,
@@ -254,6 +268,15 @@ export default function BoardForm({
         placeholder={locationPlaceholder}
       />
 
+      <MapLocationPicker
+        latitude={latitude}
+        longitude={longitude}
+        onChange={(lat, lng) => {
+          setLatitude(lat);
+          setLongitude(lng);
+        }}
+      />
+
       <TextField
         label="Controller Serial Number"
         value={serialNumber}
@@ -290,6 +313,26 @@ export default function BoardForm({
         control={<Switch checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />}
         label="Public board"
       />
+
+      <Box>
+        <FormControlLabel
+          control={<Switch checked={isUnlisted} onChange={(e) => setIsUnlisted(e.target.checked)} />}
+          label="Unlisted"
+        />
+        <FormHelperText sx={{ mt: -0.5, ml: 7 }}>
+          Hidden from search results but accessible via direct link
+        </FormHelperText>
+      </Box>
+
+      <Box>
+        <FormControlLabel
+          control={<Switch checked={hideLocation} onChange={(e) => setHideLocation(e.target.checked)} />}
+          label="Hide from nearby boards"
+        />
+        <FormHelperText sx={{ mt: -0.5, ml: 7 }}>
+          Hidden from nearby board searches unless you follow the searcher
+        </FormHelperText>
+      </Box>
 
       <FormControlLabel
         control={<Switch checked={isOwned} onChange={(e) => setIsOwned(e.target.checked)} />}

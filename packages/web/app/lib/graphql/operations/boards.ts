@@ -33,6 +33,8 @@ const BOARD_FIELDS = `
   latitude
   longitude
   isPublic
+  isUnlisted
+  hideLocation
   isOwned
   angle
   isAngleAdjustable
