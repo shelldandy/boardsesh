@@ -470,21 +470,20 @@ const ClimbsList = ({
   // Virtualizer-based infinite scroll for list mode.
   // Use the estimated visible end (excluding overscan) so that large desktop
   // viewports don't trigger a cascade of automatic page loads.
+  // Depend on firstVirtualIndex (a number) instead of virtualItems (a new array
+  // on every virtualizer recalculation) to avoid firing during measurement cascades.
+  const firstVirtualIndex = virtualItems[0]?.index ?? 0;
   useEffect(() => {
-    if (viewMode !== 'list' || virtualItems.length === 0) return;
+    if (viewMode !== 'list' || visibleClimbs.length === 0) return;
 
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const avgItemSize =
-      visibleClimbs.length > 0
-        ? virtualizer.getTotalSize() / visibleClimbs.length
-        : 102;
-    const estimatedVisibleEnd =
-      (virtualItems[0]?.index ?? 0) + Math.ceil(windowHeight / avgItemSize);
+    const avgItemSize = virtualizer.getTotalSize() / visibleClimbs.length || 102;
+    const estimatedVisibleEnd = firstVirtualIndex + Math.ceil(windowHeight / avgItemSize);
 
     if (estimatedVisibleEnd + PAGE_LIMIT >= visibleClimbs.length && hasMore && !isFetching) {
       handleLoadMore();
     }
-  }, [viewMode, virtualItems, visibleClimbs.length, hasMore, isFetching, handleLoadMore, virtualizer]);
+  }, [viewMode, firstVirtualIndex, visibleClimbs.length, hasMore, isFetching, handleLoadMore]);
 
   return (
     <SelectionStoreContext.Provider value={selectionStore}>
