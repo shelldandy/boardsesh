@@ -6,7 +6,7 @@ import type { ClimbSearchParams, ParsedBoardRouteParameters } from '../db/querie
 export const DEFAULT_SEARCH_CACHE_TTL = 86400;
 
 /** Bump when the cached data shape changes to invalidate all stale entries. */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 /**
  * Recursively sorts the keys of an object so that JSON.stringify produces

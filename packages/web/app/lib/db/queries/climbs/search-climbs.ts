@@ -84,7 +84,7 @@ export async function cachedSearchClimbs(
   }
 
   const cacheKey = [
-    'climb-search-direct',
+    'climb-search-direct-v2',
     params.board_name,
     String(params.layout_id),
     String(params.size_id),
