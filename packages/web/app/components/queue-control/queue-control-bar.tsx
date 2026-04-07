@@ -91,6 +91,9 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
   }, []);
 
   const handleCloseDrawer = useCallback(() => setActiveDrawer('none'), []);
+  // Stable callback for thumbnail navigation — avoids inline () => setActiveDrawer('none')
+  // which would create a new reference on every render and break Card memoization.
+  const handleNavigateClose = useCallback(() => setActiveDrawer('none'), []);
 
   const isViewPage = pathname.includes('/view/');
   const isListPage = pathname.includes('/list');
