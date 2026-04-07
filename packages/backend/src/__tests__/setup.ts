@@ -196,6 +196,30 @@ const createTablesSQL = `
     "aurora_sync_error" text
   );
 
+  -- Create board_placements table (needed for set_ids filtering in climb queries)
+  DROP TABLE IF EXISTS "board_placements" CASCADE;
+  CREATE TABLE IF NOT EXISTS "board_placements" (
+    "board_type" text NOT NULL,
+    "id" integer NOT NULL,
+    "layout_id" integer,
+    "hole_id" integer,
+    "set_id" integer,
+    "default_placement_role_id" integer,
+    PRIMARY KEY ("board_type", "id")
+  );
+
+  -- Create board_climb_holds table (needed for set_ids filtering in climb queries)
+  DROP TABLE IF EXISTS "board_climb_holds" CASCADE;
+  CREATE TABLE IF NOT EXISTS "board_climb_holds" (
+    "board_type" text NOT NULL,
+    "climb_uuid" text NOT NULL,
+    "hold_id" integer NOT NULL,
+    "frame_number" integer NOT NULL,
+    "hold_state" text NOT NULL,
+    "created_at" timestamp DEFAULT now(),
+    PRIMARY KEY ("board_type", "climb_uuid", "hold_id")
+  );
+
   -- Insert common test users (needed for FK constraints in session tests)
   INSERT INTO "users" (id, email, name, created_at, updated_at)
   VALUES ('user-123', 'user-123@test.com', 'Test User 123', now(), now())
