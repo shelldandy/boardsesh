@@ -13,6 +13,7 @@ import { getBaseBoardPath } from '@/app/lib/url-utils';
 import { DEFAULT_SEARCH_PARAMS } from '@/app/lib/url-utils';
 import type { BoardDetails, Angle, Climb, SearchRequestPagination } from '@/app/lib/types';
 import type { ClimbQueueItem } from './types';
+import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
 const LiveActivityBridge = dynamic(
@@ -51,6 +52,7 @@ interface QueueBridgeSetters {
     data: GraphQLQueueDataType,
     bd: BoardDetails,
     angle: Angle,
+    baseBoardPath: string,
   ) => void;
   updateContext: (
     ctx: GraphQLQueueContextType,
@@ -78,6 +80,7 @@ function usePersistentSessionQueueAdapter(): {
   boardDetails: BoardDetails | null;
   angle: Angle;
   hasActiveQueue: boolean;
+  syncFromInjected: (q: ClimbQueueItem[], current: ClimbQueueItem | null, boardPath: string, bd: BoardDetails) => void;
 } {
   const ps = usePersistentSession();
 
@@ -318,7 +321,17 @@ function usePersistentSessionQueueAdapter(): {
     [dataValue, actionsValue],
   );
 
-  return { context, actionsValue, dataValue, boardDetails, angle, hasActiveQueue };
+  // Sync injected queue state to local queue so the adapter has fresh data
+  // when the bridge falls back from injected mode. Only effective in local
+  // (non-party) mode — setLocalQueueState no-ops when a party session is active.
+  const syncFromInjected = useCallback(
+    (q: ClimbQueueItem[], current: ClimbQueueItem | null, boardPath: string, bd: BoardDetails) => {
+      latestRef.current.ps.setLocalQueueState(q, current, boardPath, bd);
+    },
+    [],
+  );
+
+  return { context, actionsValue, dataValue, boardDetails, angle, hasActiveQueue, syncFromInjected };
 }
 
 // -------------------------------------------------------------------
@@ -338,6 +351,9 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
   const injectedContextRef = useRef<GraphQLQueueContextType | null>(null);
   const injectedActionsRef = useRef<GraphQLQueueActionsType | null>(null);
   const injectedDataRef = useRef<GraphQLQueueDataType | null>(null);
+  // Board state refs for reading during clear() — can't use state in stable callbacks
+  const injectedBoardDetailsRef = useRef<BoardDetails | null>(null);
+  const injectedBaseBoardPathRef = useRef<string>('');
 
   // Separate version counters: actionsVersion only bumps when the injected
   // actions object identity changes (rare — GraphQLQueueProvider uses latestRef
@@ -346,6 +362,10 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
   const [dataVersion, setDataVersion] = useState(0);
 
   const adapter = usePersistentSessionQueueAdapter();
+
+  // Ref for adapter sync function — keeps clear() deps empty
+  const adapterSyncRef = useRef(adapter.syncFromInjected);
+  adapterSyncRef.current = adapter.syncFromInjected;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- actionsVersion/dataVersion force re-read of refs
   const effectiveContext = useMemo(
@@ -390,10 +410,13 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
     data: GraphQLQueueDataType,
     bd: BoardDetails,
     a: Angle,
+    baseBoardPath: string,
   ) => {
     injectedContextRef.current = ctx;
     injectedActionsRef.current = actions;
     injectedDataRef.current = data;
+    injectedBoardDetailsRef.current = bd;
+    injectedBaseBoardPathRef.current = baseBoardPath;
     setInjectedBoardDetails(bd);
     setInjectedAngle(a);
     setIsInjected(true);
@@ -426,9 +449,22 @@ export function QueueBridgeProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const clear = useCallback(() => {
+    // Before clearing: sync the last injected queue state to the persistent
+    // session's local queue so the adapter has up-to-date data when it takes
+    // over. In party mode this is a no-op (setLocalQueueState guards on
+    // activeSession).
+    const lastData = injectedDataRef.current;
+    const bd = injectedBoardDetailsRef.current;
+    const bbp = injectedBaseBoardPathRef.current;
+    if (lastData && bd && bbp) {
+      adapterSyncRef.current(lastData.queue, lastData.currentClimbQueueItem, bbp, bd);
+    }
+
     injectedContextRef.current = null;
     injectedActionsRef.current = null;
     injectedDataRef.current = null;
+    injectedBoardDetailsRef.current = null;
+    injectedBaseBoardPathRef.current = '';
     setIsInjected(false);
     setInjectedBoardDetails(null);
     setInjectedAngle(0);
@@ -536,6 +572,8 @@ interface QueueBridgeInjectorProps {
 
 export function QueueBridgeInjector({ boardDetails, angle }: QueueBridgeInjectorProps) {
   const { inject, updateContext, clear } = useContext(QueueBridgeSetterContext);
+  const pathname = usePathname();
+  const baseBoardPath = useMemo(() => getBaseBoardPath(pathname), [pathname]);
 
   // Read the board route's split contexts from GraphQLQueueProvider
   const queueContext = useContext(QueueContext);
@@ -548,7 +586,7 @@ export function QueueBridgeInjector({ boardDetails, angle }: QueueBridgeInjector
   // Initial injection: set board details + context on mount
   useLayoutEffect(() => {
     if (queueContext && queueActions && queueData) {
-      inject(queueContext, queueActions, queueData, boardDetails, angle);
+      inject(queueContext, queueActions, queueData, boardDetails, angle, baseBoardPath);
       hasInjectedRef.current = true;
     }
     // Only clean up on unmount (navigating away from board route)
@@ -558,7 +596,7 @@ export function QueueBridgeInjector({ boardDetails, angle }: QueueBridgeInjector
     };
   // Only re-run when board details or angle change (navigation between boards)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardDetails, angle, inject, clear]);
+  }, [boardDetails, angle, baseBoardPath, inject, clear]);
 
   // Update the context ref whenever any of the queue context values change.
   // Also handles deferred injection if contexts were null during the useLayoutEffect.
@@ -567,10 +605,10 @@ export function QueueBridgeInjector({ boardDetails, angle }: QueueBridgeInjector
     if (hasInjectedRef.current) {
       updateContext(queueContext, queueActions, queueData);
     } else {
-      inject(queueContext, queueActions, queueData, boardDetails, angle);
+      inject(queueContext, queueActions, queueData, boardDetails, angle, baseBoardPath);
       hasInjectedRef.current = true;
     }
-  }, [queueContext, queueActions, queueData, updateContext, inject, boardDetails, angle]);
+  }, [queueContext, queueActions, queueData, updateContext, inject, boardDetails, angle, baseBoardPath]);
 
   return null;
 }

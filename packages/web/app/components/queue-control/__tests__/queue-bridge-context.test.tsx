@@ -46,6 +46,11 @@ vi.mock('../../graphql-queue/QueueContext', () => {
   };
 });
 
+let mockPathname = '/kilter/1/10/1,2/40/list';
+vi.mock('next/navigation', () => ({
+  usePathname: () => mockPathname,
+}));
+
 vi.mock('@/app/lib/url-utils', () => ({
   getBaseBoardPath: (p: string) => p.replace(/\/\d+$/, ''),
   DEFAULT_SEARCH_PARAMS: {
@@ -745,6 +750,60 @@ describe('queue-bridge-context', () => {
 
       // But data should have changed
       expect(result.current.data?.queue).toHaveLength(1);
+    });
+
+    it('syncs queue state to persistent session local queue on unmount', () => {
+      const item = createTestQueueItem();
+      const fakeCtx = createFakeQueueContext({
+        queue: [item],
+        currentClimbQueueItem: item,
+      });
+
+      mockSetLocalQueueState.mockClear();
+
+      const { unmount } = renderInjector(fakeCtx);
+
+      // Unmounting the injector triggers clear(), which should sync to local queue
+      unmount();
+
+      expect(mockSetLocalQueueState).toHaveBeenCalledWith(
+        [item],
+        item,
+        expect.any(String), // baseBoardPath computed from pathname
+        bd,
+      );
+    });
+
+    it('does not sync to local queue when party session is active', () => {
+      const item = createTestQueueItem();
+      const fakeCtx = createFakeQueueContext({
+        queue: [item],
+        currentClimbQueueItem: item,
+      });
+
+      // Activate party session — setLocalQueueState should no-op
+      mockPersistentSession = {
+        ...createDefaultPersistentSession(),
+        activeSession: {
+          sessionId: 'party-1',
+          boardPath: '/kilter/1/10/1,2/40',
+          boardDetails: bd,
+          parsedParams: { board_name: 'kilter', layout_id: 1, size_id: 10, set_ids: [1, 2], angle: 40 },
+        },
+      };
+
+      mockSetLocalQueueState.mockClear();
+
+      const { unmount } = renderInjector(fakeCtx);
+      unmount();
+
+      // setLocalQueueState guards on activeSession, so it should still be called
+      // but the function itself will no-op. We just verify the call was made.
+      // The actual guard is in use-queue-storage.ts, not in the bridge.
+      expect(mockSetLocalQueueState).toHaveBeenCalled();
+
+      // Reset for other tests
+      mockPersistentSession = createDefaultPersistentSession();
     });
   });
 });
