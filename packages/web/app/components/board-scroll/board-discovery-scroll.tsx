@@ -84,7 +84,7 @@ export default function BoardDiscoveryScroll({
     setLocationEnabled(true);
   }, []);
 
-  const showSection = isBoardsLoading || isConfigsLoading || discoverBoards.length > 0 || popularConfigs.length > 0;
+  const showSection = isBoardsLoading || isConfigsLoading || discoverBoards.length > 0 || popularConfigs.length > 0 || myBoards.length > 0;
 
   if (!showSection) return null;
 
