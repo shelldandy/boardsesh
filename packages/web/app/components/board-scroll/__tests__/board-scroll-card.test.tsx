@@ -72,9 +72,17 @@ function makeUserBoard(overrides?: Partial<UserBoard>): UserBoard {
 }
 
 describe('BoardScrollCard', () => {
-  it('renders card with name and meta text from userBoard', () => {
+  it('renders card with name and ascent count for own board', () => {
     const onClick = vi.fn();
-    const { getByText } = render(<BoardScrollCard userBoard={makeUserBoard()} onClick={onClick} />);
+    const { getByText } = render(<BoardScrollCard userBoard={makeUserBoard({ totalAscents: 1500 })} onClick={onClick} />);
+
+    expect(getByText('My Kilter')).toBeDefined();
+    expect(getByText('1.5k sends')).toBeDefined();
+  });
+
+  it('renders card with type and location for nearby board', () => {
+    const onClick = vi.fn();
+    const { getByText } = render(<BoardScrollCard userBoard={makeUserBoard({ distanceMeters: 500 })} onClick={onClick} />);
 
     expect(getByText('My Kilter')).toBeDefined();
     expect(getByText('Kilter · The Gym')).toBeDefined();
@@ -114,7 +122,7 @@ describe('BoardScrollCard', () => {
 
     expect(getByText('Not available')).toBeDefined();
     // The normal meta should be replaced
-    expect(queryByText('Kilter · The Gym')).toBeNull();
+    expect(queryByText('0 sends')).toBeNull();
   });
 
   it('selected card has selected class', () => {
