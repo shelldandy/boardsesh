@@ -346,6 +346,10 @@ export default function UserDrawer({ boardDetails, boardConfigs }: UserDrawerPro
       <MyBoardsDrawer
         open={showMyBoards}
         onClose={() => setShowMyBoards(false)}
+        onCreateBoard={boardConfigs ? () => {
+          setShowMyBoards(false);
+          setShowBoardSelector(true);
+        } : undefined}
       />
     </>
   );
