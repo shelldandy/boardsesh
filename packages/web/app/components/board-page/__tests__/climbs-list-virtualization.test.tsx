@@ -112,23 +112,34 @@ vi.mock('@/app/theme/theme-config', () => ({
 // Track calls to useWindowVirtualizer
 let lastVirtualizerOpts: { count: number } | null = null;
 
+// Configurable visible range (without overscan) for testing infinite scroll.
+// Tests can override this to simulate different viewport sizes.
+let mockVisibleEndIndex = 6; // ~mobile viewport (7 items visible at 102px in 700px)
+
 vi.mock('@tanstack/react-virtual', () => ({
   useWindowVirtualizer: (opts: { count: number; estimateSize: () => number; overscan: number; getItemKey: (i: number) => string | number }) => {
     lastVirtualizerOpts = opts;
-    const itemCount = Math.min(15, opts.count);
+    // Render items up to overscan limit (simulates what getVirtualItems returns)
+    const itemCount = Math.min(opts.overscan + mockVisibleEndIndex + 1, opts.count);
+    const estimatedSize = opts.estimateSize();
     const items = Array.from({ length: itemCount }, (_, i) => ({
       index: i,
       key: opts.getItemKey ? opts.getItemKey(i) : `item-${i}`,
-      start: i * 72,
-      size: 72,
-      end: (i + 1) * 72,
+      start: i * estimatedSize,
+      size: estimatedSize,
+      end: (i + 1) * estimatedSize,
       lane: 0,
     }));
     return {
       getVirtualItems: () => items,
-      getTotalSize: () => opts.count * 72,
+      getTotalSize: () => opts.count * estimatedSize,
       measureElement: vi.fn(),
       scrollToIndex: vi.fn(),
+      scrollOffset: 0,
+      // range gives visible items WITHOUT overscan
+      range: opts.count > 0
+        ? { startIndex: 0, endIndex: Math.min(mockVisibleEndIndex, opts.count - 1) }
+        : null,
     };
   },
 }));
@@ -177,6 +188,7 @@ describe('ClimbsList virtualization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lastVirtualizerOpts = null;
+    mockVisibleEndIndex = 6; // Default to mobile-like viewport
   });
 
   it('renders only virtual items in list mode (not all 100)', () => {
@@ -191,7 +203,8 @@ describe('ClimbsList virtualization', () => {
     );
 
     const items = screen.getAllByTestId('climb-list-item');
-    expect(items.length).toBeLessThanOrEqual(15);
+    // Mock renders visible items + overscan (6 + 25 + 1 = 32), far fewer than all 100
+    expect(items.length).toBeLessThan(allClimbs.length);
     expect(items.length).toBeGreaterThan(0);
   });
 
@@ -257,5 +270,184 @@ describe('ClimbsList virtualization', () => {
 
     const items = screen.getAllByTestId('climb-list-item');
     expect(items).toHaveLength(5);
+  });
+});
+
+describe('ClimbsList infinite scroll', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    lastVirtualizerOpts = null;
+    mockVisibleEndIndex = 6;
+  });
+
+  it('calls onLoadMore when visible end + buffer reaches total items', () => {
+    // 20 items, visible end at index 6: 6 + 18 = 24 >= 20 → should load
+    const onLoadMore = vi.fn();
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 20)}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).toHaveBeenCalled();
+  });
+
+  it('does NOT call onLoadMore when visible end + buffer is below total items', () => {
+    // 40 items, visible end at index 6: 6 + 18 = 24 < 40 → should NOT load
+    const onLoadMore = vi.fn();
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 40)}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call onLoadMore when isFetching is true', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 20)}
+        isFetching={true}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call onLoadMore when hasMore is false', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 20)}
+        isFetching={false}
+        hasMore={false}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('with desktop-sized viewport, does NOT cascade to page 3 after loading 40 items', () => {
+    // Simulate desktop: 14 visible items (1440px / 102px)
+    mockVisibleEndIndex = 13;
+    const onLoadMore = vi.fn();
+
+    // 40 items, desktop visible end at 13: 13 + 18 = 31 < 40 → should NOT load
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 40)}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('with desktop-sized viewport, eagerly loads page 2 from initial 20 items', () => {
+    // Simulate desktop: 14 visible items
+    mockVisibleEndIndex = 13;
+    const onLoadMore = vi.fn();
+
+    // 20 items, desktop visible end at 13: 13 + 18 = 31 >= 20 → should load
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 20)}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).toHaveBeenCalled();
+  });
+
+  it('with mobile viewport, eagerly loads page 2 from initial 20 items', () => {
+    // Simulate mobile: 7 visible items (700px / 102px)
+    mockVisibleEndIndex = 6;
+    const onLoadMore = vi.fn();
+
+    // 20 items, mobile visible end at 6: 6 + 18 = 24 >= 20 → should load
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 20)}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).toHaveBeenCalled();
+  });
+
+  it('with mobile viewport, does NOT cascade to page 3 after loading 40 items', () => {
+    mockVisibleEndIndex = 6;
+    const onLoadMore = vi.fn();
+
+    // 40 items, mobile visible end at 6: 6 + 18 = 24 < 40 → should NOT load
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 40)}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('with 4K-sized viewport, does NOT cascade to page 3 after loading 40 items', () => {
+    // Simulate 4K display: ~21 visible items (2160px / 102px)
+    mockVisibleEndIndex = 20;
+    const onLoadMore = vi.fn();
+
+    // 40 items, 4K visible end at 20: 20 + 18 = 38 < 40 → should NOT load
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={allClimbs.slice(0, 40)}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call onLoadMore with empty climb list', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <ClimbsList
+        boardDetails={makeBoardDetails()}
+        climbs={[]}
+        isFetching={false}
+        hasMore={true}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(onLoadMore).not.toHaveBeenCalled();
   });
 });

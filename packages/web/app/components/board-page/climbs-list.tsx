@@ -475,9 +475,11 @@ const ClimbsList = ({
   useEffect(() => {
     if (viewMode !== 'list' || !range) return;
 
-    // Load when the visible end plus one page buffer reaches the data end.
-    // This eagerly preloads one page ahead while preventing the desktop cascade.
-    if (range.endIndex + PAGE_LIMIT >= visibleClimbs.length && hasMore && !isFetching) {
+    // Load when the visible end plus a buffer reaches the data end.
+    // Buffer of PAGE_LIMIT - 2 ensures page 2 loads eagerly on any screen
+    // (endIndex >= 2 → always true) while preventing cascade to page 3
+    // even on 4K screens (max endIndex ~21 + 18 = 39 < 40 items after page 2).
+    if (range.endIndex + PAGE_LIMIT - 2 >= visibleClimbs.length && hasMore && !isFetching) {
       handleLoadMore();
     }
   }, [viewMode, range?.startIndex, range?.endIndex, visibleClimbs.length, hasMore, isFetching, handleLoadMore]);
