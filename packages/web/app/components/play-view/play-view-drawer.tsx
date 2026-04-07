@@ -81,6 +81,73 @@ const PlayDrawerContent = React.memo<PlayDrawerContentProps>(({ climb, boardType
 });
 PlayDrawerContent.displayName = 'PlayDrawerContent';
 
+interface PlayViewActionBarProps {
+  canSwipePrevious: boolean;
+  canSwipeNext: boolean;
+  isMirrored: boolean;
+  supportsMirroring: boolean;
+  isFavorited: boolean;
+  remainingQueueCount: number;
+  onPrevClick: () => void;
+  onNextClick: () => void;
+  onMirror: () => void;
+  onToggleFavorite: () => void;
+  onOpenActions: () => void;
+  onOpenQueue: () => void;
+}
+
+export const PlayViewActionBar = React.memo(function PlayViewActionBar({
+  canSwipePrevious,
+  canSwipeNext,
+  isMirrored,
+  supportsMirroring,
+  isFavorited,
+  remainingQueueCount,
+  onPrevClick,
+  onNextClick,
+  onMirror,
+  onToggleFavorite,
+  onOpenActions,
+  onOpenQueue,
+}: PlayViewActionBarProps) {
+  return (
+    <div className={styles.actionBar}>
+      <IconButton disabled={!canSwipePrevious} onClick={onPrevClick}>
+        <SkipPreviousOutlined />
+      </IconButton>
+      {supportsMirroring && (
+        <IconButton
+          color={isMirrored ? 'primary' : 'default'}
+          onClick={onMirror}
+          sx={
+            isMirrored
+              ? { backgroundColor: themeTokens.colors.purple, borderColor: themeTokens.colors.purple, color: 'common.white', '&:hover': { backgroundColor: themeTokens.colors.purple } }
+              : undefined
+          }
+        >
+          <SyncOutlined />
+        </IconButton>
+      )}
+      <IconButton onClick={onToggleFavorite}>
+        {isFavorited ? <Favorite sx={{ color: themeTokens.colors.error }} /> : <FavoriteBorderOutlined />}
+      </IconButton>
+      <ShareBoardButton />
+      <IconButton onClick={onOpenActions} aria-label="Climb actions">
+        <MoreHorizOutlined />
+      </IconButton>
+      <MuiBadge badgeContent={remainingQueueCount} max={99} sx={{ '& .MuiBadge-badge': { backgroundColor: themeTokens.colors.primary, color: 'common.white' } }}>
+        <IconButton onClick={onOpenQueue} aria-label="Open queue">
+          <FormatListBulletedOutlined />
+        </IconButton>
+      </MuiBadge>
+      <IconButton disabled={!canSwipeNext} onClick={onNextClick}>
+        <SkipNextOutlined />
+      </IconButton>
+    </div>
+  );
+});
+PlayViewActionBar.displayName = 'PlayViewActionBar';
+
 interface PlayViewDrawerProps {
   activeDrawer: ActiveDrawer;
   setActiveDrawer: (drawer: ActiveDrawer) => void;
@@ -301,6 +368,27 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const canSwipeNext = !viewOnlyMode && !!nextItem;
   const canSwipePrevious = !viewOnlyMode && !!prevItem;
 
+  const handleTickFabClick = useCallback(() => setIsTickDrawerOpen(true), []);
+  const handlePrevNavClick = useCallback(() => {
+    const prev = getPreviousClimbQueueItem();
+    if (prev) setCurrentClimbQueueItem(prev);
+  }, [getPreviousClimbQueueItem, setCurrentClimbQueueItem]);
+  const handleNextNavClick = useCallback(() => {
+    const next = getNextClimbQueueItem();
+    if (next) setCurrentClimbQueueItem(next);
+  }, [getNextClimbQueueItem, setCurrentClimbQueueItem]);
+  const handleOpenActionsMenu = useCallback(() => {
+    setIsQueueOpen(false);
+    setIsPlaylistSelectorOpen(false);
+    setIsActionsOpen(true);
+  }, []);
+  const handleOpenQueueDrawer = useCallback(() => {
+    setIsActionsOpen(false);
+    setIsPlaylistSelectorOpen(false);
+    setQueueMounted(true);
+    setIsQueueOpen(true);
+  }, []);
+
   const isMirrored = !!currentClimb?.mirrored;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -318,11 +406,11 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     };
     const w = window as WindowWithIdleCallback;
     if (w.requestIdleCallback) {
-      const id = w.requestIdleCallback(setReady, { timeout: 2000 });
+      const id = w.requestIdleCallback(setReady, { timeout: 500 });
       return () => window.cancelIdleCallback(id);
     }
-    const id = setTimeout(setReady, 100);
-    return () => clearTimeout(id);
+    const id = requestAnimationFrame(setReady);
+    return () => cancelAnimationFrame(id);
   }, []);
 
   // Close path: runs before paint so the Slide exit animation starts immediately
@@ -380,6 +468,107 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   }, [currentFrames, currentMirrored, boardDetails]);
+
+  const aboveFold = useMemo(() => {
+    if (!currentClimb) return null;
+    return (
+    <>
+      {/* Header: Grade | Name | Angle Selector */}
+      <div className={styles.headerSection}>
+        <ClimbDetailHeader
+          climb={currentClimb}
+          boardDetails={boardDetails}
+          angle={currentAngle}
+          isAngleAdjustable={true}
+        />
+      </div>
+
+      {/* Board renderer with card-swipe and floating Tick FAB */}
+      <div className={styles.boardSectionWrapper}>
+        {currentClimb && (
+          <SwipeBoardCarousel
+            boardDetails={boardDetails}
+            currentClimb={currentClimb}
+            nextClimb={nextItem?.climb}
+            previousClimb={prevItem?.climb}
+            onSwipeNext={handleSwipeNext}
+            onSwipePrevious={handleSwipePrevious}
+            canSwipeNext={canSwipeNext}
+            canSwipePrevious={canSwipePrevious}
+            className={styles.boardSection}
+            boardContainerClassName={styles.swipeCardContainer}
+            fillContainer
+            onDoubleTap={handleDoubleTap}
+            showZoomHint
+            isDrawerOpen={isOpen}
+            overlay={<HeartAnimationOverlay visible={showHeart} onAnimationEnd={dismissHeart} />}
+          />
+        )}
+
+        {/* Floating Tick FAB - only when drawer is open */}
+        {isOpen && (
+          <div className={styles.tickFabContainer}>
+            <button
+              className={`${styles.tickFab} ${hasSuccessfulAscent ? styles.tickFabSuccess : ''}`}
+              onClick={handleTickFabClick}
+              aria-label="Log ascent"
+            >
+              <CheckOutlined className={styles.tickFabIcon} />
+              {ascentCount > 0 && (
+                <span className={styles.tickFabBadge}>{ascentCount}</span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Action bar - only rendered when drawer is open */}
+      {isOpen && (
+        <PlayViewActionBar
+          canSwipePrevious={canSwipePrevious}
+          canSwipeNext={canSwipeNext}
+          isMirrored={isMirrored}
+          supportsMirroring={!!boardDetails.supportsMirroring}
+          isFavorited={isFavorited}
+          remainingQueueCount={remainingQueueCount}
+          onPrevClick={handlePrevNavClick}
+          onNextClick={handleNextNavClick}
+          onMirror={mirrorClimb}
+          onToggleFavorite={toggleFavorite}
+          onOpenActions={handleOpenActionsMenu}
+          onOpenQueue={handleOpenQueueDrawer}
+        />
+      )}
+    </>
+    );
+  }, [
+    currentClimb,
+    boardDetails,
+    currentAngle,
+    nextItem,
+    prevItem,
+    handleSwipeNext,
+    handleSwipePrevious,
+    canSwipeNext,
+    canSwipePrevious,
+    handleDoubleTap,
+    showHeart,
+    dismissHeart,
+    isOpen,
+    hasSuccessfulAscent,
+    ascentCount,
+    handleTickFabClick,
+    isMirrored,
+    isFavorited,
+    remainingQueueCount,
+    handlePrevNavClick,
+    handleNextNavClick,
+    mirrorClimb,
+    toggleFavorite,
+    handleOpenActionsMenu,
+    handleOpenQueueDrawer,
+  ]);
+
   return (
     <>
     <SwipeableDrawer
@@ -405,136 +594,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             boardType={boardDetails.board_name}
             angle={currentAngle}
             sectionsEnabled={sectionsEverEnabled && isOpen}
-            aboveFold={
-            <>
-              {/* Header: Grade | Name | Angle Selector */}
-              <div className={styles.headerSection}>
-                <ClimbDetailHeader
-                  climb={currentClimb}
-                  boardDetails={boardDetails}
-                  angle={currentAngle}
-                  isAngleAdjustable={true}
-                />
-              </div>
-
-              {/* Board renderer with card-swipe and floating Tick FAB */}
-              <div className={styles.boardSectionWrapper}>
-                {currentClimb && (
-                  <SwipeBoardCarousel
-                    boardDetails={boardDetails}
-                    currentClimb={currentClimb}
-                    nextClimb={nextItem?.climb}
-                    previousClimb={prevItem?.climb}
-                    onSwipeNext={handleSwipeNext}
-                    onSwipePrevious={handleSwipePrevious}
-                    canSwipeNext={canSwipeNext}
-                    canSwipePrevious={canSwipePrevious}
-                    className={styles.boardSection}
-                    boardContainerClassName={styles.swipeCardContainer}
-                    fillContainer
-                    onDoubleTap={handleDoubleTap}
-                    showZoomHint
-                    isDrawerOpen={isOpen}
-                    overlay={<HeartAnimationOverlay visible={showHeart} onAnimationEnd={dismissHeart} />}
-                  />
-                )}
-
-                {/* Floating Tick FAB - only when drawer is open */}
-                {isOpen && (
-                <div className={styles.tickFabContainer}>
-                  <button
-                    className={`${styles.tickFab} ${hasSuccessfulAscent ? styles.tickFabSuccess : ''}`}
-                    onClick={() => setIsTickDrawerOpen(true)}
-                    aria-label="Log ascent"
-                  >
-                    <CheckOutlined className={styles.tickFabIcon} />
-                    {ascentCount > 0 && (
-                      <span className={styles.tickFabBadge}>{ascentCount}</span>
-                    )}
-                  </button>
-                </div>
-                )}
-              </div>
-
-              {/* Action bar - only rendered when drawer is open. When closed, only
-                  the header and board renderer update (for pre-warming). */}
-              {isOpen && (
-              <div className={styles.actionBar}>
-            <IconButton
-              disabled={!canSwipePrevious}
-              onClick={() => {
-                const prev = getPreviousClimbQueueItem();
-                if (prev) setCurrentClimbQueueItem(prev);
-              }}
-            >
-              <SkipPreviousOutlined />
-            </IconButton>
-
-            {/* Mirror */}
-            {boardDetails.supportsMirroring && (
-              <IconButton
-                color={isMirrored ? 'primary' : 'default'}
-                onClick={() => mirrorClimb()}
-                sx={
-                  isMirrored
-                    ? { backgroundColor: themeTokens.colors.purple, borderColor: themeTokens.colors.purple, color: 'common.white', '&:hover': { backgroundColor: themeTokens.colors.purple } }
-                    : undefined
-                }
-              >
-                <SyncOutlined />
-              </IconButton>
-            )}
-
-            {/* Favorite */}
-            <IconButton
-              onClick={() => toggleFavorite()}
-            >
-              {isFavorited ? <Favorite sx={{ color: themeTokens.colors.error }} /> : <FavoriteBorderOutlined />}
-            </IconButton>
-
-            {/* Party / LED */}
-            <ShareBoardButton />
-
-            {/* More actions */}
-            <IconButton
-              onClick={() => {
-                setIsQueueOpen(false);
-                setIsPlaylistSelectorOpen(false);
-                setIsActionsOpen(true);
-              }}
-              aria-label="Climb actions"
-            >
-              <MoreHorizOutlined />
-            </IconButton>
-
-            {/* Queue */}
-            <MuiBadge badgeContent={remainingQueueCount} max={99} sx={{ '& .MuiBadge-badge': { backgroundColor: themeTokens.colors.primary, color: 'common.white' } }}>
-              <IconButton
-                onClick={() => {
-                  setIsActionsOpen(false);
-                  setIsPlaylistSelectorOpen(false);
-                  setQueueMounted(true);
-                  setIsQueueOpen(true);
-                }}
-                aria-label="Open queue"
-              >
-                <FormatListBulletedOutlined />
-              </IconButton>
-            </MuiBadge>
-
-            <IconButton
-              disabled={!canSwipeNext}
-              onClick={() => {
-                const next = getNextClimbQueueItem();
-                if (next) setCurrentClimbQueueItem(next);
-              }}
-            >
-              <SkipNextOutlined />
-            </IconButton>
-              </div>
-              )}
-            </>
-            }
+            aboveFold={aboveFold}
           />
         ) : (
           <ClimbDetailShellClient mode="play" sections={[]} aboveFold={null} />

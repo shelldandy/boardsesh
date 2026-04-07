@@ -39,6 +39,8 @@ import styles from './queue-control-bar.module.css';
 
 export type ActiveDrawer = 'none' | 'play' | 'queue';
 
+const QUEUE_DRAWER_STYLES = { wrapper: { height: '70%' }, body: { padding: 0 } } as const;
+
 export interface QueueControlBarProps {
   boardDetails: BoardDetails;
   angle: Angle;
@@ -572,7 +574,7 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
         open={activeDrawer === 'queue'}
         onClose={handleCloseDrawer}
         onTransitionEnd={handleDrawerOpenChange}
-        styles={{ wrapper: { height: '70%' }, body: { padding: 0 } }}
+        styles={QUEUE_DRAWER_STYLES}
         extra={
           queue.length > 0 && (
             <ConfirmPopover
@@ -602,4 +604,4 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
   );
 };
 
-export default QueueControlBar;
+export default React.memo(QueueControlBar);
