@@ -143,6 +143,8 @@ export async function requireSessionMember(
  * @param operation - Operation name for Redis key namespacing (default: 'default')
  */
 export async function applyRateLimit(ctx: ConnectionContext, limit?: number, operation = 'default'): Promise<void> {
+  if (process.env.NODE_ENV === 'development') return;
+
   const maxRequests = limit ?? 60;
 
   // Tier 1: Synchronous in-memory rate limiting (fast path, per-instance)
