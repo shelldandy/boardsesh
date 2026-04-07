@@ -21,6 +21,7 @@ import BoardScrollCard from '../board-scroll/board-scroll-card';
 import CreateBoardCard from '../board-scroll/create-board-card';
 import { BoardConfigData } from '@/app/lib/server-board-configs';
 import { BoardName } from '@/app/lib/types';
+import { BOARD_NAME_PREFIX_REGEX } from '@/app/lib/board-constants';
 import { SUPPORTED_BOARDS, ANGLES } from '@/app/lib/board-data';
 import { getDefaultSizeForLayout } from '@/app/lib/__generated__/product-sizes-data';
 import { constructClimbListWithSlugs, constructBoardSlugListUrl } from '@/app/lib/url-utils';
@@ -634,9 +635,13 @@ export default function BoardSelectorDrawer({
                   const parts: string[] = [];
                   if (selectedBoard) parts.push(selectedBoard.charAt(0).toUpperCase() + selectedBoard.slice(1));
                   const layout = layouts.find((l) => l.id === selectedLayout);
-                  if (layout) parts.push(layout.name);
+                  if (layout) {
+                    // Strip board name prefix (e.g. "Kilter Board Original" → "Original")
+                    const cleanName = layout.name.replace(BOARD_NAME_PREFIX_REGEX, '').trim();
+                    if (cleanName) parts.push(cleanName);
+                  }
                   const size = sizes.find((s) => s.id === selectedSize);
-                  if (size) parts.push(`${size.name} ${size.description ?? ''}`.trim());
+                  if (size) parts.push(size.name);
                   parts.push(`${selectedAngle}\u00B0`);
                   return parts;
                 },
