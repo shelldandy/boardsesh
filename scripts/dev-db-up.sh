@@ -16,10 +16,13 @@
 set -e
 
 HBA_FILE="/var/lib/postgresql/pgdata/pg_hba.conf"
-PG_CONTAINER="find-taller-postgres-1"
 
 echo "Starting development database containers..."
 docker compose up -d postgres redis
+
+# Resolve container names dynamically (derived from directory name)
+PG_CONTAINER=$(docker compose ps -q postgres)
+NEON_SERVICE="neon-proxy"
 
 echo "Waiting for postgres to be healthy..."
 attempts=0
@@ -81,6 +84,7 @@ echo "Starting neon-proxy..."
 docker compose up -d neon-proxy
 
 # Wait for neon-proxy to accept connections
+NEON_CONTAINER=$(docker compose ps -q "$NEON_SERVICE")
 echo "Waiting for neon-proxy to be ready..."
 attempts=0
 max_attempts=30
@@ -88,16 +92,16 @@ while [ "$attempts" -lt "$max_attempts" ]; do
   attempts=$((attempts + 1))
   sleep 1
   # Check container is running
-  if ! docker inspect find-taller-neon-proxy-1 --format='{{.State.Running}}' 2>/dev/null | grep -q true; then
+  if ! docker inspect "$NEON_CONTAINER" --format='{{.State.Running}}' 2>/dev/null | grep -q true; then
     continue
   fi
   # Check for connection errors in proxy logs
-  if docker logs find-taller-neon-proxy-1 2>&1 | tail -3 | grep -q "Console request failed"; then
+  if docker compose logs --tail=3 "$NEON_SERVICE" 2>&1 | grep -q "Console request failed"; then
     continue
   fi
   # Give it one more second to stabilize
   sleep 1
-  if ! docker logs find-taller-neon-proxy-1 2>&1 | tail -3 | grep -q "Console request failed"; then
+  if ! docker compose logs --tail=3 "$NEON_SERVICE" 2>&1 | grep -q "Console request failed"; then
     echo "  neon-proxy is ready."
     break
   fi
@@ -107,7 +111,7 @@ if [ "$attempts" -ge "$max_attempts" ]; then
   echo ""
   echo "ERROR: neon-proxy failed to connect to postgres."
   echo "Proxy logs:"
-  docker logs find-taller-neon-proxy-1 2>&1 | grep -i "error\|fatal\|fail" | tail -5
+  docker compose logs --tail=5 "$NEON_SERVICE" 2>&1 | grep -i "error\|fatal\|fail"
   echo ""
   echo "pg_hba.conf non-comment lines:"
   docker exec "$PG_CONTAINER" grep -v "^#" "$HBA_FILE" | grep -v "^$"
