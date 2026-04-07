@@ -559,76 +559,60 @@ export const socialBoardQueries = {
     const useProximity = latitude !== undefined && longitude !== undefined;
 
     if (useProximity) {
-      // PostGIS proximity search path
+      // PostGIS proximity search path using Drizzle query builder
       const radiusMeters = (radiusKm ?? 1) * 1000;
       const lon = Number(longitude);
       const lat = Number(latitude);
 
-      // Escape ILIKE wildcards once for reuse in both count and main queries
-      const escapedQuery = query ? query.replace(/[%_\\]/g, '\\$&') : null;
-      const likePattern = escapedQuery ? `%${escapedQuery}%` : null;
+      const userPoint = sql`ST_MakePoint(${lon}, ${lat})::geography`;
+      // "location" is a PostGIS geography column added via raw migration, not in the Drizzle schema
+      const locationCol = sql`${dbSchema.userBoards}.location`;
+      const distanceMeters = sql<number>`ST_Distance(${locationCol}, ${userPoint})`.as('distance_meters');
 
-      // Build count query with proper parameterization
-      const countSql = sql`SELECT count(*)::int as count FROM user_boards WHERE is_public = true AND deleted_at IS NULL AND location IS NOT NULL AND ST_DWithin(location, ST_MakePoint(${lon}, ${lat})::geography, ${radiusMeters})`;
-
-      if (boardType) {
-        countSql.append(sql` AND board_type = ${boardType}`);
-      }
-      if (likePattern) {
-        countSql.append(sql` AND (name ILIKE ${likePattern} OR location_name ILIKE ${likePattern})`);
-      }
-
-      const countResult = await db.execute(countSql);
-      const countRows = (countResult as unknown as { rows: Array<Record<string, unknown>> }).rows;
-      const totalCount = Number(countRows[0]?.count || 0);
-
-      // Build the main query with distance ordering
-      const mainSql = sql`SELECT *, ST_Distance(location, ST_MakePoint(${lon}, ${lat})::geography) as distance_meters FROM user_boards WHERE is_public = true AND deleted_at IS NULL AND location IS NOT NULL AND ST_DWithin(location, ST_MakePoint(${lon}, ${lat})::geography, ${radiusMeters})`;
+      // Build shared WHERE conditions
+      const conditions = [
+        eq(dbSchema.userBoards.isPublic, true),
+        isNull(dbSchema.userBoards.deletedAt),
+        sql`${locationCol} IS NOT NULL`,
+        sql`ST_DWithin(${locationCol}, ${userPoint}, ${radiusMeters})`,
+      ];
 
       if (boardType) {
-        mainSql.append(sql` AND board_type = ${boardType}`);
+        conditions.push(eq(dbSchema.userBoards.boardType, boardType));
       }
-      if (likePattern) {
-        mainSql.append(sql` AND (name ILIKE ${likePattern} OR location_name ILIKE ${likePattern})`);
+      if (query) {
+        const escapedQuery = query.replace(/[%_\\]/g, '\\$&');
+        conditions.push(
+          or(
+            ilike(dbSchema.userBoards.name, `%${escapedQuery}%`),
+            ilike(dbSchema.userBoards.locationName, `%${escapedQuery}%`),
+          )!,
+        );
       }
 
-      mainSql.append(sql` ORDER BY distance_meters ASC LIMIT ${limit} OFFSET ${offset}`);
+      const whereClause = and(...conditions);
 
-      const boardResult = await db.execute(mainSql);
-      const boards = (boardResult as unknown as { rows: Array<Record<string, unknown>> }).rows;
+      const [countResult] = await db
+        .select({ count: count() })
+        .from(dbSchema.userBoards)
+        .where(whereClause);
 
-      // Map raw rows to board shape expected by enrichBoard
-      type BoardRow = typeof dbSchema.userBoards.$inferSelect;
-      const mappedBoards = boards.map((row) => ({
-        board: {
-          id: row.id as number,
-          uuid: row.uuid as string,
-          slug: (row.slug as string) || '',
-          ownerId: row.owner_id as string,
-          boardType: row.board_type as string,
-          layoutId: row.layout_id as number,
-          sizeId: row.size_id as number,
-          setIds: row.set_ids as string,
-          name: row.name as string,
-          description: (row.description as string | null) ?? null,
-          locationName: (row.location_name as string | null) ?? null,
-          latitude: row.latitude != null ? Number(row.latitude) : null,
-          longitude: row.longitude != null ? Number(row.longitude) : null,
-          isPublic: row.is_public as boolean,
-          isOwned: row.is_owned as boolean,
-          angle: row.angle != null ? Number(row.angle) : 40,
-          gymId: row.gym_id != null ? Number(row.gym_id) : null,
-          isAngleAdjustable: row.is_angle_adjustable as boolean ?? true,
-          createdAt: row.created_at as Date,
-          updatedAt: row.updated_at as Date,
-          deletedAt: (row.deleted_at as Date | null) ?? null,
-        } as BoardRow,
-        distanceMeters: row.distance_meters != null ? Number(row.distance_meters) : null,
-      }));
+      const totalCount = Number(countResult?.count || 0);
+
+      const boards = await db
+        .select({
+          board: dbSchema.userBoards,
+          distanceMeters,
+        })
+        .from(dbSchema.userBoards)
+        .where(whereClause)
+        .orderBy(sql`distance_meters ASC`)
+        .limit(limit)
+        .offset(offset);
 
       const enrichedBoards = await Promise.all(
-        mappedBoards.map(({ board, distanceMeters }) =>
-          enrichBoard(board, ctx.isAuthenticated ? ctx.userId : undefined, distanceMeters),
+        boards.map(({ board, distanceMeters: dist }) =>
+          enrichBoard(board, ctx.isAuthenticated ? ctx.userId : undefined, dist),
         ),
       );
 

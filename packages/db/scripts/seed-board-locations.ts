@@ -25,8 +25,6 @@ const BATCH_SIZE = 50;
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const SYSTEM_USER_EMAIL = 'system@boardsesh.com';
 
-// When @hangtime/climbing-boards is published to npm, just swap the git
-// dependency in package.json to "^1.0.0" — this constant already matches.
 const GEOJSON_PACKAGE = '@hangtime/climbing-boards';
 
 // =============================================================================
@@ -210,7 +208,8 @@ function isValidCoord(lat: number | null | undefined, lon: number | null | undef
 const require = createRequire(import.meta.url);
 
 function loadGeoJson<P>(filename: string): GeoJsonFeatureCollection<P> {
-  const filepath = require.resolve(`${GEOJSON_PACKAGE}/geojson/${filename}`);
+  // The npm package exports "./*.geojson" → "./geojson/*.geojson"
+  const filepath = require.resolve(`${GEOJSON_PACKAGE}/${filename}`);
   const raw = readFileSync(filepath, 'utf-8');
   return JSON.parse(raw) as GeoJsonFeatureCollection<P>;
 }
@@ -364,6 +363,37 @@ function buildMoonboardRecords(): BoardRecord[] {
 }
 
 // =============================================================================
+// Manually-added boards (not in the hangtime GeoJSON data)
+// =============================================================================
+
+function buildManualRecords(): BoardRecord[] {
+  const records: BoardRecord[] = [];
+
+  // Marco's Kilter Homewall 10x12 Full Ride — Blackheath, NSW
+  const sourceKey = 'manual:kilter-homewall-blackheath';
+  const boardUuid = deterministicUuid(sourceKey);
+  records.push({
+    uuid: boardUuid,
+    slug: slugify('blackheath-kilter-homewall', boardUuid),
+    boardType: 'kilter',
+    layoutId: 8,
+    sizeId: 25,
+    setIds: '26,27,28,29',
+    name: 'Blackheath Kilter Homewall - 10x12 Full Ride',
+    locationName: 'Blackheath, NSW, Australia',
+    latitude: -33.6352566,
+    longitude: 150.2801547,
+    angle: 40,
+    isAngleAdjustable: true,
+    gymSourceKey: sourceKey,
+    gymName: 'Blackheath Kilter Homewall',
+    gymAddress: '34 Bundarra St, Blackheath NSW 2785, Australia',
+  });
+
+  return records;
+}
+
+// =============================================================================
 // Main seed function
 // =============================================================================
 
@@ -403,7 +433,11 @@ async function seedBoardLocations() {
     const moonboardRecords = buildMoonboardRecords();
     console.log(`  ${moonboardRecords.length} MoonBoard boards`);
 
-    const allRecords = [...kilterRecords, ...tensionRecords, ...moonboardRecords];
+    console.log('Loading manual entries...');
+    const manualRecords = buildManualRecords();
+    console.log(`  ${manualRecords.length} manual boards`);
+
+    const allRecords = [...kilterRecords, ...tensionRecords, ...moonboardRecords, ...manualRecords];
     console.log(`Total: ${allRecords.length} boards to seed`);
 
     // Step 3: Create gym entries (deduplicated by gymSourceKey)
