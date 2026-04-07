@@ -7,7 +7,6 @@ import Lightbulb from '@mui/icons-material/Lightbulb';
 import IconButton from '@mui/material/IconButton';
 import { useCurrentClimb, useSessionData } from '../graphql-queue';
 import { useBluetoothContext } from '../board-bluetooth-control/bluetooth-context';
-import './share-button.css';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
 
 export const ShareBoardButton = () => {
@@ -61,7 +60,14 @@ export const ShareBoardButton = () => {
       {isConnecting || btLoading ? (
         <CircularProgress size={16} />
       ) : isBoardConnected ? (
-        <Lightbulb className="connect-button-glow" />
+        <Lightbulb sx={{
+          color: '#FFD700',
+          '@keyframes connectedGlow': {
+            '0%': { filter: 'drop-shadow(0 0 2px rgba(255, 215, 0, 0.6))' },
+            '100%': { filter: 'drop-shadow(0 0 6px rgba(255, 215, 0, 1))' },
+          },
+          animation: 'connectedGlow 1.5s ease-in-out infinite alternate',
+        }} />
       ) : (
         <LightbulbOutlined />
       )}
