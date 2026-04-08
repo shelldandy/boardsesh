@@ -256,8 +256,7 @@ describe('OG climb image route', () => {
       edge_right: 50,
       edge_bottom: 0,
       edge_top: 80,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    } as unknown as ReturnType<typeof getBoardDetailsForBoard>);
 
     const response = await GET(
       makeRequest({ ...validParams, board_name: 'moonboard' }),

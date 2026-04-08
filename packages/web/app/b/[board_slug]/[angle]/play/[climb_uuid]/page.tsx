@@ -44,13 +44,15 @@ export async function generateMetadata(props: BoardSlugPlayPageProps): Promise<M
       currentClimb.name,
     );
 
-    const ogImageUrl = new URL('/api/og/climb', 'https://boardsesh.com');
-    ogImageUrl.searchParams.set('board_name', parsedParams.board_name);
-    ogImageUrl.searchParams.set('layout_id', parsedParams.layout_id.toString());
-    ogImageUrl.searchParams.set('size_id', parsedParams.size_id.toString());
-    ogImageUrl.searchParams.set('set_ids', parsedParams.set_ids.join(','));
-    ogImageUrl.searchParams.set('angle', parsedParams.angle.toString());
-    ogImageUrl.searchParams.set('climb_uuid', parsedParams.climb_uuid);
+    const ogParams = new URLSearchParams({
+      board_name: parsedParams.board_name,
+      layout_id: parsedParams.layout_id.toString(),
+      size_id: parsedParams.size_id.toString(),
+      set_ids: parsedParams.set_ids.join(','),
+      angle: parsedParams.angle.toString(),
+      climb_uuid: parsedParams.climb_uuid,
+    });
+    const ogImageUrl = `/api/og/climb?${ogParams.toString()}`;
 
     return {
       title: `${climbName} - ${climbGrade} | Play Mode | Boardsesh`,
@@ -66,7 +68,7 @@ export async function generateMetadata(props: BoardSlugPlayPageProps): Promise<M
         url: viewUrl,
         images: [
           {
-            url: ogImageUrl.toString(),
+            url: ogImageUrl,
             width: 1200,
             height: 630,
             alt: `${climbName} - ${climbGrade} on ${boardLabel} board`,
@@ -77,10 +79,11 @@ export async function generateMetadata(props: BoardSlugPlayPageProps): Promise<M
         card: 'summary_large_image',
         title: `${climbName} - ${climbGrade}`,
         description,
-        images: [ogImageUrl.toString()],
+        images: [ogImageUrl],
       },
     };
-  } catch {
+  } catch (error) {
+    console.error('Error generating play mode metadata:', error);
     return {
       title: 'Play Mode | Boardsesh',
       description: 'Play climbs on your board',
