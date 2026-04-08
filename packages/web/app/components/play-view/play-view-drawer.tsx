@@ -173,6 +173,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [isBoardZoomed, setIsBoardZoomed] = useState(false);
   const queueDrawerHeightRef = useRef('60%');
   const queuePaperRef = useRef<HTMLDivElement>(null);
   const playPaperRef = useRef<HTMLDivElement>(null);
@@ -567,7 +568,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   // container through the board's overflow:hidden layers, so we block MUI
   // and handle the close gesture ourselves. When at scroll top and pulling
   // down, the play drawer Paper follows the finger and closes past threshold.
-  const boardSwipeRef = useRef({ startY: 0, pullOriginY: 0, scrollContainer: null as HTMLElement | null, isPulling: false, translateY: 0 });
+  const boardSwipeRef = useRef({ startX: 0, startY: 0, lastY: 0, pullOriginY: 0, scrollContainer: null as HTMLElement | null, directionLocked: null as 'horizontal' | 'vertical' | null, isPulling: false, translateY: 0 });
 
   const handleBoardTouchStart = useCallback((e: React.TouchEvent) => {
     (e.nativeEvent as unknown as Record<string, unknown>).defaultMuiPrevented = true;
@@ -584,14 +585,18 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
       el = el.parentElement;
     }
 
+    const x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
     boardSwipeRef.current = {
+      startX: x,
       startY: y,
+      lastY: y,
       // pullOriginY tracks where to measure the pull-to-close gesture from.
       // If already at scroll top, it's the touch start position. Otherwise
       // it gets set when scrollTop first reaches 0 mid-gesture.
       pullOriginY: scrollContainer && scrollContainer.scrollTop <= 0 ? y : 0,
       scrollContainer,
+      directionLocked: null,
       isPulling: false,
       translateY: 0,
     };
@@ -601,8 +606,8 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     const state = boardSwipeRef.current;
     if (!state.scrollContainer) return;
 
-    // Multi-touch (pinch-to-zoom) — cancel any pull-to-close and bail out
-    if (e.touches.length > 1) {
+    // Multi-touch (pinch-to-zoom) or board is zoomed — cancel pull-to-close
+    if (e.touches.length > 1 || isBoardZoomed) {
       if (state.isPulling) {
         state.isPulling = false;
         state.translateY = 0;
@@ -614,7 +619,32 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
       return;
     }
 
+    const currentX = e.touches[0].clientX;
     const currentY = e.touches[0].clientY;
+
+    // Lock direction on first significant movement to avoid scroll during horizontal card swipes
+    if (!state.directionLocked) {
+      const dx = Math.abs(currentX - state.startX);
+      const dy = Math.abs(currentY - state.startY);
+      if (dx > 10 || dy > 10) {
+        state.directionLocked = dx > dy ? 'horizontal' : 'vertical';
+      }
+    }
+
+    // Horizontal gesture — prevent vertical scroll, let card swipe handle it
+    if (state.directionLocked === 'horizontal') {
+      if (e.cancelable) e.preventDefault();
+      return;
+    }
+
+    // Programmatic scroll for vertical gestures on the board area
+    // (touch-action: none on .boardSection prevents native scroll there)
+    if (!state.isPulling) {
+      const scrollDelta = state.lastY - currentY;
+      state.scrollContainer.scrollTop += scrollDelta;
+    }
+    state.lastY = currentY;
+
     const atTop = state.scrollContainer.scrollTop <= 0;
     const movingDown = currentY > state.startY;
 
@@ -645,7 +675,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
         playPaperRef.current.style.transition = '';
       }
     }
-  }, []);
+  }, [isBoardZoomed]);
 
   const handleBoardTouchEnd = useCallback(() => {
     const state = boardSwipeRef.current;
@@ -718,6 +748,7 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             onDoubleTap={handleDoubleTap}
             showZoomHint
             isDrawerOpen={isOpen}
+            onZoomChange={setIsBoardZoomed}
             overlay={<HeartAnimationOverlay visible={showHeart} onAnimationEnd={dismissHeart} />}
           />
         )}

@@ -37,6 +37,7 @@ export interface SwipeBoardCarouselProps {
   showZoomHint?: boolean;
   isDrawerOpen?: boolean;
   overlay?: React.ReactNode;
+  onZoomChange?: (zoomed: boolean) => void;
 }
 
 const SwipeBoardCarousel = React.memo<SwipeBoardCarouselProps>(({
@@ -55,6 +56,7 @@ const SwipeBoardCarousel = React.memo<SwipeBoardCarouselProps>(({
   showZoomHint,
   isDrawerOpen,
   overlay,
+  onZoomChange: onZoomChangeProp,
 }) => {
   const enterFallbackRef = useRef<NodeJS.Timeout | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
@@ -107,7 +109,8 @@ const SwipeBoardCarousel = React.memo<SwipeBoardCarouselProps>(({
 
   const handleZoomChange = useCallback((zoomed: boolean) => {
     setIsZoomed(zoomed);
-  }, []);
+    onZoomChangeProp?.(zoomed);
+  }, [onZoomChangeProp]);
 
   // Merge swipe ref and double-tap ref into one callback ref
   const mergedRef = useCallback(
