@@ -7,6 +7,7 @@ import { getClimb } from '@/app/lib/data/queries';
 import ClimbDetailPageServer from '@/app/components/climb-detail/climb-detail-page.server';
 import { fetchClimbDetailData } from '@/app/lib/data/climb-detail-data.server';
 import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
+import { extractUuidFromSlug } from '@/app/lib/url-utils';
 
 interface BoardSlugViewPageProps {
   params: Promise<{ board_slug: string; angle: string; climb_uuid: string }>;
@@ -22,7 +23,7 @@ export default async function BoardSlugViewPage(props: BoardSlugViewPageProps) {
 
   const parsedParams = {
     ...boardToRouteParams(board, Number(params.angle)),
-    climb_uuid: params.climb_uuid,
+    climb_uuid: extractUuidFromSlug(params.climb_uuid),
   };
 
   try {

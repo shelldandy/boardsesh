@@ -6,6 +6,7 @@ import { getClimb } from '@/app/lib/data/queries';
 
 import PlayViewClient from '@/app/[board_name]/[layout_id]/[size_id]/[set_ids]/[angle]/play/[climb_uuid]/play-view-client';
 import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
+import { extractUuidFromSlug } from '@/app/lib/url-utils';
 
 interface BoardSlugPlayPageProps {
   params: Promise<{ board_slug: string; angle: string; climb_uuid: string }>;
@@ -21,7 +22,7 @@ export default async function BoardSlugPlayPage(props: BoardSlugPlayPageProps) {
 
   const parsedParams = {
     ...boardToRouteParams(board, Number(params.angle)),
-    climb_uuid: params.climb_uuid,
+    climb_uuid: extractUuidFromSlug(params.climb_uuid),
   };
 
   const boardDetails = getBoardDetailsForBoard(parsedParams);
