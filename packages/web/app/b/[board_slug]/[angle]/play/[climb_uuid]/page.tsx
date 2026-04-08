@@ -4,7 +4,7 @@ import { Metadata } from 'next';
 import { resolveBoardBySlug, boardToRouteParams } from '@/app/lib/board-slug-utils';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { getClimb } from '@/app/lib/data/queries';
-import { constructBoardSlugPlayUrl } from '@/app/lib/url-utils';
+import { constructBoardSlugViewUrl } from '@/app/lib/url-utils';
 
 import PlayViewClient from '@/app/[board_name]/[layout_id]/[size_id]/[set_ids]/[angle]/play/[climb_uuid]/play-view-client';
 import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
@@ -26,20 +26,22 @@ export async function generateMetadata(props: BoardSlugPlayPageProps): Promise<M
       climb_uuid: params.climb_uuid,
     };
 
-    const [boardDetails, currentClimb] = await Promise.all([
-      getBoardDetailsForBoard(parsedParams),
-      getClimb(parsedParams),
-    ]);
+    const currentClimb = await getClimb(parsedParams);
+    if (!currentClimb) {
+      return { title: 'Play | Boardsesh', robots: { index: false, follow: true } };
+    }
 
-    const climbName = currentClimb.name || `${boardDetails.board_name} Climb`;
+    const boardLabel = parsedParams.board_name.charAt(0).toUpperCase() + parsedParams.board_name.slice(1);
+    const climbName = currentClimb.name || `${boardLabel} Climb`;
     const climbGrade = currentClimb.difficulty || 'Unknown Grade';
     const setter = currentClimb.setter_username || 'Unknown Setter';
     const description = `${climbName} - ${climbGrade} by ${setter}. Quality: ${currentClimb.quality_average || 0}/5. Ascents: ${currentClimb.ascensionist_count || 0}`;
 
-    const playUrl = constructBoardSlugPlayUrl(
+    const viewUrl = constructBoardSlugViewUrl(
       board.slug,
       parsedParams.angle,
       parsedParams.climb_uuid,
+      currentClimb.name,
     );
 
     const ogImageUrl = new URL('/api/og/climb', 'https://boardsesh.com');
@@ -54,17 +56,20 @@ export async function generateMetadata(props: BoardSlugPlayPageProps): Promise<M
       title: `${climbName} - ${climbGrade} | Play Mode | Boardsesh`,
       description,
       robots: { index: false, follow: true },
+      alternates: {
+        canonical: viewUrl,
+      },
       openGraph: {
         title: `${climbName} - ${climbGrade}`,
         description,
         type: 'website',
-        url: playUrl,
+        url: viewUrl,
         images: [
           {
             url: ogImageUrl.toString(),
             width: 1200,
             height: 630,
-            alt: `${climbName} - ${climbGrade} on ${boardDetails.board_name} board`,
+            alt: `${climbName} - ${climbGrade} on ${boardLabel} board`,
           },
         ],
       },

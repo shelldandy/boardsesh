@@ -27,12 +27,13 @@ export async function generateMetadata(props: BoardSlugViewPageProps): Promise<M
       climb_uuid: params.climb_uuid,
     };
 
-    const [boardDetails, currentClimb] = await Promise.all([
-      getBoardDetailsForBoard(parsedParams),
-      getClimb(parsedParams),
-    ]);
+    const currentClimb = await getClimb(parsedParams);
+    if (!currentClimb) {
+      return { title: 'Climb | Boardsesh' };
+    }
 
-    const climbName = currentClimb.name || `${boardDetails.board_name} Climb`;
+    const boardLabel = parsedParams.board_name.charAt(0).toUpperCase() + parsedParams.board_name.slice(1);
+    const climbName = currentClimb.name || `${boardLabel} Climb`;
     const climbGrade = currentClimb.difficulty || 'Unknown Grade';
     const setter = currentClimb.setter_username || 'Unknown Setter';
     const description = `${climbName} - ${climbGrade} by ${setter}. Quality: ${currentClimb.quality_average || 0}/5. Ascents: ${currentClimb.ascensionist_count || 0}`;
@@ -55,6 +56,9 @@ export async function generateMetadata(props: BoardSlugViewPageProps): Promise<M
     return {
       title: `${climbName} - ${climbGrade} | Boardsesh`,
       description,
+      alternates: {
+        canonical: climbUrl,
+      },
       openGraph: {
         title: `${climbName} - ${climbGrade}`,
         description,
@@ -65,7 +69,7 @@ export async function generateMetadata(props: BoardSlugViewPageProps): Promise<M
             url: ogImageUrl.toString(),
             width: 1200,
             height: 630,
-            alt: `${climbName} - ${climbGrade} on ${boardDetails.board_name} board`,
+            alt: `${climbName} - ${climbGrade} on ${boardLabel} board`,
           },
         ],
       },
