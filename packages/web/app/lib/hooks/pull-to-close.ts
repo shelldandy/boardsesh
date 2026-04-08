@@ -145,7 +145,6 @@ export function usePullToClose({
 
   const onTouchMove = useCallback((clientY: number, touchCount: number, cancelled?: boolean) => {
     const state = stateRef.current;
-    const el = paperElRef.current;
 
     // Multi-touch or externally cancelled — abort any active pull
     if (touchCount > 1 || cancelled) {
