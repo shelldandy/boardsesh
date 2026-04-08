@@ -157,7 +157,7 @@ export function useCardSwipeNavigation({
     },
     trackMouse: false,
     trackTouch: true,
-    preventScrollOnSwipe: false,
+    preventScrollOnSwipe: true,
   });
 
   return {
