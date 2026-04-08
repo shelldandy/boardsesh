@@ -75,7 +75,7 @@ export function calculateRegionsFromDetectedBoard(
 
   // Header: proportional (consistent across resolutions for the vertical axis)
   const headerTop = Math.round(imageHeight * 0.11);
-  const headerHeight = Math.round(imageHeight * 0.07);
+  const headerHeight = Math.round(imageHeight * 0.09);
 
   return {
     header: {

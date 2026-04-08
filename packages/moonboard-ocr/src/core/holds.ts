@@ -366,15 +366,16 @@ export function detectBenchmarkCircle(pixelData: RawPixelData): boolean {
       }
 
       // Check if this component is the benchmark circle:
-      // ~1500+ pixels, roughly square bbox under 100px, high density
-      if (count < 200) continue;
+      // ~1500+ pixels, roughly square bbox 40-100px, high density.
+      // Star rating icons are ~400px/32x32 — the min count of 800 excludes them.
+      if (count < 800) continue;
       const bboxWidth = maxX - minX + 1;
       const bboxHeight = maxY - minY + 1;
       const density = count / (bboxWidth * bboxHeight);
       const aspectRatio =
         Math.max(bboxWidth, bboxHeight) / Math.min(bboxWidth, bboxHeight);
 
-      if (density > 0.4 && aspectRatio < 1.5 && bboxWidth < 100) {
+      if (density > 0.5 && aspectRatio < 1.3 && bboxWidth < 100) {
         return true;
       }
     }
