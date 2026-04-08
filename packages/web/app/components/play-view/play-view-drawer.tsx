@@ -2,9 +2,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, useDeferredValue } from 'react';
 import MuiBadge from '@mui/material/Badge';
-import MuiButton from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
 import SyncOutlined from '@mui/icons-material/SyncOutlined';
 import FavoriteBorderOutlined from '@mui/icons-material/FavoriteBorderOutlined';
 import Favorite from '@mui/icons-material/Favorite';
@@ -12,10 +10,6 @@ import SkipPreviousOutlined from '@mui/icons-material/SkipPreviousOutlined';
 import SkipNextOutlined from '@mui/icons-material/SkipNextOutlined';
 import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined';
 import FormatListBulletedOutlined from '@mui/icons-material/FormatListBulletedOutlined';
-import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
-import EditOutlined from '@mui/icons-material/EditOutlined';
-import CloseOutlined from '@mui/icons-material/CloseOutlined';
-import HistoryOutlined from '@mui/icons-material/HistoryOutlined';
 import CheckOutlined from '@mui/icons-material/CheckOutlined';
 import { usePathname } from 'next/navigation';
 import { useQueueActions, useCurrentClimb, useQueueList, useSessionData } from '../graphql-queue';
@@ -26,7 +20,6 @@ import PlaylistSelectionContent from '../climb-actions/playlist-selection-conten
 import DrawerClimbHeader from '../climb-card/drawer-climb-header';
 import { ShareBoardButton } from '../board-page/share-button';
 import { useBoardProvider } from '../board-provider/board-provider-context';
-import QueueList, { QueueListHandle } from '../queue-control/queue-list';
 import SwipeBoardCarousel from '../board-renderer/swipe-board-carousel';
 import { useWakeLock } from '../board-bluetooth-control/use-wake-lock';
 import { themeTokens } from '@/app/theme/theme-config';
@@ -35,14 +28,13 @@ import ClimbDetailHeader from '@/app/components/climb-detail/climb-detail-header
 import { LogAscentDrawer } from '../logbook/log-ascent-drawer';
 import type { ActiveDrawer } from '../queue-control/queue-control-bar';
 import type { BoardDetails, Angle, Climb } from '@/app/lib/types';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import styles from './play-view-drawer.module.css';
-import drawerStyles from '../swipeable-drawer/swipeable-drawer.module.css';
 import ClimbDetailShellClient from '@/app/components/climb-detail/climb-detail-shell.client';
 import { useBuildClimbDetailSections } from '@/app/components/climb-detail/build-climb-detail-sections';
 import { renderBoard } from '@/app/lib/board-render-worker/worker-manager';
 import { useNestedDrawerSwipe } from '@/app/lib/hooks/use-nested-drawer-swipe';
+import { usePullToClose, findScrollContainer } from '@/app/lib/hooks/pull-to-close';
+import QueueDrawer from './queue-drawer';
 
 
 
@@ -50,14 +42,6 @@ import { useNestedDrawerSwipe } from '@/app/lib/hooks/use-nested-drawer-swipe';
 type WindowWithIdleCallback = Window & {
   requestIdleCallback?: ((cb: () => void, opts?: { timeout: number }) => number) | undefined;
 };
-
-const QUEUE_DRAWER_STYLES = {
-  wrapper: {
-    touchAction: 'pan-y' as const,
-    transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
-  body: { padding: 0, overflow: 'hidden' as const, touchAction: 'pan-y' as const },
-} as const;
 
 interface PlayDrawerContentProps {
   climb: Climb;
@@ -171,9 +155,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const [queueMounted, setQueueMounted] = useState(false);
   const [isPlaylistSelectorOpen, setIsPlaylistSelectorOpen] = useState(false);
   const [isTickDrawerOpen, setIsTickDrawerOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [isBoardZoomed, setIsBoardZoomed] = useState(false);
 
   // Lock the scroll container when the board is zoomed so single-finger
@@ -184,28 +165,12 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     scrollContainer.style.overflowY = isBoardZoomed ? 'hidden' : '';
   }, [isBoardZoomed, isOpen]);
 
-  const queueDrawerHeightRef = useRef('60%');
-  const queuePaperRef = useRef<HTMLDivElement>(null);
   const playPaperRef = useRef<HTMLDivElement>(null);
 
-  const updateQueueDrawerHeight = useCallback((height: string) => {
-    queueDrawerHeightRef.current = height;
-    if (queuePaperRef.current) {
-      queuePaperRef.current.style.height = height;
-    }
-  }, []);
   const pathname = usePathname();
-  const queueListRef = useRef<QueueListHandle>(null);
-  const queueScrollRef = useRef<HTMLDivElement>(null);
-  const [queueScrollEl, setQueueScrollEl] = useState<HTMLDivElement | null>(null);
 
   // Get logbook data for tick FAB badge
   const { logbook } = useBoardProvider();
-
-  const queueScrollCallbackRef = useCallback((node: HTMLDivElement | null) => {
-    queueScrollRef.current = node;
-    setQueueScrollEl(node);
-  }, []);
 
   // Fine-grained context hooks (only re-render when specific data changes)
   const currentClimbData = useCurrentClimb();
@@ -224,7 +189,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const { viewOnlyMode } = isOpen ? sessionData : deferredSession;
   const {
     mirrorClimb,
-    setQueue,
     getNextClimbQueueItem,
     getPreviousClimbQueueItem,
     setCurrentClimbQueueItem,
@@ -247,163 +211,6 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
 
   // Wake lock when drawer is open
   useWakeLock(isOpen);
-
-  const handleToggleSelect = useCallback((uuid: string) => {
-    setSelectedItems((prev) => {
-      const next = new Set(prev);
-      if (next.has(uuid)) {
-        next.delete(uuid);
-      } else {
-        next.add(uuid);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleBulkRemove = useCallback(() => {
-    setQueue(queue.filter((item) => !selectedItems.has(item.uuid)));
-    setSelectedItems(new Set());
-    setIsEditMode(false);
-  }, [queue, selectedItems, setQueue]);
-
-  const handleExitEditMode = useCallback(() => {
-    setIsEditMode(false);
-    setSelectedItems(new Set());
-  }, []);
-
-  // Drag-to-resize handlers for queue drawer header
-  const dragStartY = useRef<number>(0);
-  const dragStartHeightRef = useRef<string>('60%');
-  const isDragGestureRef = useRef(false);
-
-  const handleQueueDragStart = useCallback((e: React.TouchEvent) => {
-    dragStartY.current = e.touches[0].clientY;
-    dragStartHeightRef.current = queueDrawerHeightRef.current;
-    isDragGestureRef.current = false;
-  }, []);
-
-  const handleQueueDragMove = useCallback((e: React.TouchEvent) => {
-    const delta = Math.abs(e.touches[0].clientY - dragStartY.current);
-    if (delta > 10) {
-      isDragGestureRef.current = true;
-    }
-  }, []);
-
-  const handleQueueDragEnd = useCallback((e: React.TouchEvent) => {
-    if (!isDragGestureRef.current) return;
-
-    const deltaY = e.changedTouches[0].clientY - dragStartY.current;
-    const THRESHOLD = 30;
-
-    if (deltaY < -THRESHOLD) {
-      // Dragged up → expand to 100%
-      updateQueueDrawerHeight('100%');
-    } else if (deltaY > THRESHOLD) {
-      if (dragStartHeightRef.current === '100%') {
-        // Dragged down from 100% → collapse to 60%
-        updateQueueDrawerHeight('60%');
-      } else {
-        // Dragged down from 60% → close drawer
-        setIsQueueOpen(false);
-        handleExitEditMode();
-        setShowHistory(false);
-      }
-    }
-  }, [handleExitEditMode, updateQueueDrawerHeight]);
-
-  // Custom swipe-to-close on queue scroll container.
-  // MUI's swipe-to-close cannot work for nested disablePortal drawers (the
-  // parent always claims the touch first), so we detect the "pull down from
-  // scroll top" gesture ourselves and translate the Paper to follow the finger.
-  const queueSwipeRef = useRef({ startY: 0, isPulling: false, translateY: 0 });
-
-  const handleQueueSwipeStart = useCallback((e: React.TouchEvent) => {
-    queueSwipeRef.current = {
-      startY: e.touches[0].clientY,
-      isPulling: false,
-      translateY: 0,
-    };
-  }, []);
-
-  const handleQueueSwipeMove = useCallback((e: React.TouchEvent) => {
-    const state = queueSwipeRef.current;
-    const scrollEl = queueScrollRef.current;
-    if (!scrollEl) return;
-
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - state.startY;
-
-    // Only start pull-to-close if at scroll top and pulling down
-    if (scrollEl.scrollTop <= 0 && deltaY > 0) {
-      if (!state.isPulling && deltaY > 10) {
-        state.isPulling = true;
-      }
-      if (state.isPulling) {
-        state.translateY = deltaY;
-        if (queuePaperRef.current) {
-          queuePaperRef.current.style.transform = `translateY(${deltaY}px)`;
-          queuePaperRef.current.style.transition = 'none';
-        }
-      }
-    } else if (state.isPulling) {
-      // User reversed direction or scrolled — cancel pull
-      state.isPulling = false;
-      state.translateY = 0;
-      if (queuePaperRef.current) {
-        queuePaperRef.current.style.transform = '';
-        queuePaperRef.current.style.transition = '';
-      }
-    }
-  }, []);
-
-  const handleQueueSwipeEnd = useCallback(() => {
-    const state = queueSwipeRef.current;
-    if (!state.isPulling) {
-      // Reset any lingering transform
-      if (queuePaperRef.current && state.translateY > 0) {
-        queuePaperRef.current.style.transform = '';
-        queuePaperRef.current.style.transition = '';
-      }
-      return;
-    }
-
-    const CLOSE_THRESHOLD = 80;
-    const paper = queuePaperRef.current;
-
-    if (state.translateY > CLOSE_THRESHOLD && paper) {
-      // Animate off-screen then close
-      const targetY = paper.offsetHeight;
-      paper.style.transition = 'transform 200ms cubic-bezier(0.0, 0, 0.2, 1)';
-      paper.style.transform = `translateY(${targetY}px)`;
-      setTimeout(() => {
-        setIsQueueOpen(false);
-        handleExitEditMode();
-        setShowHistory(false);
-        // Don't reset transform — Paper stays off-screen.
-        // MUI's Slide exit starts from off-screen position (invisible).
-        // Cleanup happens when queue drawer re-opens via onTransitionEnd.
-      }, 210);
-    } else if (paper) {
-      // Snap back
-      paper.style.transition = 'transform 200ms cubic-bezier(0.0, 0, 0.2, 1)';
-      paper.style.transform = '';
-      setTimeout(() => {
-        if (paper) {
-          paper.style.transition = '';
-        }
-      }, 210);
-    }
-
-    state.isPulling = false;
-    state.translateY = 0;
-  }, [handleExitEditMode]);
-
-  // Reset drawer height when queue drawer closes
-  useEffect(() => {
-    if (!isQueueOpen) {
-      updateQueueDrawerHeight('60%');
-    }
-  }, [isQueueOpen, updateQueueDrawerHeight]);
 
   // Hash-based back button support
   useEffect(() => {
@@ -496,6 +303,21 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   const handleClosePlaylist = useCallback(() => setIsPlaylistSelectorOpen(false), []);
   const playlistSwipe = useNestedDrawerSwipe(handleClosePlaylist);
 
+  // Queue drawer callbacks
+  const handleCloseQueueDrawer = useCallback(() => {
+    setIsQueueOpen(false);
+  }, []);
+  const handleQueueTransitionEnd = useCallback((open: boolean) => {
+    if (!open && !isQueueOpen) {
+      // Unmount queue tree after close animation completes
+      setQueueMounted(false);
+    }
+  }, [isQueueOpen]);
+  const handleQueueClimbNavigate = useCallback(() => {
+    setIsQueueOpen(false);
+    setActiveDrawer('none');
+  }, [setActiveDrawer]);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openRafRef = useRef<number>(0);
   const hasBeenMountedRef = useRef(false);
@@ -584,7 +406,22 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
   // container through the board's overflow:hidden layers, so we block MUI
   // and handle the close gesture ourselves. When at scroll top and pulling
   // down, the play drawer Paper follows the finger and closes past threshold.
-  const boardSwipeRef = useRef({ startY: 0, pullOriginY: 0, scrollContainer: null as HTMLElement | null, isPulling: false, translateY: 0 });
+  const handleBoardPullClose = useCallback(() => {
+    setDrawerOpen(false);
+    setActiveDrawer('none');
+    if (window.location.hash === '#playing') {
+      window.history.back();
+    }
+  }, [setActiveDrawer]);
+
+  const boardPull = usePullToClose({
+    paperEl: playPaperRef.current,
+    onClose: handleBoardPullClose,
+    deadZone: 60,
+    closeThreshold: 70,
+    trackPullOrigin: true,
+    offsetByDeadZone: true,
+  });
 
   const handleBoardTouchStart = useCallback((e: React.TouchEvent) => {
     (e.nativeEvent as unknown as Record<string, unknown>).defaultMuiPrevented = true;
@@ -592,119 +429,23 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
     // Find nearest scroll container (mobileScrollLayout) by walking up from
     // the touched element, not e.currentTarget (which is drawerContent — the
     // scroll container is a descendant of drawerContent, not an ancestor).
-    let el: HTMLElement | null = e.target as HTMLElement;
-    let scrollContainer: HTMLElement | null = null;
-    while (el) {
-      const style = window.getComputedStyle(el);
-      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-        scrollContainer = el;
-        break;
-      }
-      el = el.parentElement;
-    }
-
+    const scrollContainer = findScrollContainer(e.target as HTMLElement);
     const y = e.touches[0].clientY;
-    boardSwipeRef.current = {
-      startY: y,
-      // pullOriginY tracks where to measure the pull-to-close gesture from.
-      // If already at scroll top, it's the touch start position. Otherwise
-      // it gets set when scrollTop first reaches 0 mid-gesture.
-      pullOriginY: scrollContainer && scrollContainer.scrollTop <= 0 ? y : 0,
-      scrollContainer,
-      isPulling: false,
-      translateY: 0,
-    };
-  }, []);
+    boardPull.onTouchStart(y, scrollContainer);
+
+    // When at scroll top at touch start, set pullOriginY to the touch Y
+    if (scrollContainer && scrollContainer.scrollTop <= 0) {
+      boardPull.stateRef.current.pullOriginY = y;
+    }
+  }, [boardPull]);
 
   const handleBoardTouchMove = useCallback((e: React.TouchEvent) => {
-    const state = boardSwipeRef.current;
-    if (!state.scrollContainer) return;
-
-    // Multi-touch (pinch-to-zoom) or board is zoomed — cancel pull-to-close
-    if (e.touches.length > 1 || isBoardZoomed) {
-      if (state.isPulling) {
-        state.isPulling = false;
-        state.translateY = 0;
-        if (playPaperRef.current) {
-          playPaperRef.current.style.transform = '';
-          playPaperRef.current.style.transition = '';
-        }
-      }
-      return;
-    }
-
-    const currentY = e.touches[0].clientY;
-
-    const atTop = state.scrollContainer.scrollTop <= 0;
-    const movingDown = currentY > state.startY;
-
-    if (atTop && movingDown) {
-      // Record where we first hit scroll top (for gestures that started below fold)
-      if (!state.pullOriginY) {
-        state.pullOriginY = currentY;
-      }
-
-      const pullDelta = currentY - state.pullOriginY;
-      if (!state.isPulling && pullDelta > 60) {
-        state.isPulling = true;
-      }
-      if (state.isPulling) {
-        // Offset by the dead zone so the Paper starts moving from 0
-        const pullDistance = pullDelta - 60;
-        state.translateY = pullDistance;
-        if (playPaperRef.current) {
-          playPaperRef.current.style.transform = `translateY(${pullDistance}px)`;
-          playPaperRef.current.style.transition = 'none';
-        }
-      }
-    } else if (state.isPulling) {
-      state.isPulling = false;
-      state.translateY = 0;
-      if (playPaperRef.current) {
-        playPaperRef.current.style.transform = '';
-        playPaperRef.current.style.transition = '';
-      }
-    }
-  }, [isBoardZoomed]);
+    boardPull.onTouchMove(e.touches[0].clientY, e.touches.length, isBoardZoomed);
+  }, [boardPull, isBoardZoomed]);
 
   const handleBoardTouchEnd = useCallback(() => {
-    const state = boardSwipeRef.current;
-    if (!state.isPulling) {
-      if (playPaperRef.current && state.translateY > 0) {
-        playPaperRef.current.style.transform = '';
-        playPaperRef.current.style.transition = '';
-      }
-      return;
-    }
-
-    const CLOSE_THRESHOLD = 70;
-    const paper = playPaperRef.current;
-
-    if (state.translateY > CLOSE_THRESHOLD && paper) {
-      const targetY = paper.offsetHeight;
-      paper.style.transition = 'transform 200ms cubic-bezier(0.0, 0, 0.2, 1)';
-      paper.style.transform = `translateY(${targetY}px)`;
-      setTimeout(() => {
-        setDrawerOpen(false);
-        setActiveDrawer('none');
-        if (window.location.hash === '#playing') {
-          window.history.back();
-        }
-        // Don't reset transform here — Paper stays off-screen.
-        // MUI's Slide exit starts from the off-screen position (invisible).
-        // Cleanup happens on next open via the isOpen effect.
-      }, 210);
-    } else if (paper) {
-      paper.style.transition = 'transform 200ms cubic-bezier(0.0, 0, 0.2, 1)';
-      paper.style.transform = '';
-      setTimeout(() => {
-        if (paper) paper.style.transition = '';
-      }, 210);
-    }
-
-    state.isPulling = false;
-    state.translateY = 0;
-  }, [setActiveDrawer]);
+    boardPull.onTouchEnd();
+  }, [boardPull]);
 
   const aboveFold = useMemo(() => {
     if (!currentClimb) return null;
@@ -908,125 +649,15 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
       </>) : null}
 
         {/* Queue list drawer — lazy-mounted on first open, unmounted after close animation */}
-        {queueMounted && <SwipeableDrawer
-          placement="bottom"
-          height="60%"
-          paperRef={queuePaperRef}
-          open={isQueueOpen}
-          showCloseButton={false}
-          swipeEnabled={false}
-          showDragHandle={false}
-          disablePortal
-          onClose={() => {
-            setIsQueueOpen(false);
-            handleExitEditMode();
-            setShowHistory(false);
-          }}
-          onTransitionEnd={(open) => {
-            if (open) {
-              // Clear any leftover inline styles from a custom pull-to-close gesture
-              if (queuePaperRef.current) {
-                queuePaperRef.current.style.transform = '';
-                queuePaperRef.current.style.transition = '';
-              }
-              setTimeout(() => {
-                queueListRef.current?.scrollToCurrentClimb();
-              }, 100);
-            } else if (!isQueueOpen) {
-              // Unmount queue tree after close animation completes
-              setQueueMounted(false);
-            }
-          }}
-          styles={QUEUE_DRAWER_STYLES}
-        >
-          {/* Custom drag header — resize only on deliberate drag, not scroll */}
-          <div
-            className={styles.queueDragHeader}
-            data-swipe-blocked=""
-            onTouchStart={handleQueueDragStart}
-            onTouchMove={handleQueueDragMove}
-            onTouchEnd={handleQueueDragEnd}
-          >
-            <div className={drawerStyles.dragHandleZoneHorizontal}>
-              <div className={drawerStyles.dragHandleBarHorizontal} />
-            </div>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: `${themeTokens.spacing[4]}px ${themeTokens.spacing[6]}px`,
-                borderBottom: '1px solid var(--neutral-200)',
-              }}
-            >
-              <Typography variant="h6" component="div" sx={{ fontWeight: themeTokens.typography.fontWeight.semibold, fontSize: themeTokens.typography.fontSize.base }}>
-                Queue
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {queue.length > 0 && !viewOnlyMode && (
-                  isEditMode ? (
-                    <Stack direction="row" spacing={1}>
-                      <MuiButton
-                        variant="text"
-                        startIcon={<DeleteOutlined />}
-                        sx={{ color: 'var(--neutral-400)' }}
-                        onClick={() => {
-                          setQueue([]);
-                          handleExitEditMode();
-                        }}
-                      >
-                        Clear
-                      </MuiButton>
-                      <IconButton onClick={handleExitEditMode}><CloseOutlined /></IconButton>
-                    </Stack>
-                  ) : (
-                    <Stack direction="row" spacing={1}>
-                      <IconButton
-                        color={showHistory ? 'default' : 'default'}
-                        onClick={() => setShowHistory((prev) => !prev)}
-                        sx={showHistory ? { border: '1px solid', borderColor: 'divider' } : undefined}
-                      >
-                        <HistoryOutlined />
-                      </IconButton>
-                      <IconButton onClick={() => setIsEditMode(true)}><EditOutlined /></IconButton>
-                    </Stack>
-                  )
-                )}
-              </Box>
-            </Box>
-          </div>
-          <div className={styles.queueBodyLayout}>
-            <div
-              ref={queueScrollCallbackRef}
-              className={styles.queueScrollContainer}
-              style={{ touchAction: 'pan-y' }}
-              onTouchStart={handleQueueSwipeStart}
-              onTouchMove={handleQueueSwipeMove}
-              onTouchEnd={handleQueueSwipeEnd}
-            >
-              <QueueList
-                ref={queueListRef}
-                boardDetails={boardDetails}
-                onClimbNavigate={() => {
-                  setIsQueueOpen(false);
-                  setActiveDrawer('none');
-                }}
-                isEditMode={isEditMode}
-                showHistory={showHistory}
-                selectedItems={selectedItems}
-                onToggleSelect={handleToggleSelect}
-                scrollContainer={queueScrollEl}
-              />
-            </div>
-            {isEditMode && selectedItems.size > 0 && (
-              <div className={styles.bulkRemoveBar}>
-                <MuiButton variant="contained" color="error" fullWidth onClick={handleBulkRemove}>
-                  Remove {selectedItems.size} {selectedItems.size === 1 ? 'item' : 'items'}
-                </MuiButton>
-              </div>
-            )}
-          </div>
-        </SwipeableDrawer>}
+        {queueMounted && (
+          <QueueDrawer
+            open={isQueueOpen}
+            onClose={handleCloseQueueDrawer}
+            onTransitionEnd={handleQueueTransitionEnd}
+            boardDetails={boardDetails}
+            onClimbNavigate={handleQueueClimbNavigate}
+          />
+        )}
     </SwipeableDrawer>
     </>
   );
