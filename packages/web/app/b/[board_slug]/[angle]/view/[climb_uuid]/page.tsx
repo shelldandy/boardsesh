@@ -1,8 +1,10 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
 import { resolveBoardBySlug, boardToRouteParams } from '@/app/lib/board-slug-utils';
 import { getBoardDetailsForBoard } from '@/app/lib/board-utils';
 import { getClimb } from '@/app/lib/data/queries';
+import { generateClimbMetadata } from '@/app/lib/climb-metadata';
 
 import ClimbDetailPageServer from '@/app/components/climb-detail/climb-detail-page.server';
 import { fetchClimbDetailData } from '@/app/lib/data/climb-detail-data.server';
@@ -10,6 +12,14 @@ import { scheduleOverlayWarming } from '@/app/lib/warm-overlay-cache';
 
 interface BoardSlugViewPageProps {
   params: Promise<{ board_slug: string; angle: string; climb_uuid: string }>;
+}
+
+export async function generateMetadata(props: BoardSlugViewPageProps): Promise<Metadata> {
+  const params = await props.params;
+  return generateClimbMetadata(params, {
+    indexable: true,
+    fallback: { title: 'Climb View | Boardsesh', description: 'View climb details and beta videos' },
+  });
 }
 
 export default async function BoardSlugViewPage(props: BoardSlugViewPageProps) {

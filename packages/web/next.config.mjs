@@ -35,6 +35,11 @@ const nextConfig = {
       '../../node_modules/@boardsesh/board-renderer-wasm/pkg/*.wasm',
       './public/images/**',
     ],
+    '/api/og/climb': [
+      './node_modules/@boardsesh/board-renderer-wasm/pkg/*.wasm',
+      '../../node_modules/@boardsesh/board-renderer-wasm/pkg/*.wasm',
+      './public/images/**',
+    ],
   },
   async headers() {
     return [
