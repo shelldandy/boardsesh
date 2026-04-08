@@ -35,6 +35,12 @@ interface GroupedData {
   labels: string[];
 }
 
+interface LineSeriesOptions {
+  area?: boolean;
+  showMark?: boolean;
+  stack?: string;
+}
+
 function groupByAngleAndMonth(
   rows: ClimbStatsHistoryEntry[],
   valueKey: 'ascensionistCount' | 'qualityAverage',
@@ -85,6 +91,11 @@ function formatMonthLabel(yyyymm: string): string {
   const [year, month] = yyyymm.split('-');
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${monthNames[parseInt(month, 10) - 1]} ${year.slice(2)}`;
+}
+
+function buildTickInterval(labelCount: number) {
+  const labelInterval = Math.max(1, Math.floor(labelCount / 12));
+  return (_value: string, index: number) => index % labelInterval === 0;
 }
 
 interface AngleFilterProps {
@@ -190,21 +201,6 @@ export default function ClimbAnalytics({ climbUuid, boardType }: ClimbAnalyticsP
     return groupByAngleAndMonth(rows, 'qualityAverage');
   }, [rows]);
 
-  const totalAscentsData = useMemo(() => {
-    if (!ascentsData) return null;
-    const { labels } = ascentsData;
-    const totals: number[] = labels.map((month: string) => {
-      let sum = 0;
-      for (const angle of filteredAngles) {
-        const points = ascentsData.byAngle.get(angle);
-        const point = points?.find((p: { date: string; value: number }) => p.date === month);
-        if (point) sum += point.value;
-      }
-      return sum;
-    });
-    return { labels, totals };
-  }, [ascentsData, filteredAngles]);
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -221,7 +217,7 @@ export default function ClimbAnalytics({ climbUuid, boardType }: ClimbAnalyticsP
     );
   }
 
-  function buildLineSeries(grouped: GroupedData) {
+  function buildLineSeries(grouped: GroupedData, options: LineSeriesOptions = {}) {
     return filteredAngles
       .filter((angle: number) => grouped.byAngle.has(angle))
       .map((angle: number) => {
@@ -236,8 +232,10 @@ export default function ClimbAnalytics({ climbUuid, boardType }: ClimbAnalyticsP
           label: `${angle}°`,
           color: getAngleColor(colorIndex),
           curve: 'linear' as const,
-          showMark: true,
+          showMark: options.showMark ?? true,
           connectNulls: true,
+          ...(options.area ? { area: true } : {}),
+          ...(options.stack ? { stack: options.stack } : {}),
         };
       });
   }
@@ -250,11 +248,16 @@ export default function ClimbAnalytics({ climbUuid, boardType }: ClimbAnalyticsP
         <Box>
           <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Ascents Over Time</Typography>
           <LineChart
-            series={buildLineSeries(ascentsData)}
+            series={buildLineSeries(ascentsData, {
+              area: true,
+              showMark: false,
+              stack: 'ascents',
+            })}
             xAxis={[{
               data: ascentsData.labels.map(formatMonthLabel),
               scaleType: 'band' as const,
               tickLabelStyle: { fontSize: 10 },
+              tickInterval: buildTickInterval(ascentsData.labels.length),
             }]}
             yAxis={[{
               label: 'Ascents',
@@ -281,6 +284,7 @@ export default function ClimbAnalytics({ climbUuid, boardType }: ClimbAnalyticsP
               data: qualityData.labels.map(formatMonthLabel),
               scaleType: 'band' as const,
               tickLabelStyle: { fontSize: 10 },
+              tickInterval: buildTickInterval(qualityData.labels.length),
             }]}
             yAxis={[{
               label: 'Rating',
@@ -298,33 +302,6 @@ export default function ClimbAnalytics({ climbUuid, boardType }: ClimbAnalyticsP
         </Box>
       )}
 
-      {totalAscentsData && totalAscentsData.labels.length > 0 && (
-        <Box>
-          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>Total Ascents (All Angles)</Typography>
-          <LineChart
-            series={[{
-              data: totalAscentsData.totals,
-              label: 'Total Ascents',
-              color: themeTokens.colors.primary,
-              area: true,
-              curve: 'linear' as const,
-              showMark: true,
-            }]}
-            xAxis={[{
-              data: totalAscentsData.labels.map(formatMonthLabel),
-              scaleType: 'band' as const,
-              tickLabelStyle: { fontSize: 10 },
-            }]}
-            yAxis={[{
-              label: 'Total Ascents',
-              tickLabelStyle: { fontSize: 10 },
-            }]}
-            height={220}
-            margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-            hideLegend
-          />
-        </Box>
-      )}
     </Box>
   );
 }
