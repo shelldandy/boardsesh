@@ -98,17 +98,31 @@ export class CanvasImageProcessor implements ImageProcessor {
       region.height
     );
 
-    // Convert to grayscale in-place for better OCR
+    // Convert to grayscale and normalize for better OCR
+    // (matches Sharp's .grayscale().normalize() preprocessing)
     const data = imageData.data;
+
+    // First pass: convert to grayscale and find min/max for normalization
+    let min = 255;
+    let max = 0;
     for (let i = 0; i < data.length; i += 4) {
-      // Standard grayscale conversion weights
       const gray = Math.round(
         0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
       );
-      data[i] = gray; // R
-      data[i + 1] = gray; // G
-      data[i + 2] = gray; // B
-      // Alpha (data[i + 3]) stays unchanged
+      data[i] = gray;
+      data[i + 1] = gray;
+      data[i + 2] = gray;
+      if (gray < min) min = gray;
+      if (gray > max) max = gray;
+    }
+
+    // Second pass: normalize to full 0-255 range
+    const range = max - min || 1;
+    for (let i = 0; i < data.length; i += 4) {
+      const normalized = Math.round(((data[i] - min) / range) * 255);
+      data[i] = normalized;
+      data[i + 1] = normalized;
+      data[i + 2] = normalized;
     }
 
     return imageData;
