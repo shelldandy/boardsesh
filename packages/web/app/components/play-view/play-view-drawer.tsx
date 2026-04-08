@@ -42,6 +42,7 @@ import drawerStyles from '../swipeable-drawer/swipeable-drawer.module.css';
 import ClimbDetailShellClient from '@/app/components/climb-detail/climb-detail-shell.client';
 import { useBuildClimbDetailSections } from '@/app/components/climb-detail/build-climb-detail-sections';
 import { renderBoard } from '@/app/lib/board-render-worker/worker-manager';
+import { useNestedDrawerSwipe } from '@/app/lib/hooks/use-nested-drawer-swipe';
 
 
 
@@ -489,6 +490,12 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
 
   const isMirrored = !!currentClimb?.mirrored;
 
+  // Custom swipe-to-close for nested disablePortal drawers (actions + playlist)
+  const handleCloseActions = useCallback(() => setIsActionsOpen(false), []);
+  const actionsSwipe = useNestedDrawerSwipe(handleCloseActions);
+  const handleClosePlaylist = useCallback(() => setIsPlaylistSelectorOpen(false), []);
+  const playlistSwipe = useNestedDrawerSwipe(handleClosePlaylist);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openRafRef = useRef<number>(0);
   const hasBeenMountedRef = useRef(false);
@@ -839,7 +846,9 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
             open={isActionsOpen}
-            onClose={() => setIsActionsOpen(false)}
+            onClose={handleCloseActions}
+            paperRef={actionsSwipe.paperRef}
+            swipeEnabled={false}
             disablePortal
             styles={{
               wrapper: { height: 'auto' },
@@ -847,18 +856,20 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
               header: { paddingLeft: `${themeTokens.spacing[3]}px`, paddingRight: `${themeTokens.spacing[3]}px` },
             }}
           >
-            <ClimbActions
-              climb={currentClimb}
-              boardDetails={boardDetails}
-              angle={currentAngle}
-              currentPathname={pathname}
-              viewMode="list"
-              onOpenPlaylistSelector={() => {
-                setIsActionsOpen(false);
-                setIsPlaylistSelectorOpen(true);
-              }}
-              onActionComplete={() => setIsActionsOpen(false)}
-            />
+            <div onTouchStart={actionsSwipe.handleTouchStart} onTouchMove={actionsSwipe.handleTouchMove} onTouchEnd={actionsSwipe.handleTouchEnd}>
+              <ClimbActions
+                climb={currentClimb}
+                boardDetails={boardDetails}
+                angle={currentAngle}
+                currentPathname={pathname}
+                viewMode="list"
+                onOpenPlaylistSelector={() => {
+                  setIsActionsOpen(false);
+                  setIsPlaylistSelectorOpen(true);
+                }}
+                onActionComplete={handleCloseActions}
+              />
+            </div>
           </SwipeableDrawer>
         )}
 
@@ -868,7 +879,9 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
             title={<DrawerClimbHeader climb={currentClimb} boardDetails={boardDetails} />}
             placement="bottom"
             open={isPlaylistSelectorOpen}
-            onClose={() => setIsPlaylistSelectorOpen(false)}
+            onClose={handleClosePlaylist}
+            paperRef={playlistSwipe.paperRef}
+            swipeEnabled={false}
             disablePortal
             styles={{
               wrapper: { height: 'auto', maxHeight: '70vh' },
@@ -876,12 +889,14 @@ const PlayViewDrawer: React.FC<PlayViewDrawerProps> = ({
               header: { paddingLeft: `${themeTokens.spacing[3]}px`, paddingRight: `${themeTokens.spacing[3]}px` },
             }}
           >
-            <PlaylistSelectionContent
-              climbUuid={currentClimb.uuid}
-              boardDetails={boardDetails}
-              angle={currentAngle}
-              onDone={() => setIsPlaylistSelectorOpen(false)}
-            />
+            <div onTouchStart={playlistSwipe.handleTouchStart} onTouchMove={playlistSwipe.handleTouchMove} onTouchEnd={playlistSwipe.handleTouchEnd}>
+              <PlaylistSelectionContent
+                climbUuid={currentClimb.uuid}
+                boardDetails={boardDetails}
+                angle={currentAngle}
+                onDone={handleClosePlaylist}
+              />
+            </div>
           </SwipeableDrawer>
         )}
 
