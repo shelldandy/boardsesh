@@ -38,6 +38,9 @@ export default function MoonBoardImportCard({
   onRemove,
 }: MoonBoardImportCardProps) {
   const totalHolds = climb.holds.start.length + climb.holds.hand.length + climb.holds.finish.length;
+  const duplicateMessage = duplicateMatch?.existingClimbName
+    ? `Skipping: Already Exists as "${duplicateMatch.existingClimbName}"`
+    : 'Skipping: Already Exists';
 
   return (
     <MuiCard className={styles.card}>
@@ -54,7 +57,12 @@ export default function MoonBoardImportCard({
             {climb.name || 'Unnamed Climb'}
           </Typography>
           {duplicateMatch?.exists && (
-            <Chip label="Duplicate" size="small" color="warning" className={styles.duplicateTag} />
+            <Chip
+              label="Skipping"
+              size="small"
+              className={styles.duplicateTag}
+              sx={{ bgcolor: themeTokens.colors.amber, color: 'var(--neutral-900)', fontWeight: 700 }}
+            />
           )}
           {climb.isBenchmark && (
             <Chip label="B" size="small" sx={{ bgcolor: themeTokens.colors.amber, color: 'var(--neutral-900)' }} className={styles.benchmarkTag} />
@@ -70,10 +78,8 @@ export default function MoonBoardImportCard({
             <Chip label={`${totalHolds} holds`} size="small" />
           </Stack>
           {duplicateMatch?.exists && (
-            <Typography variant="body2" component="p" color="warning.main" className={styles.duplicateText}>
-              {duplicateMatch.existingClimbName
-                ? `Already exists as "${duplicateMatch.existingClimbName}".`
-                : 'Already exists and will be skipped.'}
+            <Typography variant="body2" component="p" className={styles.duplicateText}>
+              {duplicateMessage}
             </Typography>
           )}
         </div>

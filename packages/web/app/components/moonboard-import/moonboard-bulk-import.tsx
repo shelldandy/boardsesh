@@ -37,6 +37,7 @@ import {
   type SaveMoonBoardClimbMutationResponse,
 } from '@/app/lib/graphql/operations/new-climb-feed';
 import { refreshClimbSearchAfterSave } from '@/app/lib/climb-search-cache';
+import { themeTokens } from '@/app/theme/theme-config';
 import styles from './moonboard-bulk-import.module.css';
 
 interface MoonBoardBulkImportProps {
@@ -76,6 +77,25 @@ const initialState: ImportState = {
   errors: [],
   editingClimb: null,
 };
+
+const warningAlertSx = {
+  borderRadius: 0,
+  bgcolor: themeTokens.colors.amber,
+  color: themeTokens.neutral[900],
+  '& .MuiAlert-icon': {
+    color: themeTokens.neutral[900],
+  },
+  '& .MuiAlert-message': {
+    color: themeTokens.neutral[900],
+  },
+  '& .MuiAlertTitle-root': {
+    color: themeTokens.neutral[900],
+    fontWeight: 700,
+  },
+  '& strong': {
+    color: themeTokens.neutral[900],
+  },
+} as const;
 
 function importReducer(state: ImportState, action: ImportAction): ImportState {
   switch (action.type) {
@@ -220,20 +240,7 @@ export default function MoonBoardBulkImport({
     void runDuplicateCheck(state.climbs);
   }, [runDuplicateCheck, state.climbs, state.status]);
 
-  const duplicateWarnings: ImportWarning[] = state.climbs
-    .map((climb) => {
-      const duplicate = duplicateMatches[climb.sourceFile];
-      if (!duplicate?.exists) return null;
-
-      return {
-        name: climb.sourceFile,
-        error: duplicate.existingClimbName
-          ? `Already exists as "${duplicate.existingClimbName}". It will be skipped unless you edit the holds.`
-          : 'Already exists. It will be skipped unless you edit the holds.',
-      };
-    })
-    .filter((warning): warning is ImportWarning => warning !== null);
-
+  const duplicateCount = state.climbs.filter((climb) => duplicateMatches[climb.sourceFile]?.exists).length;
   const readyToImportClimbs = state.climbs.filter((climb) => !duplicateMatches[climb.sourceFile]?.exists);
 
   const handleFilesUpload = useCallback(
@@ -403,7 +410,7 @@ export default function MoonBoardBulkImport({
       </div>
 
       {!session?.user && (
-        <MuiAlert severity="warning" variant="filled" sx={{ borderRadius: 0 }} className={styles.warningAlert}>
+        <MuiAlert severity="warning" variant="filled" sx={warningAlertSx} className={styles.warningAlert}>
           <AlertTitle>Login Required</AlertTitle>
           Please log in to save climbs to the database.{' '}
           <Link href="/api/auth/signin">
@@ -476,25 +483,12 @@ export default function MoonBoardBulkImport({
         <>
           {/* Errors */}
           {state.errors.length > 0 && (
-            <MuiAlert severity="warning" className={styles.errorAlert}>
+            <MuiAlert severity="warning" variant="filled" sx={warningAlertSx} className={styles.errorAlert}>
               <AlertTitle>{`${state.errors.length} Warning(s)`}</AlertTitle>
               <ul className={styles.errorList}>
                 {state.errors.map((err, i) => (
                   <li key={i}>
                     <strong>{err.name}:</strong> {err.error}
-                  </li>
-                ))}
-              </ul>
-            </MuiAlert>
-          )}
-
-          {duplicateWarnings.length > 0 && (
-            <MuiAlert severity="warning" className={styles.errorAlert}>
-              <AlertTitle>{`${duplicateWarnings.length} Duplicate Climb(s)`}</AlertTitle>
-              <ul className={styles.errorList}>
-                {duplicateWarnings.map((warning, i) => (
-                  <li key={i}>
-                    <strong>{warning.name}:</strong> {warning.error}
                   </li>
                 ))}
               </ul>
@@ -563,9 +557,9 @@ export default function MoonBoardBulkImport({
           ) : (
             <ResultPage
               status="warning"
-              title={duplicateWarnings.length > 0 ? 'All imported climbs already exist' : 'No climbs could be imported'}
+              title={duplicateCount > 0 ? 'All imported climbs already exist' : 'No climbs could be imported'}
               subTitle={
-                duplicateWarnings.length > 0
+                duplicateCount > 0
                   ? 'Edit the duplicate climbs to change their hold selections, or try different screenshots.'
                   : 'Please check the errors above and try again with different screenshots.'
               }

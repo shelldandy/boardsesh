@@ -45,4 +45,10 @@
 
 .duplicateText {
   margin: 0 !important;
+  color: var(--neutral-900);
+  background: #fff4d6;
+  border-left: 4px solid var(--color-warning);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-weight: 600 !important;
 }

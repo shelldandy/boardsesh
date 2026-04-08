@@ -47,7 +47,7 @@ vi.mock('../moonboard-import-card', () => ({
   default: ({ climb, duplicateMatch }: { climb: { name: string }; duplicateMatch: { exists?: boolean; existingClimbName?: string | null } | null }) => (
     <div>
       <div>{climb.name}</div>
-      {duplicateMatch?.exists && <div>{`Already exists as "${duplicateMatch.existingClimbName}"`}</div>}
+      {duplicateMatch?.exists && <div>{`Skipping: Already Exists as "${duplicateMatch.existingClimbName}"`}</div>}
     </div>
   ),
 }));
@@ -108,7 +108,7 @@ describe('MoonBoardBulkImport', () => {
     });
   });
 
-  it('warns about duplicates before save and excludes them from Save All', async () => {
+  it('marks duplicates on the card and excludes them from Save All', async () => {
     const { container } = renderComponent();
 
     const input = container.querySelector('input[type="file"]');
@@ -121,10 +121,10 @@ describe('MoonBoardBulkImport', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('1 Duplicate Climb(s)')).toBeTruthy();
+      expect(screen.getByText('Skipping: Already Exists as "Existing Problem"')).toBeTruthy();
     });
 
-    expect(screen.getAllByText(/Already exists as "Existing Problem"/)).toHaveLength(2);
+    expect(screen.queryByText('1 Duplicate Climb(s)')).toBeNull();
     expect(screen.getByRole('button', { name: 'Save All (0)' }).hasAttribute('disabled')).toBe(true);
   });
 });
