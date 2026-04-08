@@ -15,6 +15,7 @@ const CLIMB_FIELDS = `
   difficulty_error
   mirrored
   benchmark_difficulty
+  is_no_match
 `;
 
 const QUEUE_ITEM_USER_FIELDS = `

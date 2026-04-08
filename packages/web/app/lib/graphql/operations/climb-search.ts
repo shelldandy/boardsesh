@@ -15,6 +15,7 @@ const CLIMB_SEARCH_FIELDS = `
   difficulty_error
   benchmark_difficulty
   is_draft
+  is_no_match
 `;
 
 // Full fragment for single-climb views that need all fields

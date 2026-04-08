@@ -18,7 +18,6 @@ import { getGradeTintColor } from '@/app/lib/grade-colors';
 import { useColorMode } from '@/app/hooks/use-color-mode';
 import { getExcludedClimbActions } from '@/app/lib/climb-action-utils';
 import { useIsClimbSelected } from '../board-page/selected-climb-store';
-import { isNoMatchClimb } from '@/app/lib/no-match-climb';
 
 type ClimbCardProps = {
   climb?: Climb;
@@ -93,7 +92,7 @@ function ClimbCardWithActions({
       preferImageLayers={preferImageLayers}
     />
   );
-  const cardTitle = <ClimbTitle climb={climb} layout="horizontal" showSetterInfo isNoMatch={isNoMatchClimb(climb.frames, boardDetails.board_name)} />;
+  const cardTitle = <ClimbTitle climb={climb} layout="horizontal" showSetterInfo isNoMatch={!!climb.is_no_match} />;
 
   const excludeActions = getExcludedClimbActions(boardDetails.board_name, 'card');
 
@@ -163,7 +162,7 @@ const ClimbCardStatic = React.memo(
         preferImageLayers={preferImageLayers}
       />
     );
-    const cardTitle = climb ? <ClimbTitle climb={climb} layout="horizontal" showSetterInfo isNoMatch={isNoMatchClimb(climb.frames, boardDetails.board_name)} /> : 'Loading...';
+    const cardTitle = climb ? <ClimbTitle climb={climb} layout="horizontal" showSetterInfo isNoMatch={!!climb.is_no_match} /> : 'Loading...';
 
     return (
       <div data-testid="climb-card">

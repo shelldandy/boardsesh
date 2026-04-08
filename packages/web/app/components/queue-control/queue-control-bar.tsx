@@ -35,7 +35,6 @@ import { getGradeTintColor } from '@/app/lib/grade-colors';
 import { useColorMode } from '@/app/hooks/use-color-mode';
 import { ConfirmPopover } from '@/app/components/ui/confirm-popover';
 import { useSnackbar } from '@/app/components/providers/snackbar-provider';
-import { isNoMatchClimb } from '@/app/lib/no-match-climb';
 import styles from './queue-control-bar.module.css';
 
 export type ActiveDrawer = 'none' | 'play' | 'queue';
@@ -485,7 +484,7 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
                         climb={currentClimb}
                         gradePosition="right"
                         showSetterInfo
-                        isNoMatch={isNoMatchClimb(currentClimb?.frames, boardDetails.board_name)}
+                        isNoMatch={!!currentClimb?.is_no_match}
                       />
                     </div>
 
@@ -502,7 +501,7 @@ const QueueControlBar: React.FC<QueueControlBarProps> = ({ boardDetails, angle }
                           climb={peekClimbData}
                           gradePosition="right"
                           showSetterInfo
-                          isNoMatch={isNoMatchClimb(peekClimbData?.frames, boardDetails.board_name)}
+                          isNoMatch={!!peekClimbData?.is_no_match}
                         />
                       </div>
                     )}

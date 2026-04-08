@@ -40,6 +40,8 @@ export const climbTypeDefs = /* GraphQL */ `
     userAttempts: Int
     "Board type this climb belongs to (e.g. 'kilter', 'tension'). Populated in multi-board contexts."
     boardType: String
+    "Whether this climb disallows matching (both hands on the same hold)"
+    is_no_match: Boolean
   }
 
   """
@@ -59,6 +61,7 @@ export const climbTypeDefs = /* GraphQL */ `
     difficulty_error: String!
     mirrored: Boolean
     benchmark_difficulty: String
+    is_no_match: Boolean
     userAscents: Int
     userAttempts: Int
   }

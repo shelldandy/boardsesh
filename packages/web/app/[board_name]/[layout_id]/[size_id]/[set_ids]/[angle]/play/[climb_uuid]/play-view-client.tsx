@@ -8,7 +8,6 @@ import { Climb, BoardDetails, Angle } from '@/app/lib/types';
 import { useQueueActions, useCurrentClimb, useQueueList } from '@/app/components/graphql-queue';
 import SwipeBoardCarousel from '@/app/components/board-renderer/swipe-board-carousel';
 import ClimbTitle from '@/app/components/climb-card/climb-title';
-import { isNoMatchClimb } from '@/app/lib/no-match-climb';
 import { AscentStatus } from '@/app/components/climb-card/ascent-status';
 import { constructClimbListWithSlugs, constructPlayUrlWithSlugs, extractUuidFromSlug } from '@/app/lib/url-utils';
 import { themeTokens } from '@/app/theme/theme-config';
@@ -168,7 +167,7 @@ const PlayViewClient: React.FC<PlayViewClientProps> = ({ boardDetails, initialCl
             showSetterInfo
             titleFontSize={themeTokens.typography.fontSize['2xl']}
             rightAddon={displayClimb && <AscentStatus climbUuid={displayClimb.uuid} fontSize={themeTokens.typography.fontSize['2xl']} />}
-            isNoMatch={isNoMatchClimb(displayClimb?.frames, boardDetails.board_name)}
+            isNoMatch={!!displayClimb?.is_no_match}
           />
         </div>
         <SwipeBoardCarousel

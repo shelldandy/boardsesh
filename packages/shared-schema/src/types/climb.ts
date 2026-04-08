@@ -23,6 +23,7 @@ export type Climb = {
   userAscents?: number | null; // GraphQL nullable Int
   userAttempts?: number | null; // GraphQL nullable Int
   boardType?: string; // Populated in multi-board contexts
+  is_no_match?: boolean | null; // Whether matching is disallowed
 };
 
 // Input type for Climb (matches GraphQL ClimbInput)
@@ -40,6 +41,7 @@ export type ClimbInput = {
   difficulty_error: string;
   mirrored?: boolean | null;
   benchmark_difficulty?: string | null;
+  is_no_match?: boolean | null;
   userAscents?: number | null;
   userAttempts?: number | null;
 };
