@@ -7,7 +7,7 @@ import CopyrightOutlined from '@mui/icons-material/CopyrightOutlined';
 import { themeTokens } from '@/app/theme/theme-config';
 import { getSoftVGradeColor, formatVGrade } from '@/app/lib/grade-colors';
 import { useIsDarkMode } from '@/app/hooks/use-is-dark-mode';
-import { formatAscents, formatQuality } from '@/app/lib/format-climb-stats';
+import { formatSends, formatQuality } from '@/app/lib/format-climb-stats';
 
 export type ClimbTitleData = {
   name?: string;
@@ -257,7 +257,7 @@ const ClimbTitle: React.FC<ClimbTitleProps> = React.memo(({
 
   const setterText = climb.is_draft
     ? `Draft by ${climb.setter_username}`
-    : `By ${climb.setter_username}${climb.ascensionist_count ? ` - ${formatAscents(climb.ascensionist_count)} ascent${climb.ascensionist_count === 1 ? '' : 's'}` : ''}`;
+    : `By ${climb.setter_username}${climb.ascensionist_count ? ` - ${formatSends(climb.ascensionist_count)}` : ''}`;
 
   const setterElement = showSetterInfo && climb.setter_username && (
     <Typography variant="body2" component="span" color="text.secondary" sx={setterSx}>
@@ -271,7 +271,7 @@ const ClimbTitle: React.FC<ClimbTitleProps> = React.memo(({
       subtitleParts.push('Draft');
     }
     if (!climb.is_draft && climb.ascensionist_count) {
-      subtitleParts.push(`${formatAscents(climb.ascensionist_count)} ascent${climb.ascensionist_count === 1 ? '' : 's'}`);
+      subtitleParts.push(formatSends(climb.ascensionist_count));
     }
     if (hasGrade) {
       subtitleParts.push(`${formatQuality(climb.quality_average!)}\u2605`);
@@ -328,7 +328,7 @@ const ClimbTitle: React.FC<ClimbTitleProps> = React.memo(({
       secondLineContent.push(`${climb.setter_username}`);
     }
     if (!climb.is_draft && climb.ascensionist_count) {
-      secondLineContent.push(`${formatAscents(climb.ascensionist_count)} ascent${climb.ascensionist_count === 1 ? '' : 's'}`);
+      secondLineContent.push(formatSends(climb.ascensionist_count));
     }
 
     return (
